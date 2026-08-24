@@ -1,0 +1,47 @@
+# Create root files
+New-Item -ItemType File -Force -Path ".env", "package.json"
+
+# Create apps and subdirectories
+New-Item -ItemType Directory -Force -Path `
+    "apps/chrome-extension/src/background", `
+    "apps/chrome-extension/src/content", `
+    "apps/chrome-extension/src/popup", `
+    "apps/chrome-extension/src/sidepanel", `
+    "apps/chrome-extension/src/overlay", `
+    "apps/chrome-extension/src/chrome", `
+    "apps/chrome-extension/src/manifest", `
+    "apps/chrome-extension/public", `
+    "apps/authoring-studio"
+
+# Create chrome-extension files
+New-Item -ItemType File -Force -Path `
+    "apps/chrome-extension/manifest.json", `
+    "apps/chrome-extension/package.json", `
+    "apps/chrome-extension/.env"
+
+# Create packages subdirectories
+New-Item -ItemType Directory -Force -Path `
+    "packages/engine/src/parser", `
+    "packages/engine/src/state-machine", `
+    "packages/engine/src/resolver", `
+    "packages/engine/src/actions", `
+    "packages/engine/src/validation", `
+    "packages/engine/src/runtime", `
+    "packages/core-types", `
+    "packages/adapter-interface", `
+    "packages/chrome-adapter", `
+    "packages/tutorial-ui", `
+    "packages/tutorial-schema"
+
+# Create package files
+New-Item -ItemType File -Force -Path `
+    "packages/engine/src/index.ts", `
+    "packages/engine/package.json", `
+    "packages/engine/.env"
+
+# Create remaining folders
+New-Item -ItemType Directory -Force -Path `
+    "tutorials/examples/github", `
+    "tutorials/examples/simple", `
+    "docs", `
+    "tests"

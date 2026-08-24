@@ -1,0 +1,119 @@
+# ==============================================================================
+# SENSITIVE DATA & CREDENTIALS (NEVER COMMIT!)
+# ==============================================================================
+# Environment files (Root & Workspace Packages)
+.env
+.env.*
+!.env.example
+!.env.template
+
+# API Keys, Secrets & Cloud Credentials
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+*.asc
+aws-credentials.json
+gcp-key.json
+firebase-adminsdk*.json
+service-account*.json
+
+# Session Data & OAuth Tokens
+.oauth-tokens/
+*.token
+tokens.json
+
+# ==============================================================================
+# DEPENDENCIES & PACKAGE MANAGERS
+# ==============================================================================
+node_modules/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Logs & Debug Output
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# ==============================================================================
+# BUILD OUTPUTS & BUNDLERS
+# ==============================================================================
+dist/
+build/
+out/
+.output/
+.next/
+.nuxt/
+.vite/
+.turbo/
+.cache/
+
+# Chrome Extension Specific Bundle Builds
+apps/chrome-extension/dist/
+apps/chrome-extension/build/
+*.crx
+*.zip
+
+# ==============================================================================
+# LOCAL DATABASE & LLM ARTIFACTS
+# ==============================================================================
+# Local Vector Databases & Cache
+.qdrant/
+.pinecone/
+chroma_db/
+vector_store/
+*.sqlite
+*.sqlite3
+*.db
+
+# Local Model Weights & Downloads
+models/
+*.bin
+*.onnx
+*.safetensors
+*.gguf
+
+# ==============================================================================
+# TESTING, COVERAGE & CI ARTIFACTS
+# ==============================================================================
+coverage/
+.nyc_output/
+.playwright/
+test-results/
+cypress/videos/
+cypress/screenshots/
+
+# ==============================================================================
+# IDE & SYSTEM FILES
+# ==============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Windows
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump
+
+# VS Code & JetBrains
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
