@@ -1,0 +1,228 @@
+{
+  "id": "guideme-spreadsheet-demo",
+  "version": "2.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "GuideMe - ការបញ្ចូលតារាងទិន្នន័យ",
+    "en": "GuideMe - Spreadsheet Data Insertion"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបញ្ចូលគំនូសតាង (Chart) និងទិន្នន័យក្នុង Spreadsheet មួយជំហានម្តងៗ។",
+    "en": "Learn how to insert charts, data tables, and media in spreadsheets step-by-step."
+  },
+  "matchUrls": [
+    "*://*/*Spreadsheet_Demo*",
+    "*://*/*spreadsheet*",
+    "*://*/*excel*",
+    "*://*/*demo*"
+  ],
+  "steps": [
+    {
+      "id": "step_click_insert",
+      "title": {
+        "km": "ម៉ឺនុយ Insert",
+        "en": "Insert Menu"
+      },
+      "description": {
+        "km": "ចុចលើពាក្យ Insert ដើម្បីបញ្ចូលរូបភាព ឬតារាងទិន្នន័យ",
+        "en": "Click the Insert tab on the top menu to open data chart and media tools."
+      },
+      "target": {
+        "css": "#insert-tab, button[aria-label*='Insert'], div[role='tab']:contains('Insert'), #demo-insert-btn, #Insert, .tab-insert",
+        "text": "Insert",
+        "ariaLabel": "Insert"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ម៉ឺនុយ Insert",
+          "en": "Insert Menu"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "សូមចុចលើពាក្យ Insert នៅលើរបារខាងលើ ដើម្បីបញ្ចូលរូបភាព ឬតារាងទិន្នន័យរបស់អ្នក។",
+          "en": "Click the 'Insert' tab on the top menu to add your data chart or picture."
+        },
+        "subtitle": {
+          "km": "Click the 'Insert' tab on the top menu",
+          "en": "Open insert tools"
+        },
+        "actionText": {
+          "km": "ចុចទីនេះ",
+          "en": "CLICK HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "សូមចុចលើពាក្យ Insert នៅលើរបារខាងលើ ដើម្បីបញ្ចូលរូបភាព ឬតារាងទិន្នន័យរបស់អ្នក។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Insert tab on the top menu to add your data chart or picture.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_select_chart",
+      "title": {
+        "km": "ជ្រើសរើសប្រភេទគំនូសតាង (Chart)",
+        "en": "Select Chart Type"
+      },
+      "description": {
+        "km": "ជ្រើសរើសប្រភេទគំនូសតាងសម្រាប់បង្ហាញទិន្នន័យ",
+        "en": "Choose a chart format to visualize your numbers."
+      },
+      "target": {
+        "css": "#chart-options, button[aria-label*='Chart'], #demo-chart-btn, .chart-tool",
+        "text": "Chart",
+        "ariaLabel": "Charts"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើសរើសគំនូសតាង (Chart)",
+          "en": "Select Chart"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "ជ្រើសរើសប្រភេទគំនូសតាង (Chart) ដែលសមស្របសម្រាប់ទិន្នន័យរបស់អ្នក។",
+          "en": "Select the chart type suitable for your spreadsheet data."
+        },
+        "subtitle": {
+          "km": "Select chart type for your data",
+          "en": "Choose visualization format"
+        },
+        "actionText": {
+          "km": "ចុចទីនេះ",
+          "en": "CLICK HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើសរើសប្រភេទគំនូសតាងដែលសមស្របសម្រាប់ទិន្នន័យរបស់អ្នក។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select the chart type suitable for your spreadsheet data.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_customize_style",
+      "title": {
+        "km": "កែសម្រួលរចនាបថ (Format)",
+        "en": "Customize Design"
+      },
+      "description": {
+        "km": "កែសម្រួលពណ៌ និងទ្រង់ទ្រាយតារាង",
+        "en": "Apply color themes and format styles."
+      },
+      "target": {
+        "css": "#format-panel, #demo-format-btn, [aria-label*='Format'], .format-button",
+        "text": "Format"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "កែសម្រួលទ្រង់ទ្រាយ",
+          "en": "Customize Styling"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "កែសម្រួលពណ៌ និងទ្រង់ទ្រាយតារាងរបស់អ្នកឱ្យមានភាពស្រស់ស្អាត និងច្បាស់លាស់។",
+          "en": "Customize colors and styling for professional data presentation."
+        },
+        "subtitle": {
+          "km": "Customize formatting and colors",
+          "en": "Adjust appearance"
+        },
+        "actionText": {
+          "km": "ចុចទីនេះ",
+          "en": "CLICK HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "កែសម្រួលពណ៌ និងទ្រង់ទ្រាយតារាងរបស់អ្នកឱ្យមានភាពស្រស់ស្អាត។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Customize colors and styling for professional data presentation.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "រួចរាល់!",
+        "en": "All Set!"
+      },
+      "description": {
+        "km": "អ្នកបានចេះប្រើប្រាស់មុខងារបញ្ចូលទិន្នន័យរួចរាល់",
+        "en": "You've mastered inserting charts in spreadsheets."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "មេរៀនត្រូវបានបញ្ចប់!",
+          "en": "Walkthrough Complete!"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "អបអរសាទរ! អ្នកបានចេះប្រើប្រាស់មុខងារបញ្ចូលទិន្នន័យក្នុង Spreadsheet រួចរាល់ហើយ។",
+          "en": "Congratulations! You have completed the spreadsheet tutorial successfully."
+        },
+        "subtitle": {
+          "km": "Completed tutorial",
+          "en": "Well done!"
+        },
+        "placement": "center"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "អបអរសាទរ! អ្នកបានចេះប្រើប្រាស់មុខងារបញ្ចូលទិន្នន័យរួចរាល់ហើយ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Congratulations! You have completed the spreadsheet tutorial successfully.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

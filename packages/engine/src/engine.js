@@ -1,4 +1,4 @@
-import { EngineStatus, EngineEvent } from '@guideme/core-types';
+import { EngineStatus, EngineEvent, Language } from '@guideme/core-types';
 import { StateMachine } from './state-machine/state-machine.js';
 import { TutorialParser } from './parser/parser.js';
 import { StepResolver } from './resolver/step-resolver.js';
@@ -7,21 +7,27 @@ import { ActionEngine } from './actions/action-engine.js';
 import { EventBus } from './runtime/event-bus.js';
 import { VariableStore } from './runtime/variable-store.js';
 import { SessionManager } from './runtime/session-manager.js';
+import { I18nManager } from './i18n/i18n-manager.js';
+import { AudioEngine } from './audio/audio-engine.js';
 
 /**
- * Universal Headless Tutorial Engine.
- * Drives all tutorial state, step progression, validation, and lifecycle without UI coupling.
+ * Universal Headless Tutorial Engine with Dual-Language (Khmer/English) and Voice Guidance.
+ * Drives all tutorial state, step progression, validation, audio triggers, and lifecycle.
  */
 export class TutorialEngine {
   /**
    * @param {Object} options
    * @param {import('@guideme/adapter-interface').BaseTutorialAdapter} options.adapter
+   * @param {string} [options.initialLanguage='km']
+   * @param {import('./audio/audio-engine.js').BaseTtsProvider} [options.ttsProvider]
    */
-  constructor({ adapter }) {
+  constructor({ adapter, initialLanguage = Language.KM, ttsProvider = null }) {
     this.adapter = adapter;
     this.events = new EventBus();
     this.variables = new VariableStore();
     this.session = new SessionManager(adapter);
+    this.i18n = new I18nManager({ initialLanguage });
+    this.audio = new AudioEngine({ ttsProvider });
 
     this.stateMachine = new StateMachine((from, to, ctx) => {
       this._emitStateChange(from, to, ctx);
@@ -35,6 +41,20 @@ export class TutorialEngine {
 
     this._activeValidationCleanup = null;
     this._activePositionCleanup = null;
+
+    // Synchronize language change with engine subscribers & trigger audio update
+    this.i18n.onLanguageChange((newLang) => {
+      this.events.emit(EngineEvent.LANGUAGE_CHANGE, { language: newLang });
+      if (this.currentStep) {
+        this.playVoicePrompt(this.currentStep, newLang);
+      }
+      this._notifyState();
+    });
+
+    // Notify state on audio playback changes so UI equalizer responds instantly
+    this.audio.onStatusChange((status) => {
+      this._notifyState();
+    });
   }
 
   /**
@@ -43,7 +63,6 @@ export class TutorialEngine {
    * @returns {() => void} Unsubscribe function
    */
   subscribe(listener) {
-    // Send immediate initial state
     listener(this.getStateSnapshot());
     return this.events.on(EngineEvent.STATE_CHANGE, () => {
       listener(this.getStateSnapshot());
@@ -51,10 +70,62 @@ export class TutorialEngine {
   }
 
   /**
-   * Initialize engine and verify adapter presence.
+   * Initialize engine.
    */
   init() {
     this.stateMachine.reset();
+  }
+
+  /**
+   * Set active language ('km' or 'en').
+   * @param {string} lang
+   */
+  setLanguage(lang) {
+    return this.i18n.setLanguage(lang);
+  }
+
+  /**
+   * Get active language code.
+   * @returns {string}
+   */
+  getLanguage() {
+    return this.i18n.getLanguage();
+  }
+
+  /**
+   * Toggle between Khmer and English.
+   * @returns {string} New language
+   */
+  toggleLanguage() {
+    return this.i18n.toggleLanguage();
+  }
+
+  /**
+   * Get Audio Engine instance.
+   * @returns {AudioEngine}
+   */
+  getAudioEngine() {
+    return this.audio;
+  }
+
+  /**
+   * Get I18n Manager instance.
+   * @returns {I18nManager}
+   */
+  getI18nManager() {
+    return this.i18n;
+  }
+
+  /**
+   * Play voice narration for a given step in the specified language.
+   * @param {Object} step
+   * @param {string} [lang]
+   */
+  async playVoicePrompt(step = this.currentStep, lang = this.i18n.getLanguage()) {
+    if (!step) return;
+    const audioConfig = step.audio || step.action?.audio;
+    const fallbackText = this.i18n.resolve(step.action?.content || step.instruction || step.description || step.title, lang);
+    await this.audio.play(audioConfig, lang, fallbackText);
   }
 
   /**
@@ -72,6 +143,12 @@ export class TutorialEngine {
 
     this.activeTutorial = parseResult.tutorial;
     this.stepResolver = new StepResolver(this.activeTutorial, this.adapter);
+
+    // Set default tutorial language if specified and not manually overridden
+    if (this.activeTutorial.defaultLanguage) {
+      this.i18n.setLanguage(this.activeTutorial.defaultLanguage);
+    }
+
     return true;
   }
 
@@ -140,6 +217,7 @@ export class TutorialEngine {
    */
   pause() {
     if (this.stateMachine.getState() === EngineStatus.STEP_ACTIVE) {
+      this.audio.pause();
       this.stateMachine.transition(EngineStatus.PAUSED);
     }
   }
@@ -149,6 +227,7 @@ export class TutorialEngine {
    */
   resume() {
     if (this.stateMachine.getState() === EngineStatus.PAUSED) {
+      this.audio.resume();
       this.stateMachine.transition(EngineStatus.STEP_ACTIVE);
     }
   }
@@ -158,6 +237,7 @@ export class TutorialEngine {
    */
   async stop() {
     this._cleanupStepSubscriptions();
+    this.audio.stop();
     await this.session.resetSession();
 
     this.activeTutorial = null;
@@ -175,6 +255,7 @@ export class TutorialEngine {
    */
   async complete() {
     this._cleanupStepSubscriptions();
+    this.audio.stop();
     this.stateMachine.transition(EngineStatus.COMPLETED);
     this.events.emit(EngineEvent.TUTORIAL_COMPLETE, { tutorial: this.activeTutorial });
   }
@@ -189,29 +270,36 @@ export class TutorialEngine {
   }
 
   /**
-   * Get current reactive snapshot for UI components.
+   * Get current reactive snapshot for UI components with localized content.
    * @returns {Object}
    */
   getStateSnapshot() {
     const status = this.stateMachine.getState();
     const isActive = status === EngineStatus.STEP_ACTIVE || status === EngineStatus.VALIDATING || status === EngineStatus.PAUSED;
+    const currentLang = this.i18n.getLanguage();
+
+    const totalSteps = this.activeTutorial?.steps?.length || 0;
 
     return {
       status,
       isActive,
       isCompleted: status === EngineStatus.COMPLETED,
+      language: currentLang,
+      stepBadgeText: this.i18n.formatStepBadge(this.currentStepIndex, totalSteps, currentLang),
+      isPlayingAudio: this.audio.isPlaying(),
+      audioStatus: this.audio.getStatus(),
       tutorial: this.activeTutorial ? {
         id: this.activeTutorial.id,
-        name: this.activeTutorial.name,
-        description: this.activeTutorial.description,
+        name: this.i18n.resolve(this.activeTutorial.name, currentLang),
+        description: this.i18n.resolve(this.activeTutorial.description, currentLang),
       } : null,
       currentStep: this.currentStep,
       currentStepIndex: this.currentStepIndex,
-      totalSteps: this.activeTutorial?.steps?.length || 0,
+      totalSteps,
       isFirstStep: this.currentStep?.isFirst ?? false,
       isLastStep: this.currentStep?.isLast ?? false,
       boundingBox: this.targetBoundingBox,
-      actionPayload: ActionEngine.getActionUiPayload(this.currentStep, this.targetBoundingBox),
+      actionPayload: ActionEngine.getActionUiPayload(this.currentStep, this.targetBoundingBox, this.i18n),
       variables: this.variables.toObject(),
     };
   }
@@ -255,6 +343,11 @@ export class TutorialEngine {
 
     this.stateMachine.transition(EngineStatus.STEP_ACTIVE, { step });
     this.events.emit(EngineEvent.STEP_START, { step, stepIndex });
+
+    // Trigger voice guidance
+    if (step.audio?.autoPlay !== false) {
+      this.playVoicePrompt(step);
+    }
 
     // Bind validation listeners
     this._activeValidationCleanup = ValidationEngine.bindValidation(

@@ -50,6 +50,26 @@ export const Placement = Object.freeze({
 });
 
 /**
+ * Supported Languages for Dual-Language Guidance
+ */
+export const Language = Object.freeze({
+  KM: 'km', // Khmer (Primary)
+  EN: 'en', // English (Secondary)
+});
+
+/**
+ * Audio Engine Playback States
+ */
+export const AudioPlaybackStatus = Object.freeze({
+  IDLE: 'idle',
+  BUFFERING: 'buffering',
+  PLAYING: 'playing',
+  PAUSED: 'paused',
+  ENDED: 'ended',
+  ERROR: 'error',
+});
+
+/**
  * Engine Event Names
  */
 export const EngineEvent = Object.freeze({
@@ -60,4 +80,22 @@ export const EngineEvent = Object.freeze({
   TUTORIAL_START: 'engine:tutorial_start',
   TUTORIAL_COMPLETE: 'engine:tutorial_complete',
   TUTORIAL_STOP: 'engine:tutorial_stop',
+  LANGUAGE_CHANGE: 'engine:language_change',
 });
+
+/**
+ * Audio Engine Event Names
+ */
+export const AudioEngineEvent = Object.freeze({
+  PLAY: 'audio:play',
+  PAUSE: 'audio:pause',
+  STOP: 'audio:stop',
+  ENDED: 'audio:ended',
+  STATUS_CHANGE: 'audio:status_change',
+  LANGUAGE_CHANGE: 'audio:language_change',
+  ERROR: 'audio:error',
+});
+
+
+
+

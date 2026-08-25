@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { ExtensionMessageAction } from '@guideme/core-types';
+import { ExtensionMessageAction, Language } from '@guideme/core-types';
+import { LanguageToggle } from '@guideme/tutorial-ui';
 import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../src/catalog.js';
+
+/**
+ * Safely resolves localized string or object for the popup UI.
+ */
+function resolveText(val, lang = Language.KM) {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    return val[lang] || val[Language.KM] || val[Language.EN] || Object.values(val)[0] || '';
+  }
+  return String(val);
+}
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState(null);
@@ -8,6 +21,7 @@ export default function App() {
   const [availableTutorials, setAvailableTutorials] = useState(() => getTutorialsForUrl(''));
   const [customPrompt, setCustomPrompt] = useState('');
   const [contentScriptConnected, setContentScriptConnected] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState(Language.KM);
   const [loading, setLoading] = useState(true);
 
   const currentUrl = currentTab?.url || '';
@@ -35,6 +49,9 @@ export default function App() {
               } else if (response?.success) {
                 setContentScriptConnected(true);
                 setEngineState(response.state);
+                if (response.state?.language) {
+                  setCurrentLanguage(response.state.language);
+                }
               }
               setLoading(false);
             }
@@ -50,6 +67,17 @@ export default function App() {
 
     initPopup();
   }, []);
+
+  const handleLanguageChange = (newLang) => {
+    setCurrentLanguage(newLang);
+    if (currentTab?.id && !isChromeInternalUrl) {
+      chrome.tabs.sendMessage(
+        currentTab.id,
+        { action: ExtensionMessageAction.SET_LANGUAGE, payload: { language: newLang } },
+        () => {}
+      );
+    }
+  };
 
   const handleStartTutorial = async (tutorialId) => {
     if (!currentTab?.id) return;
@@ -155,10 +183,21 @@ export default function App() {
     }
   })();
 
-  const hasMatchedGuides = availableTutorials.some((t) => t.isMatched);
+  const isKhmer = currentLanguage === Language.KM;
 
   return (
-    <div style={{ padding: '16px', boxSizing: 'border-box', minWidth: '330px', backgroundColor: '#12141a', color: '#f8fafc', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+    <div
+      style={{
+        padding: '16px',
+        boxSizing: 'border-box',
+        minWidth: '350px',
+        backgroundColor: '#12141a',
+        color: '#f8fafc',
+        fontFamily: isKhmer
+          ? "'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+          : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -181,23 +220,17 @@ export default function App() {
           </div>
           <div>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.01em' }}>GuideMe</h3>
-            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Universal Tutorial Engine</span>
+            <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+              {isKhmer ? 'ជំនួយការណែនាំឆ្លាតវៃ' : 'Universal Tutorial Engine'}
+            </span>
           </div>
         </div>
 
-        <span
-          style={{
-            fontSize: '10px',
-            backgroundColor: '#181b22',
-            color: '#f59e0b',
-            padding: '3px 8px',
-            borderRadius: '12px',
-            border: '1px solid #2a2f3b',
-            fontWeight: 700,
-          }}
-        >
-          v2.0 Hybrid
-        </span>
+        {/* Language Toggle in Header */}
+        <LanguageToggle
+          currentLanguage={currentLanguage}
+          onChange={handleLanguageChange}
+        />
       </div>
 
       {/* Target Page Info Banner */}
@@ -212,10 +245,10 @@ export default function App() {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ color: '#94a3b8', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>
-            ACTIVE CONTEXT
+            {isKhmer ? 'ទំព័របច្ចុប្បន្ន (ACTIVE PAGE)' : 'ACTIVE CONTEXT'}
           </span>
           <span style={{ fontSize: '10px', color: contentScriptConnected || isExtensionUrl ? '#10b981' : '#f59e0b' }}>
-            ● {contentScriptConnected || isExtensionUrl ? 'Ready' : 'Standby'}
+            ● {contentScriptConnected || isExtensionUrl ? (isKhmer ? 'រួចរាល់' : 'Ready') : (isKhmer ? 'រង់ចាំ' : 'Standby')}
           </span>
         </div>
         <div style={{ color: '#ffffff', fontWeight: 600, marginTop: '3px', fontSize: '12px', wordBreak: 'break-all' }}>
@@ -302,8 +335,11 @@ export default function App() {
             }}
           >
             <span>⚡</span>
-            <span>Auto-Scan Full Page</span>
+            <span>{isKhmer ? 'ចាប់ផ្តើមស្កេនទំព័រនេះដោយស្វ័យប្រវត្តិ' : 'Auto-Guide This Page'}</span>
           </button>
+          <div style={{ textAlign: 'center', fontSize: '10px', color: '#64748b', marginTop: '4px' }}>
+            {isKhmer ? 'វិភាគទម្រង់ ប៊ូតុង និងម៉ឺនុយលើទំព័រភ្លាមៗ' : 'Dynamically scans forms, buttons & navigation'}
+          </div>
         </div>
       )}
 
@@ -321,20 +357,20 @@ export default function App() {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
             <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 800, letterSpacing: '0.04em' }}>
-              ● ACTIVE WALKTHROUGH
+              ● {isKhmer ? 'កំពុងដំណើរការមេរៀន' : 'ACTIVE WALKTHROUGH'}
             </span>
             <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 600 }}>
-              Step {engineState.currentStepIndex + 1} of {engineState.totalSteps}
+              {engineState.stepBadgeText || `${engineState.currentStepIndex + 1}/${engineState.totalSteps}`}
             </span>
           </div>
 
           <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>
-            {engineState.tutorial?.name || 'In Progress'}
+            {resolveText(engineState.tutorial?.name, currentLanguage) || (isKhmer ? 'កំពុងដំណើរការ' : 'In Progress')}
           </div>
 
           {engineState.currentStep?.title && (
             <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '10px' }}>
-              Current: {engineState.currentStep.title}
+              {resolveText(engineState.currentStep.title, currentLanguage)}
             </div>
           )}
 
@@ -354,7 +390,7 @@ export default function App() {
                 boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
               }}
             >
-              Resume Focus
+              {isKhmer ? 'បន្តការណែនាំ' : 'Resume Focus'}
             </button>
             <button
               onClick={handleStopTutorial}
@@ -369,7 +405,7 @@ export default function App() {
                 cursor: 'pointer',
               }}
             >
-              Stop Guide
+              {isKhmer ? 'បញ្ឈប់' : 'Stop Guide'}
             </button>
           </div>
         </div>
@@ -378,7 +414,7 @@ export default function App() {
       {/* Curated Walkthrough List */}
       <div style={{ marginBottom: '14px' }}>
         <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.04em' }}>
-          Curated Walkthroughs
+          {isKhmer ? 'មេរៀនណែនាំដែលមានស្រាប់' : 'Curated Walkthroughs'}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -395,7 +431,7 @@ export default function App() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
-                  {tut.name}
+                  {resolveText(tut.name, currentLanguage)}
                 </div>
                 {tut.isMatched && (
                   <span
@@ -411,17 +447,19 @@ export default function App() {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    MATCHED
+                    {isKhmer ? 'ត្រូវគ្នា' : 'MATCHED'}
                   </span>
                 )}
               </div>
 
               <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '10px', lineHeight: 1.4 }}>
-                {tut.description}
+                {resolveText(tut.description, currentLanguage)}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '10px', color: '#64748b' }}>{tut.totalSteps} Steps</span>
+                <span style={{ fontSize: '10px', color: '#64748b' }}>
+                  {tut.totalSteps} {isKhmer ? 'ជំហាន' : 'Steps'}
+                </span>
                 <button
                   onClick={() => handleStartTutorial(tut.id)}
                   style={{
@@ -437,7 +475,7 @@ export default function App() {
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  Start Guide
+                  {isKhmer ? 'ចាប់ផ្តើម' : 'Start Guide'}
                 </button>
               </div>
             </div>
@@ -462,7 +500,7 @@ export default function App() {
             textAlign: 'center',
           }}
         >
-          🚀 Open Local Demo Testbed Page
+          🚀 {isKhmer ? 'បើកទំព័រសាកល្បង Demo Testbed' : 'Open Local Demo Testbed Page'}
         </button>
 
         <button
@@ -479,7 +517,7 @@ export default function App() {
             textAlign: 'center',
           }}
         >
-          📄 Open New Google Doc Tab
+          📄 {isKhmer ? 'បើកឯកសារ Google Docs ថ្មី' : 'Open New Google Doc Tab'}
         </button>
       </div>
     </div>

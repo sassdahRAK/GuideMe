@@ -45,6 +45,7 @@ export default defineContentScript({
                     active: state.isActive,
                     currentStepIndex: state.currentStepIndex,
                     totalSteps: state.totalSteps,
+                    language: state.language,
                   },
                 });
               } catch (e) {
@@ -96,14 +97,26 @@ export default defineContentScript({
                   sendResponse({ success: true });
                   break;
 
+                case ExtensionMessageAction.SET_LANGUAGE:
+                  if (message.payload?.language) {
+                    engine.setLanguage(message.payload.language);
+                    sendResponse({ success: true, language: engine.getLanguage() });
+                  }
+                  break;
+
+                case ExtensionMessageAction.REPLAY_AUDIO:
+                  engine.getAudioEngine().replay();
+                  sendResponse({ success: true });
+                  break;
+
                 case ExtensionMessageAction.GET_TUTORIAL_STATUS:
                   sendResponse({
                     success: true,
                     state: engine.getStateSnapshot(),
                     availableTutorials: TUTORIAL_CATALOG.map((t) => ({
                       id: t.id,
-                      name: t.name,
-                      description: t.description,
+                      name: typeof t.name === 'object' ? t.name : { km: t.name, en: t.name },
+                      description: typeof t.description === 'object' ? t.description : { km: t.description, en: t.description },
                       matchUrls: t.matchUrls,
                       totalSteps: t.steps.length,
                     })),
@@ -140,6 +153,8 @@ export default defineContentScript({
           return (
             <TutorialOverlay
               state={engineState}
+              onLanguageChange={(newLang) => engineRef.current?.setLanguage(newLang)}
+              onReplayAudio={() => engineRef.current?.getAudioEngine()?.replay()}
               onNext={() => engineRef.current?.nextStep()}
               onPrev={() => engineRef.current?.prevStep()}
               onSkip={() => engineRef.current?.skipStep()}

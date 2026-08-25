@@ -1,8 +1,10 @@
 import googleDocsShareGuide from '../../../tutorials/google-docs/share-document-guide.json';
 import demoTestGuide from '../../../tutorials/general/welcome-tour.json';
+import spreadsheetDemoGuide from '../../../tutorials/spreadsheet/guideme-spreadsheet-demo.json';
 import { TutorialParser } from '@guideme/engine';
 
 export const TUTORIAL_CATALOG = [
+  spreadsheetDemoGuide,
   googleDocsShareGuide,
   demoTestGuide,
 ];

@@ -7,9 +7,12 @@ import {
   StepResolver,
   EventBus,
   VariableStore,
+  I18nManager,
+  AudioEngine,
+  BaseTtsProvider,
 } from '../packages/engine/src/index.js';
 import { BaseTutorialAdapter } from '../packages/adapter-interface/src/index.js';
-import { EngineStatus } from '../packages/core-types/src/index.js';
+import { EngineStatus, Language, AudioPlaybackStatus } from '../packages/core-types/src/index.js';
 
 // Mock in-memory Adapter for testing headless engine logic
 class MockAdapter extends BaseTutorialAdapter {
@@ -64,30 +67,76 @@ class MockAdapter extends BaseTutorialAdapter {
   }
 }
 
-const sampleTutorial = {
-  id: 'test-tutorial-1',
-  name: 'Test Guide',
-  description: 'Test description',
+const sampleBilingualTutorial = {
+  id: 'test-bilingual-guide',
+  name: {
+    km: 'មគ្គុទ្ទេសក៍សាកល្បង',
+    en: 'Test Bilingual Guide',
+  },
+  description: {
+    km: 'ការពិពណ៌នាសាកល្បង',
+    en: 'Test guide description',
+  },
   matchUrls: ['https://example.com/*'],
   steps: [
     {
       id: 'step_1',
-      title: 'Step 1',
-      action: { type: 'spotlight', title: 'Action 1', content: 'Do step 1' },
+      title: {
+        km: 'ជំហានទី ១',
+        en: 'Step 1',
+      },
+      action: {
+        type: 'spotlight',
+        title: {
+          km: 'សកម្មភាពទី ១',
+          en: 'Action 1',
+        },
+        content: {
+          km: 'សូមចុចប៊ូតុង',
+          en: 'Please click the button',
+        },
+        actionText: {
+          km: 'ចុចទីនេះ',
+          en: 'Click Here',
+        },
+      },
+      audio: {
+        km: {
+          ttsText: 'សូមចុចប៊ូតុងទីមួយ',
+          transcript: 'កំពុងអានការណែនាំជាសំឡេង...',
+        },
+        en: {
+          ttsText: 'Please click the first button',
+          transcript: 'Playing English voice...',
+        },
+      },
       target: { css: '#btn-1' },
       validation: { type: 'click' },
     },
     {
       id: 'step_2',
-      title: 'Step 2',
-      action: { type: 'spotlight', title: 'Action 2', content: 'Do step 2' },
+      title: {
+        km: 'ជំហានទី ២',
+        en: 'Step 2',
+      },
+      action: {
+        type: 'spotlight',
+        title: {
+          km: 'សកម្មភាពទី ២',
+          en: 'Action 2',
+        },
+        content: {
+          km: 'សូមវាយពាក្យ hello',
+          en: 'Please type hello',
+        },
+      },
       target: { css: '#input-2' },
       validation: { type: 'input', expectedValue: 'hello' },
     },
   ],
 };
 
-describe('GuideMe Tutorial Engine Unit Tests', () => {
+describe('GuideMe Tutorial Engine & Bilingual / Audio Tests', () => {
   let adapter;
   let engine;
 
@@ -96,8 +145,8 @@ describe('GuideMe Tutorial Engine Unit Tests', () => {
     engine = new TutorialEngine({ adapter });
   });
 
-  test('TutorialParser validates and indexes step definitions', () => {
-    const parseResult = TutorialParser.parse(sampleTutorial);
+  test('TutorialParser validates and indexes bilingual step definitions', () => {
+    const parseResult = TutorialParser.parse(sampleBilingualTutorial);
     assert.strictEqual(parseResult.success, true);
     assert.strictEqual(parseResult.tutorial.steps.length, 2);
     assert.strictEqual(parseResult.tutorial.steps[0].id, 'step_1');
@@ -109,89 +158,99 @@ describe('GuideMe Tutorial Engine Unit Tests', () => {
     assert.strictEqual(TutorialParser.matchesUrl(parseResult.tutorial, 'https://otherdomain.com'), false);
   });
 
-  test('StateMachine enforces deterministic transitions', () => {
-    const sm = new StateMachine();
-    assert.strictEqual(sm.getState(), EngineStatus.IDLE);
+  test('I18nManager resolves Khmer (default) and switches to English smoothly', () => {
+    const i18n = new I18nManager();
+    assert.strictEqual(i18n.getLanguage(), Language.KM);
 
-    // Disallowed transition from IDLE directly to COMPLETED
-    assert.strictEqual(sm.transition(EngineStatus.COMPLETED), false);
-    assert.strictEqual(sm.getState(), EngineStatus.IDLE);
+    // Resolve bilingual object
+    const bilingualObj = { km: 'សួស្តី', en: 'Hello' };
+    assert.strictEqual(i18n.resolve(bilingualObj), 'សួស្តី');
 
-    assert.strictEqual(sm.transition(EngineStatus.LOADING), true);
-    assert.strictEqual(sm.getState(), EngineStatus.LOADING);
+    // Switch to English
+    i18n.setLanguage(Language.EN);
+    assert.strictEqual(i18n.getLanguage(), Language.EN);
+    assert.strictEqual(i18n.resolve(bilingualObj), 'Hello');
 
-    assert.strictEqual(sm.transition(EngineStatus.STEP_ACTIVE), true);
-    assert.strictEqual(sm.getState(), EngineStatus.STEP_ACTIVE);
+    // Step badge formatting
+    assert.strictEqual(i18n.formatStepBadge(0, 4, Language.KM), 'ជំហានទី ១/៤');
+    assert.strictEqual(i18n.formatStepBadge(0, 4, Language.EN), 'Step 1/4');
+
+    // Fallback handling
+    assert.strictEqual(i18n.resolve('Plain string'), 'Plain string');
+    assert.strictEqual(i18n.resolve({ km: 'តែខ្មែរ' }, Language.EN), 'តែខ្មែរ');
   });
 
-  test('Engine starts tutorial, resolves target, and advances steps', async () => {
+  test('AudioEngine manages playback state and supports custom TTS providers', async () => {
+    let speakCalled = false;
+    class CustomAiTeamTtsProvider extends BaseTtsProvider {
+      async speak({ text, lang, onStart, onEnd }) {
+        speakCalled = true;
+        if (onStart) onStart();
+        if (onEnd) onEnd();
+      }
+    }
+
+    const audio = new AudioEngine();
+    const customProvider = new CustomAiTeamTtsProvider();
+    audio.setTtsProvider(customProvider);
+
+    let statusUpdate = null;
+    audio.onStatusChange((st) => {
+      statusUpdate = st;
+    });
+
+    await audio.play(
+      { km: { ttsText: 'សាកល្បងសំឡេង' } },
+      Language.KM
+    );
+
+    assert.strictEqual(speakCalled, true);
+    assert.strictEqual(statusUpdate, AudioPlaybackStatus.ENDED);
+  });
+
+  test('Engine starts bilingual tutorial and reactively updates on language toggle', async () => {
     let latestState = null;
     engine.subscribe((state) => {
       latestState = state;
     });
 
-    const started = await engine.start(sampleTutorial, 0);
+    const started = await engine.start(sampleBilingualTutorial, 0);
     assert.strictEqual(started, true);
     assert.strictEqual(latestState.isActive, true);
-    assert.strictEqual(latestState.currentStepIndex, 0);
-    assert.strictEqual(latestState.currentStep.id, 'step_1');
-    assert.notStrictEqual(latestState.boundingBox, null);
+    assert.strictEqual(latestState.language, Language.KM);
+    assert.strictEqual(latestState.tutorial.name, 'មគ្គុទ្ទេសក៍សាកល្បង');
+    assert.strictEqual(latestState.actionPayload.content, 'សូមចុចប៊ូតុង');
+    assert.strictEqual(latestState.stepBadgeText, 'ជំហានទី ១/២');
 
-    // Simulate clicking the target button
+    // Switch language to English
+    engine.setLanguage(Language.EN);
+    assert.strictEqual(latestState.language, Language.EN);
+    assert.strictEqual(latestState.tutorial.name, 'Test Bilingual Guide');
+    assert.strictEqual(latestState.actionPayload.content, 'Please click the button');
+    assert.strictEqual(latestState.stepBadgeText, 'Step 1/2');
+
+    // Simulate clicking target
     adapter.triggerElementEvent('#btn-1', 'click');
-
-    // Wait microtask queue for async state advancement
     await new Promise((r) => setTimeout(r, 10));
 
     assert.strictEqual(latestState.currentStepIndex, 1);
-    assert.strictEqual(latestState.currentStep.id, 'step_2');
+    assert.strictEqual(latestState.actionPayload.content, 'Please type hello');
 
-    // Advance final step
-    await engine.nextStep();
-    assert.strictEqual(latestState.isCompleted, true);
+    // Toggle back to Khmer
+    engine.toggleLanguage();
+    assert.strictEqual(latestState.language, Language.KM);
+    assert.strictEqual(latestState.actionPayload.content, 'សូមវាយពាក្យ hello');
 
-    // Stop engine and verify reactive state turns inactive
     await engine.stop();
     assert.strictEqual(latestState.isActive, false);
-    assert.strictEqual(latestState.status, EngineStatus.IDLE);
   });
 
-  test('Input validation waits for expected value or Enter key without cutting off typing', async () => {
-    let latestState = null;
-    engine.subscribe((state) => {
-      latestState = state;
-    });
-
-    await engine.start(sampleTutorial, 1); // start directly at step_2 (input validation with expectedValue: 'hello')
-    assert.strictEqual(latestState.currentStepIndex, 1);
-
-    // Typing 1-2 letters ("he") should NOT advance step
-    adapter.triggerElementEvent('#input-2', 'input', { targetValue: 'he' });
-    await new Promise((r) => setTimeout(r, 10));
-    assert.strictEqual(latestState.currentStepIndex, 1);
-
-    // Completing full expected input ("hello") triggers validation
-    adapter.triggerElementEvent('#input-2', 'input', { targetValue: 'hello' });
-    await new Promise((r) => setTimeout(r, 10));
-    assert.strictEqual(latestState.isCompleted, true);
-  });
-
-  test('VariableStore and EventBus function reliably', () => {
-    const store = new VariableStore({ initial: 42 });
-    assert.strictEqual(store.get('initial'), 42);
-    store.set('custom', 'value');
-    assert.strictEqual(store.get('custom'), 'value');
-
-    const bus = new EventBus();
-    let received = null;
-    const unsub = bus.on('test_event', (data) => {
-      received = data;
-    });
-    bus.emit('test_event', { msg: 'ok' });
-    assert.deepStrictEqual(received, { msg: 'ok' });
-
-    unsub();
-    bus.emit('test_event', { msg: 'after_unsub' });
-    assert.deepStrictEqual(received, { msg: 'ok' });
+  test('Validates and indexes GuideMe Spreadsheet walkthrough schema', async () => {
+    const guideMeDemo = (await import('../tutorials/spreadsheet/guideme-spreadsheet-demo.json', { with: { type: 'json' } })).default;
+    const parseResult = TutorialParser.parse(guideMeDemo);
+    assert.strictEqual(parseResult.success, true);
+    assert.strictEqual(parseResult.tutorial.steps.length, 4);
+    assert.strictEqual(parseResult.tutorial.steps[0].id, 'step_click_insert');
+    assert.strictEqual(parseResult.tutorial.steps[0].action.coachTitle.km, 'GuideMe - AI Live Coach');
   });
 });

@@ -238,13 +238,37 @@
       <span style="font-size: 12px; color: #94a3b8;">Start a walkthrough directly or open the extension popup:</span>
     </div>
     <div style="display: flex; gap: 8px;">
-      <button id="btn-start-share-guide" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;">
-        ▶ Start Google Docs Guide
+      <button id="btn-start-guideme-demo" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;">
+        🤖 Start GuideMe Live Coach
+      </button>
+      <button id="btn-start-share-guide" class="btn btn-secondary" style="font-size: 12px; padding: 6px 14px;">
+        ▶ Google Docs Guide
       </button>
       <button id="btn-start-welcome-tour" class="btn btn-secondary" style="font-size: 12px; padding: 6px 14px;">
-        ▶ Start Welcome Tour
+        ▶ Welcome Tour
       </button>
     </div>
+  </div>
+
+  <!-- Simulated Spreadsheet / Excel Ribbon Mockup -->
+  <div style="background-color: #107c41; color: white; padding: 8px 24px; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 16px;">📊</span>
+      <span>GuideMe_Spreadsheet_Demo.xlsx - Microsoft Excel</span>
+    </div>
+    <span style="font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px;">Spreadsheet View</span>
+  </div>
+
+  <!-- Spreadsheet Ribbon Tabs -->
+  <div style="background-color: #1b212d; border-bottom: 1px solid var(--border); padding: 4px 24px; display: flex; gap: 4px;">
+    <button class="btn btn-secondary" style="background: transparent; border: none; padding: 6px 12px; font-size: 13px;">File</button>
+    <button class="btn btn-secondary" style="background: transparent; border: none; padding: 6px 12px; font-size: 13px;">Home</button>
+    <button id="insert-tab" class="btn btn-secondary" style="background: #252d3d; border: 1px solid #3e495e; padding: 6px 14px; font-size: 13px; font-weight: 700; color: #f59e0b;" aria-label="Insert">
+      Insert
+    </button>
+    <button class="btn btn-secondary" style="background: transparent; border: none; padding: 6px 12px; font-size: 13px;">Page Layout</button>
+    <button class="btn btn-secondary" style="background: transparent; border: none; padding: 6px 12px; font-size: 13px;">Formulas</button>
+    <button class="btn btn-secondary" style="background: transparent; border: none; padding: 6px 12px; font-size: 13px;">Data</button>
   </div>
 
   <!-- Top App Navigation / Simulated Google Docs Bar -->
@@ -266,6 +290,36 @@
   </nav>
 
   <div class="container">
+    <!-- Spreadsheet Grid Showcase Card -->
+    <div class="card" style="border-top: 3px solid #107c41;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h2>📊 GuideMe Spreadsheet Workspace</h2>
+        <div style="display: flex; gap: 8px;">
+          <button id="demo-chart-btn" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px;">📈 Insert Chart</button>
+          <button id="demo-format-btn" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px;">🎨 Format Styles</button>
+        </div>
+      </div>
+      <p>Test the exact AI Coach flow with Khmer/English voice status, animated equalizer, and target pointers.</p>
+      
+      <!-- Mock Data Grid -->
+      <div style="border: 1px solid var(--border); border-radius: 6px; overflow: hidden; font-size: 12px;">
+        <div style="display: grid; grid-template-columns: 40px repeat(4, 1fr); background: #161b24; font-weight: 700; border-bottom: 1px solid var(--border); text-align: center;">
+          <div style="padding: 8px; border-right: 1px solid var(--border);">#</div>
+          <div style="padding: 8px; border-right: 1px solid var(--border);">A (Item)</div>
+          <div style="padding: 8px; border-right: 1px solid var(--border);">B (Quantity)</div>
+          <div style="padding: 8px; border-right: 1px solid var(--border);">C (Price)</div>
+          <div style="padding: 8px;">D (Total)</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 40px repeat(4, 1fr); text-align: center; background: #0e1117;">
+          <div style="padding: 8px; border-right: 1px solid var(--border); background: #161b24;">1</div>
+          <div style="padding: 8px; border-right: 1px solid var(--border);">Laptops</div>
+          <div style="padding: 8px; border-right: 1px solid var(--border);">15</div>
+          <div style="padding: 8px; border-right: 1px solid var(--border);">$850</div>
+          <div style="padding: 8px;">$12,750</div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <h2>Welcome to the GuideMe Interactive Testbed</h2>
       <p>This test page simulates real Google Docs and SaaS UI components so you can test spotlights, step transitions, input validations, and Shadow DOM overlays live in the browser.</p>
@@ -546,6 +600,34 @@
     document.getElementById('btn-close-guide').addEventListener('click', stopGuide);
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, { passive: true });
+
+    const guideMeSpreadsheetSteps = [
+      {
+        title: "Insert Menu",
+        content: "សូមចុចលើពាក្យ Insert ដើម្បីបញ្ចូលរូបភាព ឬតារាងទិន្នន័យរបស់អ្នក...",
+        target: '#insert-tab',
+      },
+      {
+        title: "Select Chart Type",
+        content: "ជ្រើសរើសប្រភេទគំនូសតាង (Chart) ដែលសមស្របសម្រាប់ទិន្នន័យរបស់អ្នក",
+        target: '#demo-chart-btn',
+      },
+      {
+        title: "Customize Design",
+        content: "កែសម្រួលពណ៌ និងទ្រង់ទ្រាយតារាងរបស់អ្នកឱ្យមានភាពស្រស់ស្អាត",
+        target: '#demo-format-btn',
+      },
+      {
+        title: "មេរៀនត្រូវបានបញ្ចប់!",
+        content: "អបអរសាទរ! អ្នកបានចេះប្រើប្រាស់មុខងារបញ្ចូលទិន្នន័យក្នុង Spreadsheet រួចរាល់ហើយ។",
+        target: null,
+      },
+    ];
+
+    document.getElementById('btn-start-guideme-demo')?.addEventListener('click', () => {
+      startGuide(guideMeSpreadsheetSteps, 'guideme-spreadsheet-demo');
+    });
+
 
     document.getElementById('btn-start-share-guide').addEventListener('click', () => {
       startGuide(shareGuideSteps, 'google-docs-share-guide');

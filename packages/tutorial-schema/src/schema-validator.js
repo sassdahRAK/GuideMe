@@ -1,4 +1,19 @@
 /**
+ * Helper to check if a value is a valid string or bilingual object ({ km, en }).
+ * @param {any} val
+ * @returns {boolean}
+ */
+function isValidLocalizedOrString(val) {
+  if (typeof val === 'string' && val.trim().length > 0) {
+    return true;
+  }
+  if (val && typeof val === 'object') {
+    return typeof val.km === 'string' || typeof val.en === 'string';
+  }
+  return false;
+}
+
+/**
  * Validates tutorial and step definitions against schema constraints.
  */
 export class SchemaValidator {
@@ -18,8 +33,8 @@ export class SchemaValidator {
       errors.push("Missing or invalid 'id' (must be a non-empty string)");
     }
 
-    if (!tutorial.name || typeof tutorial.name !== 'string') {
-      errors.push("Missing or invalid 'name' (must be a non-empty string)");
+    if (!isValidLocalizedOrString(tutorial.name)) {
+      errors.push("Missing or invalid 'name' (must be a non-empty string or bilingual object with 'km'/'en')");
     }
 
     if (!Array.isArray(tutorial.matchUrls) || tutorial.matchUrls.length === 0) {
@@ -67,8 +82,8 @@ export class SchemaValidator {
       errors.push(`${prefix} Missing or invalid 'id'`);
     }
 
-    if (!step.title || typeof step.title !== 'string') {
-      errors.push(`${prefix} Missing or invalid 'title'`);
+    if (!isValidLocalizedOrString(step.title)) {
+      errors.push(`${prefix} Missing or invalid 'title' (must be string or localized object)`);
     }
 
     if (!step.action || typeof step.action !== 'object') {
@@ -77,8 +92,8 @@ export class SchemaValidator {
       if (!step.action.type || typeof step.action.type !== 'string') {
         errors.push(`${prefix} Missing 'action.type'`);
       }
-      if (!step.action.content && !step.action.title) {
-        errors.push(`${prefix} 'action' must specify at least 'title' or 'content'`);
+      if (!step.action.content && !step.action.title && !step.action.instruction) {
+        errors.push(`${prefix} 'action' must specify at least 'title', 'instruction', or 'content'`);
       }
     }
 
@@ -88,6 +103,11 @@ export class SchemaValidator {
       if (!step.validation.type || typeof step.validation.type !== 'string') {
         errors.push(`${prefix} Missing 'validation.type'`);
       }
+    }
+
+    // Optional audio validation
+    if (step.audio && typeof step.audio !== 'object') {
+      errors.push(`${prefix} 'audio' must be an object if provided`);
     }
 
     return errors;

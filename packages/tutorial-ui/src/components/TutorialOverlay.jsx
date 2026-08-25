@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Spotlight } from './Spotlight.jsx';
 import { Tooltip } from './Tooltip.jsx';
+import { FloatingAssistantButton } from './FloatingAssistantButton.jsx';
 
 /**
  * Root React Tutorial Overlay rendering engine state snapshot.
@@ -11,9 +12,14 @@ export function TutorialOverlay({
   onPrev,
   onSkip,
   onClose,
+  onLanguageChange,
+  onReplayAudio,
+  onToggleLauncher,
 }) {
-  const [rating, setRating] = React.useState(null);
-  const [feedbackSubmitted, setFeedbackSubmitted] = React.useState(false);
+  const [rating, setRating] = useState(null);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+
+  const isKhmer = (state?.language || 'km') === 'km';
 
   if (!state || !state.isActive) {
     if (state?.isCompleted) {
@@ -32,7 +38,9 @@ export function TutorialOverlay({
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 999999,
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            fontFamily: isKhmer
+              ? "'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+              : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
           }}
         >
           <div
@@ -41,11 +49,11 @@ export function TutorialOverlay({
               border: '1px solid #2a2f3b',
               borderRadius: '16px',
               padding: '32px 28px',
-              maxWidth: '400px',
+              maxWidth: '430px',
               width: '90%',
               textAlign: 'center',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 30px rgba(245, 158, 11, 0.15)',
-              animation: 'guideme-fade-in 0.25s ease-out',
+              animation: 'guideme-card-pop 0.25s ease-out',
             }}
           >
             <div
@@ -66,13 +74,21 @@ export function TutorialOverlay({
               🎉
             </div>
             <h3 style={{ margin: '0 0 8px 0', color: '#ffffff', fontSize: '20px', fontWeight: 800 }}>
-              Walkthrough Complete!
+              {isKhmer ? 'មេរៀនត្រូវបានបញ្ចប់!' : 'Walkthrough Complete!'}
             </h3>
             <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: 1.5, margin: '0 0 20px 0' }}>
-              You've successfully completed <strong style={{ color: '#f59e0b' }}>{state?.tutorial?.name || 'this walkthrough'}</strong>.
+              {isKhmer ? (
+                <>
+                  អ្នកបានបញ្ចប់ការណែនាំ <strong style={{ color: '#f59e0b' }}>{state?.tutorial?.name || 'GuideMe Walkthrough'}</strong> ដោយជោគជ័យ។
+                </>
+              ) : (
+                <>
+                  You have successfully completed <strong style={{ color: '#f59e0b' }}>{state?.tutorial?.name || 'this walkthrough'}</strong>.
+                </>
+              )}
             </p>
 
-            {/* UC11: Survey / Feedback Widget */}
+            {/* Survey / Feedback Widget */}
             <div
               style={{
                 backgroundColor: '#181b22',
@@ -85,10 +101,13 @@ export function TutorialOverlay({
               {!feedbackSubmitted ? (
                 <>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: '#f8fafc', marginBottom: '10px' }}>
-                    Was this guide helpful?
+                    {isKhmer
+                      ? 'តើការណែនាំនេះមានប្រយោជន៍ដែរឬទេ?'
+                      : 'Was this guidance helpful?'}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
                     <button
+                      type="button"
                       onClick={() => {
                         setRating('helpful');
                         setFeedbackSubmitted(true);
@@ -97,7 +116,7 @@ export function TutorialOverlay({
                         backgroundColor: '#262b35',
                         border: '1px solid #3e4556',
                         color: '#ffffff',
-                        padding: '6px 16px',
+                        padding: '6px 14px',
                         borderRadius: '6px',
                         fontSize: '12px',
                         fontWeight: 600,
@@ -116,9 +135,10 @@ export function TutorialOverlay({
                         e.currentTarget.style.color = '#ffffff';
                       }}
                     >
-                      👍 Helpful
+                      👍 {isKhmer ? 'មានប្រយោជន៍' : 'Helpful'}
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         setRating('not_helpful');
                         setFeedbackSubmitted(true);
@@ -127,7 +147,7 @@ export function TutorialOverlay({
                         backgroundColor: '#262b35',
                         border: '1px solid #3e4556',
                         color: '#ffffff',
-                        padding: '6px 16px',
+                        padding: '6px 14px',
                         borderRadius: '6px',
                         fontSize: '12px',
                         fontWeight: 600,
@@ -144,66 +164,92 @@ export function TutorialOverlay({
                         e.currentTarget.style.borderColor = '#3e4556';
                       }}
                     >
-                      👎 Needs Work
+                      👎 {isKhmer ? 'ត្រូវការកែលម្អ' : 'Needs Work'}
                     </button>
                   </div>
                 </>
               ) : (
                 <div style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
-                  ✨ Thank you for your feedback!
+                  ✨ {isKhmer ? 'អរគុណសម្រាប់ការផ្ដល់មតិយោបល់!' : 'Thank you for your feedback!'}
                 </div>
               )}
             </div>
 
             <button
+              type="button"
               onClick={onClose}
               style={{
                 width: '100%',
-                backgroundColor: '#f59e0b',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                 border: 'none',
-                color: '#000000',
+                color: '#ffffff',
                 padding: '11px 24px',
                 borderRadius: '8px',
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: 'pointer',
                 boxShadow: '0 4px 14px rgba(245, 158, 11, 0.35)',
-                transition: 'background-color 0.15s ease',
+                transition: 'all 0.15s ease',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d97706')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f59e0b')}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0px)')}
             >
-              Done & Dismiss
+              {isKhmer ? 'រួចរាល់ / Done' : 'Done'}
             </button>
           </div>
         </div>
       );
     }
-    return null;
+    return (
+      <FloatingAssistantButton
+        onClick={onToggleLauncher || onClose}
+        isActive={true}
+        isOpen={false}
+      />
+    );
   }
 
-  const { actionPayload, boundingBox, currentStepIndex, totalSteps, isFirstStep, isLastStep } = state;
+  const { actionPayload, boundingBox, currentStepIndex, totalSteps, isFirstStep, isLastStep, language, stepBadgeText, isPlayingAudio } = state;
 
   return (
     <div className="guideme-root-overlay">
-      {/* 1. Backdrop & Spotlight Cutout */}
-      <Spotlight targetBoundingBox={boundingBox} />
+      {/* 1. Target Element Spotlight & Pointer Indicator Pill */}
+      <Spotlight
+        targetBoundingBox={boundingBox}
+        actionText={actionPayload?.actionText || (isKhmer ? 'ចុចទីនេះ' : 'CLICK HERE')}
+        showPointer={actionPayload?.type !== 'modal' && Boolean(boundingBox)}
+      />
 
-      {/* 2. Floating Anchored Tooltip */}
+      {/* 2. Floating AI Live Coach Card */}
       <Tooltip
         targetBoundingBox={boundingBox}
         placement={actionPayload?.placement || 'bottom'}
         title={actionPayload?.title || 'Step'}
         content={actionPayload?.content || ''}
+        subtitle={actionPayload?.subtitle || ''}
+        coachTitle={actionPayload?.coachTitle || 'GuideMe - AI Live Coach'}
+        audioStatusText={actionPayload?.audioStatusText}
+        language={language || 'km'}
+        stepBadgeText={stepBadgeText}
         currentStepIndex={currentStepIndex}
         totalSteps={totalSteps}
         isFirstStep={isFirstStep}
         isLastStep={isLastStep}
-        canSkip={actionPayload?.canSkip}
+        canSkip={actionPayload?.canSkip ?? true}
+        isPlayingAudio={isPlayingAudio}
+        onLanguageChange={onLanguageChange}
         onNext={onNext}
         onPrev={onPrev}
         onSkip={onSkip}
         onClose={onClose}
+        onReplayAudio={onReplayAudio}
+      />
+
+      {/* 3. Floating Assistant Launcher Bubble (Fixed at bottom right) */}
+      <FloatingAssistantButton
+        onClick={onToggleLauncher || onClose}
+        isActive={true}
+        isOpen={true}
       />
     </div>
   );
