@@ -1,0 +1,28 @@
+{
+  "name": "@guideme/chrome-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "compile": "wxt compile"
+  },
+  "dependencies": {
+    "@guideme/core-types": "workspace:*",
+    "@guideme/adapter-interface": "workspace:*",
+    "@guideme/tutorial-schema": "workspace:*",
+    "@guideme/engine": "workspace:*",
+    "@guideme/chrome-adapter": "workspace:*",
+    "@guideme/tutorial-ui": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "wxt": "^0.19.28"
+  }
+}

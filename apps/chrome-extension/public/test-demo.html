@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GuideMe — Interactive Demo & Testbed</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card-bg: #12141a;
+      --card-elevated: #181b22;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #2a2f3b;
+      --accent: #f59e0b;
+      --accent-hover: #d97706;
+      --accent-text: #000000;
+      --accent-glow: rgba(245, 158, 11, 0.38);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Top Navigation Bar */
+    .top-nav {
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .doc-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .doc-icon {
+      background-color: var(--accent);
+      color: #000000;
+      font-weight: 800;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+
+    .doc-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: var(--accent-text);
+      box-shadow: 0 2px 8px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background-color: #262b35;
+      border: 1px solid #3e4556;
+      color: #ffffff;
+    }
+
+    .btn-secondary:hover {
+      background-color: #333a48;
+    }
+
+    /* Guide Control Banner */
+    .guide-banner {
+      background: #181b22;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    /* Container */
+    .container {
+      max-width: 900px;
+      margin: 28px auto;
+      padding: 0 20px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    h2 { font-size: 18px; margin-bottom: 12px; color: #ffffff; }
+    p { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+
+    /* Input elements */
+    .input-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    input[type="text"], input[type="email"] {
+      width: 100%;
+      background-color: #0b0d12;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+    }
+
+    /* Simulated Share Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 17, 23, 0.82);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 440px;
+      max-width: 90vw;
+      padding: 24px;
+      box-shadow: 0 20px 35px -5px rgba(0,0,0,0.7);
+    }
+
+    /* Testbed Embedded Spotlight UI */
+    #testbed-overlay-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 999990;
+      display: none;
+    }
+
+    #testbed-overlay-container.active {
+      display: block;
+    }
+
+    .target-highlight-box {
+      position: fixed;
+      border: 2px solid var(--accent);
+      box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.25), 0 0 24px var(--accent-glow);
+      border-radius: 8px;
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 999992;
+    }
+
+    .testbed-card {
+      position: fixed;
+      background-color: #12141a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      width: 330px;
+      box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.7);
+      pointer-events: auto;
+      z-index: 999995;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Guide Controller Banner -->
+  <div class="guide-banner">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-weight: 800; color: #f59e0b; font-size: 13px;">⚡ QUICK TESTBED LAUNCHER:</span>
+      <span style="font-size: 12px; color: #94a3b8;">Start a walkthrough directly or open the extension popup:</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button id="btn-start-share-guide" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px;">
+        ▶ Start Google Docs Guide
+      </button>
+      <button id="btn-start-welcome-tour" class="btn btn-secondary" style="font-size: 12px; padding: 6px 14px;">
+        ▶ Start Welcome Tour
+      </button>
+    </div>
+  </div>
+
+  <!-- Top App Navigation / Simulated Google Docs Bar -->
+  <nav class="top-nav">
+    <div class="doc-info">
+      <div class="doc-icon">G</div>
+      <div>
+        <div class="doc-title">Project Architecture Plan.docx</div>
+        <div style="font-size: 12px; color: var(--muted);">Saved to Drive</div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <button id="demo-comments-btn" class="btn btn-secondary">💬 Comments</button>
+      <!-- Target Share Button -->
+      <button id="docs-share-button" class="btn btn-primary" aria-label="Share with others">
+        🔒 Share
+      </button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="card">
+      <h2>Welcome to the GuideMe Interactive Testbed</h2>
+      <p>This test page simulates real Google Docs and SaaS UI components so you can test spotlights, step transitions, input validations, and Shadow DOM overlays live in the browser.</p>
+      
+      <div style="display: flex; gap: 12px; margin-top: 16px;">
+        <button id="demo-action-btn" class="btn btn-primary">Try Action</button>
+        <button id="demo-toggle-modal" class="btn btn-secondary">Open Share Modal Directly</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Input Validation Playground</h2>
+      <p>Test real-time event validation when typing in text fields (press Enter or tab away to advance).</p>
+      <div class="input-group">
+        <label for="demo-text-input">Interactive Field</label>
+        <input type="text" id="demo-text-input" data-testid="demo-input" placeholder="Type anything and press Enter...">
+      </div>
+    </div>
+  </div>
+
+  <!-- Simulated Share Modal -->
+  <div id="demo-share-modal" class="modal-backdrop">
+    <div class="modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 16px; color: #ffffff;">Share "Project Architecture Plan.docx"</h3>
+        <button id="demo-modal-close" style="background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer;">✕</button>
+      </div>
+
+      <div class="input-group">
+        <label for="demo-email-input">Add people and groups</label>
+        <input type="email" id="demo-email-input" aria-label="Add people and groups" placeholder="teammate@company.com">
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
+        <button id="demo-copy-link-btn" class="btn btn-secondary" aria-label="Copy link">
+          🔗 Copy link
+        </button>
+        <button id="demo-save-share-btn" class="btn btn-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Testbed Floating Guide Overlay UI -->
+  <div id="testbed-overlay-container">
+    <svg id="testbed-svg-mask" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 999991;">
+      <defs>
+        <mask id="testbed-mask">
+          <rect width="100%" height="100%" fill="white" />
+          <rect id="mask-hole" x="0" y="0" width="0" height="0" rx="8" fill="black" />
+        </mask>
+      </defs>
+      <rect width="100%" height="100%" fill="rgba(15, 17, 23, 0.82)" mask="url(#testbed-mask)" />
+    </svg>
+
+    <div id="target-glow" class="target-highlight-box"></div>
+
+    <div id="testbed-card" class="testbed-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span id="step-badge" style="font-size: 10px; font-weight: 700; color: #f59e0b; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); padding: 2px 8px; border-radius: 4px;">
+          STEP 1 / 4
+        </span>
+        <button id="btn-close-guide" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px;">✕</button>
+      </div>
+      <h4 id="step-title" style="color: #ffffff; font-size: 15px; font-weight: 700; margin-bottom: 6px;">Step Title</h4>
+      <p id="step-content" style="color: #cbd5e1; font-size: 13px; margin-bottom: 14px; line-height: 1.5;">Step Content</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #2a2f3b;">
+        <button id="btn-prev-step" class="btn btn-secondary" style="font-size: 11px; padding: 5px 12px;">Back</button>
+        <button id="btn-next-step" class="btn btn-primary" style="font-size: 11px; padding: 6px 16px;">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Modal controls
+    const shareBtn = document.getElementById('docs-share-button');
+    const modalToggle = document.getElementById('demo-toggle-modal');
+    const modal = document.getElementById('demo-share-modal');
+    const modalClose = document.getElementById('demo-modal-close');
+    const copyLinkBtn = document.getElementById('demo-copy-link-btn');
+
+    function openModal() { modal.classList.add('open'); updatePosition(); }
+    function closeModal() { modal.classList.remove('open'); updatePosition(); }
+
+    shareBtn.addEventListener('click', () => { openModal(); if (activeTutorial && currentStepIdx === 0) nextStep(); });
+    modalToggle.addEventListener('click', openModal);
+    modalClose.addEventListener('click', closeModal);
+    document.getElementById('demo-save-share-btn').addEventListener('click', closeModal);
+
+    copyLinkBtn.addEventListener('click', () => {
+      copyLinkBtn.textContent = '✅ Link Copied!';
+      setTimeout(() => { copyLinkBtn.textContent = '🔗 Copy link'; }, 2000);
+      if (activeTutorial && currentStepIdx === 2) nextStep();
+    });
+
+    const demoInput = document.getElementById('demo-email-input');
+    demoInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && activeTutorial && currentStepIdx === 1 && demoInput.value.length > 0) {
+        nextStep();
+      }
+    });
+
+    const textInput = document.getElementById('demo-text-input');
+    textInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && activeTutorial && activeTutorial.id === 'guideme-welcome-tour' && currentStepIdx === 2) {
+        nextStep();
+      }
+    });
+
+    document.getElementById('demo-action-btn').addEventListener('click', () => {
+      if (activeTutorial && activeTutorial.id === 'guideme-welcome-tour' && currentStepIdx === 1) {
+        nextStep();
+      }
+    });
+
+    // Testbed Tour Engine
+    const shareGuideSteps = [
+      {
+        title: "Open Sharing Settings",
+        content: "Click the 'Share' button in the top-right corner to open document permissions.",
+        target: '#docs-share-button',
+      },
+      {
+        title: "Add Collaborators",
+        content: "Type a collaborator's email address into the input field and press Enter.",
+        target: '#demo-email-input',
+        onEnter: () => openModal(),
+      },
+      {
+        title: "Copy Document Link",
+        content: "Click 'Copy link' to quickly get a direct sharing URL.",
+        target: '#demo-copy-link-btn',
+      },
+      {
+        title: "All Set!",
+        content: "You've mastered sharing in Google Docs. Collaborators can now access your document securely.",
+        target: null,
+      },
+    ];
+
+    const welcomeTourSteps = [
+      {
+        title: "Welcome to GuideMe",
+        content: "GuideMe provides non-intrusive step-by-step guidance overlays and spotlights on any web app.",
+        target: null,
+      },
+      {
+        title: "Interactive Spotlight",
+        content: "GuideMe highlights elements with smooth SVG masks. Click 'Try Action' to advance.",
+        target: '#demo-action-btn',
+      },
+      {
+        title: "Dynamic Input Validation",
+        content: "Type anything in this text field and press Enter to see automatic real-time event detection.",
+        target: '#demo-text-input',
+      },
+      {
+        title: "Tour Complete",
+        content: "You're ready to create and follow walkthroughs on any web application!",
+        target: null,
+      },
+    ];
+
+    let activeTutorial = null;
+    let currentStepIdx = 0;
+
+    const overlay = document.getElementById('testbed-overlay-container');
+    const maskHole = document.getElementById('mask-hole');
+    const targetGlow = document.getElementById('target-glow');
+    const card = document.getElementById('testbed-card');
+    const stepBadge = document.getElementById('step-badge');
+    const stepTitle = document.getElementById('step-title');
+    const stepContent = document.getElementById('step-content');
+    const prevBtn = document.getElementById('btn-prev-step');
+    const nextBtn = document.getElementById('btn-next-step');
+
+    function startGuide(steps, tutId = 'google-docs-share-guide') {
+      activeTutorial = { id: tutId, steps };
+      currentStepIdx = 0;
+      overlay.classList.add('active');
+      renderStep();
+    }
+
+    function renderStep() {
+      const step = activeTutorial.steps[currentStepIdx];
+      if (step.onEnter) step.onEnter();
+
+      stepBadge.textContent = `STEP ${currentStepIdx + 1} OF ${activeTutorial.steps.length}`;
+      stepTitle.textContent = step.title;
+      stepContent.textContent = step.content;
+
+      prevBtn.style.visibility = currentStepIdx === 0 ? 'hidden' : 'visible';
+      nextBtn.textContent = currentStepIdx === activeTutorial.steps.length - 1 ? 'Finish 🎉' : 'Next →';
+
+      updatePosition();
+    }
+
+    function updatePosition() {
+      if (!activeTutorial) return;
+      const step = activeTutorial.steps[currentStepIdx];
+
+      if (!step.target) {
+        maskHole.setAttribute('width', '0');
+        maskHole.setAttribute('height', '0');
+        targetGlow.style.display = 'none';
+
+        card.style.top = '50%';
+        card.style.left = '50%';
+        card.style.transform = 'translate(-50%, -50%)';
+        return;
+      }
+
+      const el = document.querySelector(step.target);
+      if (!el || el.offsetParent === null) {
+        maskHole.setAttribute('width', '0');
+        maskHole.setAttribute('height', '0');
+        targetGlow.style.display = 'none';
+        card.style.top = '50%';
+        card.style.left = '50%';
+        card.style.transform = 'translate(-50%, -50%)';
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      const pad = 6;
+      const x = Math.max(0, rect.left - pad);
+      const y = Math.max(0, rect.top - pad);
+      const w = rect.width + pad * 2;
+      const h = rect.height + pad * 2;
+
+      maskHole.setAttribute('x', x);
+      maskHole.setAttribute('y', y);
+      maskHole.setAttribute('width', w);
+      maskHole.setAttribute('height', h);
+
+      targetGlow.style.display = 'block';
+      targetGlow.style.top = `${y}px`;
+      targetGlow.style.left = `${x}px`;
+      targetGlow.style.width = `${w}px`;
+      targetGlow.style.height = `${h}px`;
+
+      // Position tooltip
+      card.style.transform = 'none';
+      let cardTop = rect.bottom + 14;
+      let cardLeft = rect.left + rect.width / 2 - 165;
+
+      if (cardTop + 200 > window.innerHeight) {
+        cardTop = Math.max(12, rect.top - 200);
+      }
+      cardLeft = Math.max(16, Math.min(cardLeft, window.innerWidth - 350));
+
+      card.style.top = `${cardTop}px`;
+      card.style.left = `${cardLeft}px`;
+    }
+
+    function nextStep() {
+      if (!activeTutorial) return;
+      if (currentStepIdx < activeTutorial.steps.length - 1) {
+        currentStepIdx++;
+        renderStep();
+      } else {
+        stopGuide();
+      }
+    }
+
+    function prevStep() {
+      if (!activeTutorial || currentStepIdx === 0) return;
+      currentStepIdx--;
+      renderStep();
+    }
+
+    function stopGuide() {
+      activeTutorial = null;
+      overlay.classList.remove('active');
+    }
+
+    nextBtn.addEventListener('click', nextStep);
+    prevBtn.addEventListener('click', prevStep);
+    document.getElementById('btn-close-guide').addEventListener('click', stopGuide);
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, { passive: true });
+
+    document.getElementById('btn-start-share-guide').addEventListener('click', () => {
+      startGuide(shareGuideSteps, 'google-docs-share-guide');
+    });
+
+    document.getElementById('btn-start-welcome-tour').addEventListener('click', () => {
+      startGuide(welcomeTourSteps, 'guideme-welcome-tour');
+    });
+
+    // Listen for extension popup commands if running inside extension
+    if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+      chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+        const action = msg.action || '';
+        if (action === 'GUIDEME_START_TUTORIAL' || action === 'START_TUTORIAL') {
+          if (msg.payload?.tutorialId === 'guideme-welcome-tour' || msg.payload?.tutorialId === 'welcome-tour') {
+            startGuide(welcomeTourSteps, 'guideme-welcome-tour');
+          } else {
+            startGuide(shareGuideSteps, 'google-docs-share-guide');
+          }
+          sendResponse({ success: true });
+        } else if (action === 'GUIDEME_START_DYNAMIC_GUIDE' || action === 'START_DYNAMIC_GUIDE') {
+          startGuide(welcomeTourSteps, 'guideme-welcome-tour');
+          sendResponse({ success: true });
+        } else if (action === 'GUIDEME_STOP_TUTORIAL' || action === 'STOP_TUTORIAL') {
+          stopGuide();
+          sendResponse({ success: true });
+        } else if (action === 'GUIDEME_GET_TUTORIAL_STATUS' || action === 'GET_TUTORIAL_STATUS') {
+          sendResponse({
+            success: true,
+            state: activeTutorial ? { isActive: true, currentStepIndex: currentStepIdx, totalSteps: activeTutorial.steps.length } : null,
+          });
+        }
+        return true;
+      });
+    }
+  </script>
+</body>
+</html>

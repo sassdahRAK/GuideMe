@@ -1,0 +1,81 @@
+{
+  "id": "google-docs-share-guide",
+  "version": "1.0.0",
+  "name": "Share & Manage Permissions in Google Docs",
+  "description": "Learn how to share your Google Doc, configure viewer/editor roles, and copy access links.",
+  "matchUrls": [
+    "https://docs.google.com/document/*",
+    "https://docs.google.com/document/d/*",
+    "*://*/*test-demo.html*"
+  ],
+  "steps": [
+    {
+      "id": "step_open_share",
+      "title": "Open Sharing Settings",
+      "description": "Click the blue 'Share' button in the top-right corner to open document permissions.",
+      "target": {
+        "css": "#docs-share-button, div[aria-label*='Share with others'], [data-tooltip*='Share'], #demo-share-btn",
+        "ariaLabel": "Share with others",
+        "text": "Share"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": "Share Document",
+        "content": "Click here to manage collaborators and share links.",
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_add_people",
+      "title": "Add Collaborators",
+      "description": "Enter the email addresses of teammates you'd like to collaborate with.",
+      "target": {
+        "css": "input[aria-label*='Add people'], input[type='email'], input#demo-email-input, textarea",
+        "ariaLabel": "Add people and groups"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": "Add People or Groups",
+        "content": "Type an email address here to invite a teammate.",
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_copy_link",
+      "title": "Copy Document Link",
+      "description": "Click 'Copy link' to quickly get a direct sharing URL on your clipboard.",
+      "target": {
+        "css": "button[aria-label*='Copy link'], div[aria-label*='Copy link'], #demo-copy-link-btn",
+        "text": "Copy link"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": "Copy Sharing Link",
+        "content": "Click 'Copy link' to share directly via chat or email.",
+        "placement": "top"
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": "All Set!",
+      "description": "You've mastered sharing in Google Docs. Collaborators can now access your document securely.",
+      "action": {
+        "type": "modal",
+        "title": "Sharing Complete!",
+        "content": "You now know how to invite team members and generate sharing links in Google Docs."
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+:host {
+  all: initial;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+.guideme-target-glow {
+  animation: guideme-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes guideme-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.25), 0 0 15px rgba(56, 189, 248, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.4), 0 0 25px rgba(56, 189, 248, 0.5);
+  }
+}

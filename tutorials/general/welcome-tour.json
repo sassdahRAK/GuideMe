@@ -1,0 +1,74 @@
+{
+  "id": "guideme-welcome-tour",
+  "version": "1.0.0",
+  "name": "GuideMe Feature Walkthrough",
+  "description": "An interactive tour highlighting toolbars, action buttons, and input validation.",
+  "matchUrls": [
+    "<all_urls>",
+    "*://*/*"
+  ],
+  "steps": [
+    {
+      "id": "welcome_step_1",
+      "title": "Welcome to GuideMe",
+      "description": "GuideMe provides interactive, non-intrusive step-by-step guidance overlays on any web app.",
+      "action": {
+        "type": "modal",
+        "title": "Welcome to GuideMe",
+        "content": "Let's explore how interactive spotlights, input validation, and automatic step advancement work!"
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "welcome_step_2",
+      "title": "Interactive Spotlight",
+      "description": "GuideMe highlights elements with smooth SVG masks without blocking your clicks.",
+      "target": {
+        "css": "#demo-action-btn, button, #docs-share-button",
+        "text": "Try Action"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": "Click Target",
+        "content": "Click this button to see GuideMe detect your interaction in real time!",
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "welcome_step_3",
+      "title": "Dynamic Input Validation",
+      "description": "Steps can validate typing and ensure users enter required details.",
+      "target": {
+        "css": "#demo-text-input, input[type='text'], input[type='email'], input",
+        "testId": "demo-input"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": "Type Something",
+        "content": "Type any message in this input box to advance.",
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "welcome_step_4",
+      "title": "You're All Set!",
+      "description": "You've experienced how GuideMe works. Build custom guides or follow app tutorials anytime.",
+      "action": {
+        "type": "modal",
+        "title": "Tour Complete",
+        "content": "Explore Google Docs or create custom JSON guides for any SaaS platform!"
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}
