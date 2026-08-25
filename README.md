@@ -1,0 +1,60 @@
+# GuideMe — Universal Tutorial Engine
+
+> Interactive step-by-step guidance overlays, SVG spotlights, and dynamic DOM auto-guidance for web applications.
+
+---
+
+## 🚀 Quick Setup
+
+Dependencies are already installed in your workspace! You can run commands directly using `npx pnpm`.
+
+### If `pnpm` is not installed on your system:
+You can either use `npx pnpm` directly:
+```bash
+npx pnpm dev       # Start development server
+npx pnpm build     # Build Chrome extension bundle
+npx pnpm test      # Run unit tests
+```
+
+Or install standalone `pnpm` in your user directory (no `sudo` required):
+```bash
+curl -fsSL https://get.pnpm.io/install.sh | sh -
+```
+
+### 1. Build Extension
+```bash
+npx pnpm build
+# or
+pnpm build
+```
+
+### 2. Load into Browser
+1. Open Google Chrome or any Chromium browser and navigate to `chrome://extensions`.
+2. Toggle **Developer mode** ON (top-right corner).
+3. Click **Load unpacked** and select:
+   `apps/chrome-extension/.output/chrome-mv3`
+
+---
+
+## 📖 Complete Documentation & Usage Guide
+
+For complete details on monorepo architecture, curated walkthroughs, Dynamic Auto-Guide (`DynamicPageAnalyzer`), custom tutorial JSON schema specifications, target matching strategies, and troubleshooting, please read:
+
+👉 **[Complete Setup & Usage Guide](docs/SETUP_AND_USAGE_GUIDE.md)**
+
+---
+
+## 💻 Available Scripts
+
+- **`npx pnpm dev`**: Start WXT hot-reloading dev server
+- **`npx pnpm build`**: Build production Chrome Manifest V3 extension
+- **`npx pnpm test`**: Run engine and dynamic analyzer unit test suite
+- **`npx pnpm clean`**: Clean build outputs and cached packages
+
+---
+
+## 📄 Documentation Links
+- [Setup & Usage Guide](docs/SETUP_AND_USAGE_GUIDE.md)
+- [Architecture Specification](docs/ARCHITECTURE_SPECIFICATION.md)
+- [Requirements](docs/REQUIREMENTS.md)
+- [New Requirements](docs/New_Requirements.md)
