@@ -1,0 +1,81 @@
+{
+  "id": "input-form-guide-example",
+  "version": "1.0.0",
+  "name": "Interactive Form & Input Walkthrough",
+  "description": "Step-by-step guide showing how steps automatically advance whenever user types text into input fields.",
+  "matchUrls": [
+    "<all_urls>",
+    "*://*/*"
+  ],
+  "steps": [
+    {
+      "id": "step_welcome",
+      "title": "Welcome to Input Guide",
+      "description": "This guide demonstrates how GuideMe automatically detects user typing and input validation.",
+      "action": {
+        "type": "modal",
+        "title": "Input Guided Tour",
+        "content": "Click Next to start typing into form fields!"
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_type_any_text",
+      "title": "Type Any Text",
+      "description": "Type any response into this input box. GuideMe will automatically advance as soon as you type or press Enter.",
+      "target": {
+        "css": "input[type='text'], #demo-text-input, textarea",
+        "ariaLabel": "Text input"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": "Type Message",
+        "content": "Type anything into this field to automatically advance to the next step.",
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_type_specific_value",
+      "title": "Type Specific Value",
+      "description": "Type 'hello@example.com' into this email input field.",
+      "target": {
+        "css": "input[type='email'], #demo-email-input, input",
+        "ariaLabel": "Email address"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": "Enter Email",
+        "content": "Type 'hello@example.com' into the highlighted box.",
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "input",
+        "expectedValue": "hello@example.com",
+        "exactMatch": false
+      }
+    },
+    {
+      "id": "step_click_action",
+      "title": "Submit / Proceed",
+      "description": "Click the action button to complete the input guided sequence.",
+      "target": {
+        "css": "button[type='submit'], #demo-action-btn, button",
+        "text": "Submit"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": "Click Action Button",
+        "content": "Click here to submit the form.",
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "click"
+      }
+    }
+  ]
+}

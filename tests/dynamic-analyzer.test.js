@@ -111,4 +111,37 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/settings');
     assert.ok(tutorial.steps.length >= 2);
   });
+
+  test('Generates custom steps matching user input prompt keywords', () => {
+    const mockDoc = createMockDoc({
+      title: 'Custom Dashboard',
+      inputs: [
+        { type: 'text', name: 'search_query', placeholder: 'Search repository', id: 'repo-search' },
+        { type: 'email', name: 'user_email', placeholder: 'Feedback Email', id: 'email-input' },
+      ],
+      buttons: [
+        { textContent: 'Share Project', id: 'share-btn' },
+      ],
+    });
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/dashboard', 'share project');
+    assert.strictEqual(tutorial.name, 'Guide: share project');
+    assert.ok(tutorial.steps.some(s => s.title.includes('Share')));
+  });
+
+  test('Parses raw JSON prompt directly as tutorial schema', () => {
+    const mockDoc = createMockDoc({});
+    const jsonPrompt = JSON.stringify({
+      id: 'custom-json-guide',
+      name: 'Custom JSON Walkthrough',
+      steps: [
+        { id: 's1', title: 'Step 1', target: { css: '#btn' }, action: { type: 'spotlight' }, validation: { type: 'click' } }
+      ]
+    });
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com', jsonPrompt);
+    assert.strictEqual(tutorial.id, 'custom-json-guide');
+    assert.strictEqual(tutorial.name, 'Custom JSON Walkthrough');
+    assert.strictEqual(tutorial.steps.length, 1);
+  });
 });

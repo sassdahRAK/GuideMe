@@ -175,9 +175,29 @@ export class DynamicPageAnalyzer {
    * Generates a fully formed, executable declarative tutorial schema for the page.
    * @param {Document} doc
    * @param {string} [url='']
+   * @param {string|Object} [userPrompt=''] - Custom user input prompt or JSON schema
    * @returns {Object} JSON Tutorial schema
    */
-  static generateDynamicTutorial(doc, url = '') {
+  static generateDynamicTutorial(doc, url = '', userPrompt = '') {
+    // 0. If userPrompt is a raw JSON string of a tutorial schema, parse and return it directly
+    if (typeof userPrompt === 'string' && userPrompt.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(userPrompt.trim());
+        if (parsed && parsed.steps && Array.isArray(parsed.steps)) {
+          return {
+            id: parsed.id || `custom-prompt-guide-${Date.now()}`,
+            version: parsed.version || '1.0.0',
+            name: parsed.name || 'Custom Guided Tour',
+            description: parsed.description || 'User-defined custom guide.',
+            matchUrls: parsed.matchUrls || ['<all_urls>'],
+            steps: parsed.steps,
+          };
+        }
+      } catch (e) {
+        // Fallback to prompt keyword matching
+      }
+    }
+
     const analysis = this.analyzePage(doc, url);
     const domain = (() => {
       try {
@@ -187,9 +207,75 @@ export class DynamicPageAnalyzer {
       }
     })();
 
+    const promptText = (typeof userPrompt === 'string' ? userPrompt.trim() : '');
+    const keywords = promptText ? promptText.toLowerCase().split(/[\s,._-]+/).filter(w => w.length >= 2) : [];
+
     const tutorialId = `dynamic-guide-${Date.now()}`;
-    let name = `Interactive Walkthrough: ${domain}`;
-    let description = `Auto-generated walkthrough exploring key workflows on this page.`;
+    let name = promptText ? `Guide: ${promptText}` : `Interactive Walkthrough: ${domain}`;
+    let description = promptText 
+      ? `Step-by-step guidance for "${promptText}" on ${domain}.`
+      : `Auto-generated walkthrough exploring key workflows on this page.`;
+
+    // 1. If user typed keywords, search for matching DOM elements on the page first
+    if (keywords.length > 0) {
+      const matchedSteps = [];
+
+      // Find inputs matching keywords
+      analysis.allInputs.forEach((input, idx) => {
+        const textToMatch = `${input.placeholder || ''} ${input.name || ''} ${input.id || ''} ${input.type || ''} ${input.getAttribute?.('aria-label') || ''}`.toLowerCase();
+        const matchesKeyword = keywords.some(kw => textToMatch.includes(kw));
+        if (matchesKeyword) {
+          const label = input.placeholder || input.name || input.id || `Input field`;
+          matchedSteps.push({
+            id: `prompt_step_input_${idx}`,
+            title: `Enter ${label}`,
+            description: `Type information into the ${label} field.`,
+            target: this._buildTargetSelector(input, 'input'),
+            action: {
+              type: 'spotlight',
+              title: `Fill ${label}`,
+              content: `Type text into this field for "${promptText}".`,
+              placement: 'bottom',
+            },
+            validation: { type: 'input' },
+          });
+        }
+      });
+
+      // Find buttons matching keywords
+      analysis.buttons.forEach((btn, idx) => {
+        const textToMatch = `${btn.textContent || ''} ${btn.id || ''} ${btn.className || ''} ${btn.getAttribute?.('aria-label') || ''}`.toLowerCase();
+        const matchesKeyword = keywords.some(kw => textToMatch.includes(kw));
+        if (matchesKeyword) {
+          const label = (btn.textContent || '').trim().substring(0, 30) || `Action button`;
+          matchedSteps.push({
+            id: `prompt_step_btn_${idx}`,
+            title: `Click "${label}"`,
+            description: `Click this button to execute the action.`,
+            target: this._buildTargetSelector(btn, 'button'),
+            action: {
+              type: 'spotlight',
+              title: label,
+              content: `Click here as part of "${promptText}".`,
+              placement: 'top',
+            },
+            validation: { type: 'click' },
+          });
+        }
+      });
+
+      if (matchedSteps.length > 0) {
+        return {
+          id: tutorialId,
+          version: '1.0.0',
+          name,
+          description,
+          matchUrls: ['<all_urls>'],
+          steps: matchedSteps,
+        };
+      }
+    }
+
     const steps = [];
 
     switch (analysis.pageType) {

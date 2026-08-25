@@ -6,6 +6,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState(null);
   const [engineState, setEngineState] = useState(null);
   const [availableTutorials, setAvailableTutorials] = useState(() => getTutorialsForUrl(''));
+  const [customPrompt, setCustomPrompt] = useState('');
   const [contentScriptConnected, setContentScriptConnected] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -88,11 +89,13 @@ export default function App() {
     });
   };
 
-  const handleStartDynamicGuide = async () => {
+  const handleStartDynamicGuide = async (promptOverride = null) => {
     if (!currentTab?.id || isChromeInternalUrl) return;
 
+    const promptText = typeof promptOverride === 'string' ? promptOverride : customPrompt;
     const dynamicMsg = {
       action: ExtensionMessageAction.START_DYNAMIC_GUIDE,
+      payload: { userPrompt: promptText },
     };
 
     chrome.tabs.sendMessage(currentTab.id, dynamicMsg, async (response) => {
@@ -220,37 +223,87 @@ export default function App() {
         </div>
       </div>
 
-      {/* Dynamic Auto-Guide Action (Universal Mode) */}
+      {/* Custom Prompt Input Guide */}
       {!isChromeInternalUrl && (
-        <div style={{ marginBottom: '14px' }}>
+        <div
+          style={{
+            backgroundColor: '#181b22',
+            border: '1px solid #2a2f3b',
+            borderRadius: '10px',
+            padding: '12px',
+            marginBottom: '14px',
+          }}
+        >
+          <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.04em' }}>
+            💬 Prompt-to-Guide Anywhere
+          </div>
+          <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>
+            Type what you want to do on this page (or paste JSON steps):
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleStartDynamicGuide(customPrompt);
+            }}
+          >
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+              <input
+                type="text"
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                placeholder="e.g. search, fill email, click share..."
+                style={{
+                  flex: 1,
+                  backgroundColor: '#12141a',
+                  border: '1px solid #3e4556',
+                  borderRadius: '6px',
+                  color: '#ffffff',
+                  padding: '7px 10px',
+                  fontSize: '11px',
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  backgroundColor: '#f59e0b',
+                  border: 'none',
+                  color: '#000000',
+                  padding: '7px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Guide Me
+              </button>
+            </div>
+          </form>
+
           <button
-            onClick={handleStartDynamicGuide}
+            onClick={() => handleStartDynamicGuide('')}
             style={{
               width: '100%',
-              backgroundColor: '#f59e0b',
-              border: 'none',
-              color: '#000000',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: 700,
+              backgroundColor: '#262b35',
+              border: '1px solid #3e4556',
+              color: '#cbd5e1',
+              padding: '7px 10px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 600,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
-              boxShadow: '0 3px 10px rgba(245, 158, 11, 0.35)',
-              transition: 'background-color 0.15s ease',
+              gap: '6px',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d97706')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f59e0b')}
           >
             <span>⚡</span>
-            <span>Auto-Guide This Page</span>
+            <span>Auto-Scan Full Page</span>
           </button>
-          <div style={{ textAlign: 'center', fontSize: '10px', color: '#64748b', marginTop: '4px' }}>
-            Dynamically scans forms, buttons & navigation
-          </div>
         </div>
       )}
 

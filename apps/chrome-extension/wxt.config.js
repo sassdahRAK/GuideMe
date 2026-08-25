@@ -20,6 +20,9 @@ export default defineConfig({
       default_title: 'GuideMe Tutorials',
     },
   },
+  runner: {
+    disabled: true,
+  },
   vite: () => ({
     plugins: [react()],
   }),

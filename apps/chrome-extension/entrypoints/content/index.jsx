@@ -70,7 +70,8 @@ export default defineContentScript({
 
                 case ExtensionMessageAction.START_DYNAMIC_GUIDE: {
                   try {
-                    const dynamicTutorial = DynamicPageAnalyzer.generateDynamicTutorial(document, window.location.href);
+                    const prompt = message.payload?.userPrompt || '';
+                    const dynamicTutorial = DynamicPageAnalyzer.generateDynamicTutorial(document, window.location.href, prompt);
                     engine.start(dynamicTutorial, 0);
                     sendResponse({ success: true, tutorialId: dynamicTutorial.id, dynamic: true });
                   } catch (err) {
