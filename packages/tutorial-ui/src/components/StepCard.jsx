@@ -60,6 +60,7 @@ export function StepCard({
     <div
       className="guideme-step-card guideme-coach-card"
       style={{
+        pointerEvents: 'auto',
         backgroundColor: '#12141a',
         color: '#f8fafc',
         borderRadius: '16px',

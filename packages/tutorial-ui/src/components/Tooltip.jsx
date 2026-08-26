@@ -40,6 +40,7 @@ export function Tooltip({
         left: '50%',
         transform: 'translate(-50%, -50%)',
         zIndex: 999995,
+        pointerEvents: 'auto',
       };
     }
 
@@ -96,6 +97,7 @@ export function Tooltip({
       top: `${calculatedTop}px`,
       left: `${calculatedLeft}px`,
       zIndex: 999995,
+      pointerEvents: 'auto',
       transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
     };
   }, [targetBoundingBox, placement]);
