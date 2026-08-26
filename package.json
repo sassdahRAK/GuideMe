@@ -11,8 +11,8 @@
   "scripts": {
     "dev": "npm run --prefix apps/chrome-extension dev",
     "build": "npm run --prefix apps/chrome-extension build",
-    "test": "node --test tests/**/*.test.js",
-    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/.output apps/*/.wxt"
+    "test": "node --test \"tests/**/*.test.js\"",
+    "clean": "node --input-type=module -e \"import fs from 'fs'; ['node_modules', 'apps/chrome-extension/node_modules', 'packages/adapter-interface/node_modules', 'packages/chrome-adapter/node_modules', 'packages/core-types/node_modules', 'packages/engine/node_modules', 'packages/tutorial-schema/node_modules', 'packages/tutorial-ui/node_modules', 'apps/chrome-extension/.output', 'apps/chrome-extension/.wxt'].forEach(p => fs.rmSync(p, { recursive: true, force: true })); console.log('Cleaned build artifacts successfully.');\""
   },
   "keywords": [
     "tutorial",

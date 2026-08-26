@@ -100,11 +100,15 @@ npx pnpm build
 npx pnpm test
 ```
 
-### Installing `pnpm` in User Space (No `sudo` needed):
-To install `pnpm` globally for your user without permission errors:
-```bash
-curl -fsSL https://get.pnpm.io/install.sh | sh -
-```
+### Installing `pnpm`:
+- **Windows (PowerShell)**:
+  ```powershell
+  iwr https://get.pnpm.io/install.ps1 -useb | iex
+  ```
+- **macOS / Linux**:
+  ```bash
+  curl -fsSL https://get.pnpm.io/install.sh | sh -
+  ```
 
 ---
 
@@ -344,6 +348,26 @@ Below is a complete, working example tutorial definition (`tutorials/general/wel
 
 #### Q3: How do unit tests run?
 > **Answer**: Run `pnpm test` (or `npm test`). Node's built-in test runner executes `tests/engine.test.js` and `tests/dynamic-analyzer.test.js`.
+
+#### Q4: Windows PC Troubleshooting Guide
+> **Issue 1: PowerShell script execution error (`PSSecurityException`)**
+> - **Cause**: Windows PowerShell blocks running scripts like `pnpm.ps1` or `npx.ps1` by default.
+> - **Fix**: Open PowerShell as Administrator and run:
+>   `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+>   Or run your commands inside **Command Prompt (cmd.exe)** or **Git Bash**.
+
+> **Issue 2: PNPM Symlink / Permission Error (`EPERM: operation not permitted, symlink`)**
+> - **Cause**: PNPM workspaces use symbolic links, which require Developer Mode or Admin rights on Windows.
+> - **Fix**: Enable **Developer Mode** in Windows (`Settings > Update & Security > For developers` -> toggle **Developer Mode** ON). Alternatively, run `npx pnpm install` in an Administrator terminal.
+
+> **Issue 3: Unix shell scripts or `rm -rf` error**
+> - **Cause**: Commands like `curl ... | sh` or `rm -rf` are Linux/macOS commands and do not exist in Windows CMD.
+> - **Fix**: We updated `package.json` to use cross-platform Node.js commands (`npm run clean`). For PNPM installation on Windows PowerShell, use:
+>   `iwr https://get.pnpm.io/install.ps1 -useb | iex`
+>   Or simply use `npx pnpm <command>` or `npm install -g pnpm`.
+
+> **Issue 4: Loading extension path in Windows Chrome**
+> - **Fix**: In Chrome (`chrome://extensions`), turn on **Developer Mode**, click **Load unpacked**, and select `apps\chrome-extension\.output\chrome-mv3`.
 
 ---
 

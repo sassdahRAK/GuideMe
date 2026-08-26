@@ -16,10 +16,15 @@ npx pnpm build     # Build Chrome extension bundle
 npx pnpm test      # Run unit tests
 ```
 
-Or install standalone `pnpm` in your user directory (no `sudo` required):
-```bash
-curl -fsSL https://get.pnpm.io/install.sh | sh -
-```
+Or install standalone `pnpm`:
+- **Windows (PowerShell)**:
+  ```powershell
+  iwr https://get.pnpm.io/install.ps1 -useb | iex
+  ```
+- **macOS / Linux**:
+  ```bash
+  curl -fsSL https://get.pnpm.io/install.sh | sh -
+  ```
 
 ### 1. Build Extension
 ```bash
