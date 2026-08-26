@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
+import { FiAward, FiThumbsUp, FiThumbsDown, FiCheckCircle } from 'react-icons/fi';
 import { Spotlight } from './Spotlight.jsx';
 import { Tooltip } from './Tooltip.jsx';
 import { FloatingAssistantButton } from './FloatingAssistantButton.jsx';
+import { FloatingPromptWidget } from './FloatingPromptWidget.jsx';
 
-/**
- * Root React Tutorial Overlay rendering engine state snapshot.
- */
 export function TutorialOverlay({
   state,
   onNext,
@@ -15,6 +14,11 @@ export function TutorialOverlay({
   onLanguageChange,
   onReplayAudio,
   onToggleLauncher,
+  onStartDynamicGuide,
+  onStartTutorial,
+  isPromptOpen,
+  onTogglePrompt,
+  availableTutorials = [],
 }) {
   const [rating, setRating] = useState(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
@@ -25,117 +29,52 @@ export function TutorialOverlay({
     if (state?.isCompleted) {
       return (
         <div
-          className="guideme-completion-modal"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: 'rgba(15, 17, 23, 0.85)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 999999,
-            fontFamily: isKhmer
-              ? "'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-              : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-          }}
+          className={`fixed inset-0 w-screen h-screen bg-black/85 backdrop-blur-sm flex items-center justify-center z-[999999] pointer-events-auto ${
+            isKhmer ? 'font-kantumruy' : 'font-sans'
+          }`}
         >
-          <div
-            style={{
-              backgroundColor: '#12141a',
-              border: '1px solid #2a2f3b',
-              borderRadius: '16px',
-              padding: '32px 28px',
-              maxWidth: '430px',
-              width: '90%',
-              textAlign: 'center',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 30px rgba(245, 158, 11, 0.15)',
-              animation: 'guideme-card-pop 0.25s ease-out',
-            }}
-          >
-            <div
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                border: '2px solid #f59e0b',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '28px',
-                margin: '0 auto 16px auto',
-                boxShadow: '0 0 20px rgba(245, 158, 11, 0.3)',
-              }}
-            >
-              🎉
+          <div className="bg-[#12141a] border border-[#2a2f3b] rounded-2xl p-7 sm:p-8 max-w-[430px] w-[90%] text-center shadow-[0_25px_50px_-12px_rgba(0,0,0,0.85),0_0_30px_rgba(245,158,11,0.15)] animate-[guideme-card-pop_0.25s_ease-out]">
+            {/* Completion Badge (Zero Emojis, uses React Icons) */}
+            <div className="w-16 h-16 rounded-full bg-amber-500/15 border-2 border-amber-500 flex items-center justify-center mx-auto mb-4 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+              <FiAward className="w-8 h-8 stroke-[2.2]" />
             </div>
-            <h3 style={{ margin: '0 0 8px 0', color: '#ffffff', fontSize: '20px', fontWeight: 800 }}>
+
+            <h3 className="m-0 mb-2 text-white text-xl font-extrabold">
               {isKhmer ? 'មេរៀនត្រូវបានបញ្ចប់!' : 'Walkthrough Complete!'}
             </h3>
-            <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: 1.5, margin: '0 0 20px 0' }}>
+
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed m-0 mb-5">
               {isKhmer ? (
                 <>
-                  អ្នកបានបញ្ចប់ការណែនាំ <strong style={{ color: '#f59e0b' }}>{state?.tutorial?.name || 'GuideMe Walkthrough'}</strong> ដោយជោគជ័យ។
+                  អ្នកបានបញ្ចប់ការណែនាំ <strong className="text-amber-400">{state?.tutorial?.name || 'GuideMe Walkthrough'}</strong> ដោយជោគជ័យ។
                 </>
               ) : (
                 <>
-                  You have successfully completed <strong style={{ color: '#f59e0b' }}>{state?.tutorial?.name || 'this walkthrough'}</strong>.
+                  You have successfully completed <strong className="text-amber-400">{state?.tutorial?.name || 'this walkthrough'}</strong>.
                 </>
               )}
             </p>
 
             {/* Survey / Feedback Widget */}
-            <div
-              style={{
-                backgroundColor: '#181b22',
-                border: '1px solid #2a2f3b',
-                borderRadius: '10px',
-                padding: '14px',
-                marginBottom: '20px',
-              }}
-            >
+            <div className="bg-[#181b22] border border-[#2a2f3b] rounded-xl p-3.5 mb-5">
               {!feedbackSubmitted ? (
                 <>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#f8fafc', marginBottom: '10px' }}>
+                  <div className="text-xs font-semibold text-slate-100 mb-2.5">
                     {isKhmer
                       ? 'តើការណែនាំនេះមានប្រយោជន៍ដែរឬទេ?'
                       : 'Was this guidance helpful?'}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                  <div className="flex justify-center gap-2.5">
                     <button
                       type="button"
                       onClick={() => {
                         setRating('helpful');
                         setFeedbackSubmitted(true);
                       }}
-                      style={{
-                        backgroundColor: '#262b35',
-                        border: '1px solid #3e4556',
-                        color: '#ffffff',
-                        padding: '6px 14px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = '#f59e0b';
-                        e.currentTarget.style.color = '#f59e0b';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#3e4556';
-                        e.currentTarget.style.color = '#ffffff';
-                      }}
+                      className="bg-[#262b35] border border-[#3e4556] text-white hover:border-amber-500 hover:text-amber-400 px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors duration-150"
                     >
-                      👍 {isKhmer ? 'មានប្រយោជន៍' : 'Helpful'}
+                      <FiThumbsUp className="w-3.5 h-3.5" />
+                      <span>{isKhmer ? 'មានប្រយោជន៍' : 'Helpful'}</span>
                     </button>
                     <button
                       type="button"
@@ -143,34 +82,17 @@ export function TutorialOverlay({
                         setRating('not_helpful');
                         setFeedbackSubmitted(true);
                       }}
-                      style={{
-                        backgroundColor: '#262b35',
-                        border: '1px solid #3e4556',
-                        color: '#ffffff',
-                        padding: '6px 14px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = '#94a3b8';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#3e4556';
-                      }}
+                      className="bg-[#262b35] border border-[#3e4556] text-white hover:border-slate-400 px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-colors duration-150"
                     >
-                      👎 {isKhmer ? 'ត្រូវការកែលម្អ' : 'Needs Work'}
+                      <FiThumbsDown className="w-3.5 h-3.5" />
+                      <span>{isKhmer ? 'ត្រូវការកែលម្អ' : 'Needs Work'}</span>
                     </button>
                   </div>
                 </>
               ) : (
-                <div style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
-                  ✨ {isKhmer ? 'អរគុណសម្រាប់ការផ្ដល់មតិយោបល់!' : 'Thank you for your feedback!'}
+                <div className="text-xs text-emerald-400 font-semibold flex items-center justify-center gap-1.5">
+                  <FiCheckCircle className="w-4 h-4" />
+                  <span>{isKhmer ? 'អរគុណសម្រាប់ការផ្ដល់មតិយោបល់!' : 'Thank you for your feedback!'}</span>
                 </div>
               )}
             </div>
@@ -178,21 +100,7 @@ export function TutorialOverlay({
             <button
               type="button"
               onClick={onClose}
-              style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                border: 'none',
-                color: '#ffffff',
-                padding: '11px 24px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(245, 158, 11, 0.35)',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0px)')}
+              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-black font-extrabold py-3 px-6 rounded-xl text-sm cursor-pointer shadow-[0_4px_14px_rgba(245,158,11,0.35)] hover:-translate-y-0.5 transition-all duration-150"
             >
               {isKhmer ? 'រួចរាល់ / Done' : 'Done'}
             </button>
@@ -200,11 +108,16 @@ export function TutorialOverlay({
         </div>
       );
     }
+
     return (
-      <FloatingAssistantButton
-        onClick={onToggleLauncher || onClose}
-        isActive={true}
-        isOpen={false}
+      <FloatingPromptWidget
+        isOpen={isPromptOpen}
+        onToggleOpen={onTogglePrompt}
+        onStartDynamicGuide={onStartDynamicGuide}
+        onStartTutorial={onStartTutorial}
+        availableTutorials={availableTutorials}
+        language={state?.language || 'km'}
+        onLanguageChange={onLanguageChange}
       />
     );
   }
@@ -212,7 +125,7 @@ export function TutorialOverlay({
   const { actionPayload, boundingBox, currentStepIndex, totalSteps, isFirstStep, isLastStep, language, stepBadgeText, isPlayingAudio } = state;
 
   return (
-    <div className="guideme-root-overlay">
+    <div className="guideme-root-overlay pointer-events-none">
       {/* 1. Target Element Spotlight & Pointer Indicator Pill */}
       <Spotlight
         targetBoundingBox={boundingBox}
@@ -245,7 +158,7 @@ export function TutorialOverlay({
         onReplayAudio={onReplayAudio}
       />
 
-      {/* 3. Floating Assistant Launcher Bubble (Fixed at bottom right) */}
+      {/* 3. Floating Assistant Launcher Bubble */}
       <FloatingAssistantButton
         onClick={onToggleLauncher || onClose}
         isActive={true}

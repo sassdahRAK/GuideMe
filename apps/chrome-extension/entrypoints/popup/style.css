@@ -26,50 +26,11 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-:host {
-  all: initial;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #12141a;
+  color: #f8fafc;
   font-family: 'Kantumruy Pro', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-}
-
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-@keyframes guideme-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.25), 0 0 20px rgba(245, 158, 11, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 0 7px rgba(245, 158, 11, 0.45), 0 0 30px rgba(245, 158, 11, 0.6);
-  }
-}
-
-@keyframes guideme-wave {
-  0% {
-    height: 20%;
-  }
-  50% {
-    height: 100%;
-  }
-  100% {
-    height: 35%;
-  }
-}
-
-@keyframes guideme-card-pop {
-  0% {
-    opacity: 0;
-    transform: scale(0.95) translateY(6px);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
 }

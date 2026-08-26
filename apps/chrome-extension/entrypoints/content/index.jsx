@@ -5,10 +5,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { TutorialEngine, DynamicPageAnalyzer } from '@guideme/engine';
 import { ChromeAdapter } from '@guideme/chrome-adapter';
 import { TutorialOverlay } from '@guideme/tutorial-ui';
-import { ExtensionMessageAction } from '@guideme/core-types';
+import { ExtensionMessageAction, Language } from '@guideme/core-types';
 import './style.css';
 
-import { TUTORIAL_CATALOG } from '../../src/catalog.js';
+import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../src/catalog.js';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -26,7 +26,15 @@ export default defineContentScript({
         const root = ReactDOM.createRoot(uiContainer);
 
         function TutorialApp() {
-          const [engineState, setEngineState] = useState(null);
+          const [engineState, setEngineState] = useState(() => ({
+            isActive: false,
+            isCompleted: false,
+            language: Language.KM,
+          }));
+          const [isPromptOpen, setIsPromptOpen] = useState(false);
+          const [availableTutorials, setAvailableTutorials] = useState(() =>
+            typeof window !== 'undefined' ? getTutorialsForUrl(window.location.href) : []
+          );
           const engineRef = useRef(null);
 
           useEffect(() => {
@@ -58,9 +66,16 @@ export default defineContentScript({
               if (!message || !message.action) return false;
 
               switch (message.action) {
+                case ExtensionMessageAction.OPEN_FLOATING_PROMPT: {
+                  setIsPromptOpen(true);
+                  sendResponse({ success: true });
+                  break;
+                }
+
                 case ExtensionMessageAction.START_TUTORIAL: {
                   const tutorial = TUTORIAL_CATALOG.find((t) => t.id === message.payload?.tutorialId) || TUTORIAL_CATALOG[0];
                   if (tutorial) {
+                    setIsPromptOpen(false);
                     engine.start(tutorial, message.payload?.startStepIndex);
                     sendResponse({ success: true, tutorialId: tutorial.id });
                   } else {
@@ -71,8 +86,9 @@ export default defineContentScript({
 
                 case ExtensionMessageAction.START_DYNAMIC_GUIDE: {
                   try {
-                    const prompt = message.payload?.userPrompt || '';
+                    const prompt = message.payload?.prompt || message.payload?.userPrompt || '';
                     const dynamicTutorial = DynamicPageAnalyzer.generateDynamicTutorial(document, window.location.href, prompt);
+                    setIsPromptOpen(false);
                     engine.start(dynamicTutorial, 0);
                     sendResponse({ success: true, tutorialId: dynamicTutorial.id, dynamic: true });
                   } catch (err) {
@@ -146,13 +162,36 @@ export default defineContentScript({
             };
           }, []);
 
-          if (!engineState || (!engineState.isActive && !engineState.isCompleted)) {
-            return null;
-          }
+          const handleStartDynamicGuide = (prompt) => {
+            try {
+              const dynamicTutorial = DynamicPageAnalyzer.generateDynamicTutorial(
+                document,
+                window.location.href,
+                prompt
+              );
+              setIsPromptOpen(false);
+              engineRef.current?.start(dynamicTutorial, 0);
+            } catch (err) {
+              console.error('[GuideMe] Dynamic guide generation failed:', err);
+            }
+          };
+
+          const handleStartTutorial = (tutorialId) => {
+            const tutorial = TUTORIAL_CATALOG.find((t) => t.id === tutorialId) || TUTORIAL_CATALOG[0];
+            if (tutorial) {
+              setIsPromptOpen(false);
+              engineRef.current?.start(tutorial, 0);
+            }
+          };
 
           return (
             <TutorialOverlay
               state={engineState}
+              isPromptOpen={isPromptOpen}
+              onTogglePrompt={(isOpen) => setIsPromptOpen(isOpen)}
+              availableTutorials={availableTutorials}
+              onStartDynamicGuide={handleStartDynamicGuide}
+              onStartTutorial={handleStartTutorial}
               onLanguageChange={(newLang) => engineRef.current?.setLanguage(newLang)}
               onReplayAudio={() => engineRef.current?.getAudioEngine()?.replay()}
               onNext={() => engineRef.current?.nextStep()}

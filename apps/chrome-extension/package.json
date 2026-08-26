@@ -12,17 +12,23 @@
     "compile": "wxt compile"
   },
   "dependencies": {
-    "@guideme/core-types": "workspace:*",
     "@guideme/adapter-interface": "workspace:*",
-    "@guideme/tutorial-schema": "workspace:*",
-    "@guideme/engine": "workspace:*",
     "@guideme/chrome-adapter": "workspace:*",
+    "@guideme/core-types": "workspace:*",
+    "@guideme/engine": "workspace:*",
+    "@guideme/tutorial-schema": "workspace:*",
     "@guideme/tutorial-ui": "workspace:*",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.7.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
     "wxt": "^0.19.28"
   }
 }

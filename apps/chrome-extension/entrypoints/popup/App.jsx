@@ -1,4 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import {
+  FiCompass,
+  FiZap,
+  FiMessageSquare,
+  FiPlay,
+  FiSquare,
+  FiExternalLink,
+  FiFileText,
+  FiCheckCircle,
+  FiArrowRight,
+} from 'react-icons/fi';
 import { ExtensionMessageAction, Language } from '@guideme/core-types';
 import { LanguageToggle } from '@guideme/tutorial-ui';
 import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../src/catalog.js';
@@ -106,27 +117,26 @@ export default function App() {
               chrome.tabs.sendMessage(currentTab.id, startMsg, () => {
                 window.close();
               });
-            }, 120);
+            }, 350);
             return;
           }
-        } catch (e) {
-          console.warn('Could not inject content script:', e);
+        } catch (err) {
+          console.error('[GuideMe Popup] Failed to inject content script:', err);
         }
       }
       window.close();
     });
   };
 
-  const handleStartDynamicGuide = async (promptOverride = null) => {
+  const handleStartDynamicGuide = async (promptText) => {
     if (!currentTab?.id || isChromeInternalUrl) return;
 
-    const promptText = typeof promptOverride === 'string' ? promptOverride : customPrompt;
-    const dynamicMsg = {
+    const actionPayload = {
       action: ExtensionMessageAction.START_DYNAMIC_GUIDE,
-      payload: { userPrompt: promptText },
+      payload: { prompt: promptText },
     };
 
-    chrome.tabs.sendMessage(currentTab.id, dynamicMsg, async (response) => {
+    chrome.tabs.sendMessage(currentTab.id, actionPayload, async (response) => {
       if (chrome.runtime.lastError || !response?.success) {
         try {
           if (chrome.scripting?.executeScript) {
@@ -135,14 +145,14 @@ export default function App() {
               files: ['content-scripts/content.js'],
             });
             setTimeout(() => {
-              chrome.tabs.sendMessage(currentTab.id, dynamicMsg, () => {
+              chrome.tabs.sendMessage(currentTab.id, actionPayload, () => {
                 window.close();
               });
-            }, 120);
+            }, 350);
             return;
           }
-        } catch (e) {
-          console.warn('Could not inject content script for dynamic guide:', e);
+        } catch (err) {
+          console.error('[GuideMe Popup] Failed to trigger dynamic guide:', err);
         }
       }
       window.close();
@@ -172,6 +182,17 @@ export default function App() {
     window.close();
   };
 
+  const handlePopOutToPage = () => {
+    if (!currentTab?.id || isChromeInternalUrl) return;
+    chrome.tabs.sendMessage(
+      currentTab.id,
+      { action: ExtensionMessageAction.OPEN_FLOATING_PROMPT },
+      () => {
+        window.close();
+      }
+    );
+  };
+
   const hostnameDisplay = (() => {
     if (!currentUrl) return 'Unknown';
     if (isExtensionUrl) return 'Local Demo Testbed';
@@ -187,40 +208,19 @@ export default function App() {
 
   return (
     <div
-      style={{
-        padding: '16px',
-        boxSizing: 'border-box',
-        minWidth: '350px',
-        backgroundColor: '#12141a',
-        color: '#f8fafc',
-        fontFamily: isKhmer
-          ? "'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-          : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      }}
+      className={`p-4 box-border min-w-[360px] bg-[#12141a] text-slate-100 ${
+        isKhmer ? 'font-kantumruy' : 'font-sans'
+      }`}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '8px',
-              backgroundColor: '#f59e0b',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: '15px',
-              color: '#000000',
-              boxShadow: '0 2px 10px rgba(245, 158, 11, 0.4)',
-            }}
-          >
+      <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center font-black text-sm text-black shadow-[0_2px_10px_rgba(245,158,11,0.4)]">
             G
           </div>
           <div>
-            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.01em' }}>GuideMe</h3>
-            <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+            <h3 className="m-0 text-sm font-bold text-white tracking-tight">GuideMe</h3>
+            <span className="text-[11px] text-slate-400">
               {isKhmer ? 'ជំនួយការណែនាំឆ្លាតវៃ' : 'Universal Tutorial Engine'}
             </span>
           </div>
@@ -234,44 +234,49 @@ export default function App() {
       </div>
 
       {/* Target Page Info Banner */}
-      <div
-        style={{
-          backgroundColor: '#181b22',
-          border: '1px solid #2a2f3b',
-          borderRadius: '8px',
-          padding: '10px 12px',
-          marginBottom: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: '#94a3b8', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>
+      <div className="bg-[#181b22] border border-[#2a2f3b] rounded-lg p-2.5 sm:px-3 mb-3">
+        <div className="flex justify-between items-center">
+          <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
             {isKhmer ? 'ទំព័របច្ចុប្បន្ន (ACTIVE PAGE)' : 'ACTIVE CONTEXT'}
           </span>
-          <span style={{ fontSize: '10px', color: contentScriptConnected || isExtensionUrl ? '#10b981' : '#f59e0b' }}>
-            ● {contentScriptConnected || isExtensionUrl ? (isKhmer ? 'រួចរាល់' : 'Ready') : (isKhmer ? 'រង់ចាំ' : 'Standby')}
+          <span
+            className={`text-[10px] font-semibold flex items-center gap-1 ${
+              contentScriptConnected || isExtensionUrl ? 'text-emerald-400' : 'text-amber-400'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+            {contentScriptConnected || isExtensionUrl
+              ? isKhmer ? 'រួចរាល់' : 'Ready'
+              : isKhmer ? 'រង់ចាំ' : 'Standby'}
           </span>
         </div>
-        <div style={{ color: '#ffffff', fontWeight: 600, marginTop: '3px', fontSize: '12px', wordBreak: 'break-all' }}>
+        <div className="text-white font-semibold mt-1 text-xs break-all">
           {hostnameDisplay}
         </div>
       </div>
 
       {/* Custom Prompt Input Guide */}
       {!isChromeInternalUrl && (
-        <div
-          style={{
-            backgroundColor: '#181b22',
-            border: '1px solid #2a2f3b',
-            borderRadius: '10px',
-            padding: '12px',
-            marginBottom: '14px',
-          }}
-        >
-          <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.04em' }}>
-            💬 Prompt-to-Guide Anywhere
+        <div className="bg-[#181b22] border border-[#2a2f3b] rounded-xl p-3 mb-3.5">
+          <div className="flex justify-between items-center mb-1.5">
+            <div className="text-[11px] text-amber-400 font-extrabold uppercase tracking-wide flex items-center gap-1.5">
+              <FiMessageSquare className="w-3.5 h-3.5" />
+              <span>Prompt-to-Guide Anywhere</span>
+            </div>
+            <button
+              type="button"
+              onClick={handlePopOutToPage}
+              title={isKhmer ? 'បើកប្រអប់ Prompt លើទំព័រផ្ទាល់' : 'Pop out prompt box onto page'}
+              className="text-[10px] text-slate-400 hover:text-amber-400 flex items-center gap-1 bg-transparent hover:bg-[#262b35] px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+            >
+              <FiExternalLink className="w-3 h-3" />
+              <span>{isKhmer ? 'បើកលើទំព័រ' : 'Pop Out'}</span>
+            </button>
           </div>
-          <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>
-            Type what you want to do on this page (or paste JSON steps):
+          <div className="text-[11px] text-slate-400 mb-2">
+            {isKhmer
+              ? 'វាយបញ្ចូលអ្វីដែលអ្នកចង់ធ្វើ (ឬបិទភ្ជាប់ JSON ជំហាន):'
+              : 'Type what you want to do on this page (or paste JSON steps):'}
           </div>
 
           <form
@@ -280,36 +285,17 @@ export default function App() {
               handleStartDynamicGuide(customPrompt);
             }}
           >
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+            <div className="flex gap-1.5 mb-2">
               <input
                 type="text"
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 placeholder="e.g. search, fill email, click share..."
-                style={{
-                  flex: 1,
-                  backgroundColor: '#12141a',
-                  border: '1px solid #3e4556',
-                  borderRadius: '6px',
-                  color: '#ffffff',
-                  padding: '7px 10px',
-                  fontSize: '11px',
-                  outline: 'none',
-                }}
+                className="flex-1 bg-[#12141a] border border-[#3e4556] rounded-lg text-white px-2.5 py-1.5 text-[11px] outline-none focus:border-amber-500"
               />
               <button
                 type="submit"
-                style={{
-                  backgroundColor: '#f59e0b',
-                  border: 'none',
-                  color: '#000000',
-                  padding: '7px 12px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
+                className="bg-amber-500 text-black px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer whitespace-nowrap hover:bg-amber-400 transition-colors"
               >
                 Guide Me
               </button>
@@ -317,27 +303,14 @@ export default function App() {
           </form>
 
           <button
+            type="button"
             onClick={() => handleStartDynamicGuide('')}
-            style={{
-              width: '100%',
-              backgroundColor: '#262b35',
-              border: '1px solid #3e4556',
-              color: '#cbd5e1',
-              padding: '7px 10px',
-              borderRadius: '6px',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-            }}
+            className="w-full bg-[#262b35] border border-[#3e4556] text-slate-200 hover:border-amber-500 hover:text-amber-400 py-1.5 px-2.5 rounded-lg text-[11px] font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
           >
-            <span>⚡</span>
+            <FiZap className="w-3.5 h-3.5 text-amber-400" />
             <span>{isKhmer ? 'ចាប់ផ្តើមស្កេនទំព័រនេះដោយស្វ័យប្រវត្តិ' : 'Auto-Guide This Page'}</span>
           </button>
-          <div style={{ textAlign: 'center', fontSize: '10px', color: '#64748b', marginTop: '4px' }}>
+          <div className="text-center text-[10px] text-slate-500 mt-1">
             {isKhmer ? 'វិភាគទម្រង់ ប៊ូតុង និងម៉ឺនុយលើទំព័រភ្លាមៗ' : 'Dynamically scans forms, buttons & navigation'}
           </div>
         </div>
@@ -345,65 +318,39 @@ export default function App() {
 
       {/* Active Guide State Banner */}
       {engineState?.isActive && (
-        <div
-          style={{
-            backgroundColor: '#181b22',
-            border: '1px solid #f59e0b',
-            borderRadius: '10px',
-            padding: '12px',
-            marginBottom: '14px',
-            boxShadow: '0 4px 16px rgba(245, 158, 11, 0.15)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 800, letterSpacing: '0.04em' }}>
-              ● {isKhmer ? 'កំពុងដំណើរការមេរៀន' : 'ACTIVE WALKTHROUGH'}
+        <div className="bg-[#181b22] border border-amber-500 rounded-xl p-3 mb-3.5 shadow-[0_4px_16px_rgba(245,158,11,0.15)]">
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-[10px] text-amber-400 font-extrabold tracking-wide flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              {isKhmer ? 'កំពុងដំណើរការមេរៀន' : 'ACTIVE WALKTHROUGH'}
             </span>
-            <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 600 }}>
+            <span className="text-[11px] text-slate-300 font-semibold">
               {engineState.stepBadgeText || `${engineState.currentStepIndex + 1}/${engineState.totalSteps}`}
             </span>
           </div>
 
-          <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>
+          <div className="text-xs font-bold text-white mb-1 truncate">
             {resolveText(engineState.tutorial?.name, currentLanguage) || (isKhmer ? 'កំពុងដំណើរការ' : 'In Progress')}
           </div>
 
           {engineState.currentStep?.title && (
-            <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '10px' }}>
+            <div className="text-[11px] text-slate-400 mb-2.5 truncate">
               {resolveText(engineState.currentStep.title, currentLanguage)}
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="flex gap-2">
             <button
+              type="button"
               onClick={() => window.close()}
-              style={{
-                flex: 1,
-                backgroundColor: '#f59e0b',
-                border: 'none',
-                color: '#000000',
-                padding: '7px 10px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
-              }}
+              className="flex-1 bg-amber-500 hover:bg-amber-400 text-black py-1.5 px-2.5 rounded-lg text-[11px] font-bold cursor-pointer shadow-[0_2px_6px_rgba(245,158,11,0.3)] transition-colors"
             >
               {isKhmer ? 'បន្តការណែនាំ' : 'Resume Focus'}
             </button>
             <button
+              type="button"
               onClick={handleStopTutorial}
-              style={{
-                backgroundColor: '#262b35',
-                border: '1px solid #ef4444',
-                color: '#ef4444',
-                padding: '7px 12px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
+              className="bg-[#262b35] border border-red-500/80 text-red-400 hover:bg-red-500/10 py-1.5 px-3 rounded-lg text-[11px] font-semibold cursor-pointer transition-colors"
             >
               {isKhmer ? 'បញ្ឈប់' : 'Stop Guide'}
             </button>
@@ -412,68 +359,48 @@ export default function App() {
       )}
 
       {/* Curated Walkthrough List */}
-      <div style={{ marginBottom: '14px' }}>
-        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.04em' }}>
+      <div className="mb-3.5">
+        <div className="text-[11px] text-slate-400 font-bold uppercase mb-2 tracking-wide">
           {isKhmer ? 'មេរៀនណែនាំដែលមានស្រាប់' : 'Curated Walkthroughs'}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="flex flex-col gap-2">
           {availableTutorials.map((tut) => (
             <div
               key={tut.id}
-              style={{
-                backgroundColor: tut.isMatched ? '#181b22' : '#15171e',
-                border: tut.isMatched ? '1px solid #f59e0b' : '1px solid #2a2f3b',
-                borderRadius: '8px',
-                padding: '12px',
-                transition: 'all 0.15s ease',
-              }}
+              className={`rounded-xl p-3 transition-colors ${
+                tut.isMatched
+                  ? 'bg-[#181b22] border border-amber-500/80'
+                  : 'bg-[#15171e] border border-[#2a2f3b]'
+              }`}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
+              <div className="flex justify-between items-start mb-1">
+                <div className="text-xs font-semibold text-white">
                   {resolveText(tut.name, currentLanguage)}
                 </div>
                 {tut.isMatched && (
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      fontWeight: 700,
-                      backgroundColor: 'rgba(245, 158, 11, 0.18)',
-                      color: '#f59e0b',
-                      border: '1px solid rgba(245, 158, 11, 0.35)',
-                      padding: '1px 6px',
-                      borderRadius: '4px',
-                      marginLeft: '6px',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
+                  <span className="text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 px-1.5 py-0.5 rounded ml-1.5 whitespace-nowrap">
                     {isKhmer ? 'ត្រូវគ្នា' : 'MATCHED'}
                   </span>
                 )}
               </div>
 
-              <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '10px', lineHeight: 1.4 }}>
+              <div className="text-[11px] text-slate-400 mb-2.5 leading-relaxed">
                 {resolveText(tut.description, currentLanguage)}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '10px', color: '#64748b' }}>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-slate-500 font-medium">
                   {tut.totalSteps} {isKhmer ? 'ជំហាន' : 'Steps'}
                 </span>
                 <button
+                  type="button"
                   onClick={() => handleStartTutorial(tut.id)}
-                  style={{
-                    backgroundColor: tut.isMatched ? '#f59e0b' : '#262b35',
-                    border: tut.isMatched ? 'none' : '1px solid #3e4556',
-                    color: tut.isMatched ? '#000000' : '#ffffff',
-                    padding: '6px 14px',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: tut.isMatched ? '0 2px 6px rgba(245, 158, 11, 0.3)' : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
+                    tut.isMatched
+                      ? 'bg-amber-500 text-black hover:bg-amber-400 shadow-[0_2px_6px_rgba(245,158,11,0.3)]'
+                      : 'bg-[#262b35] border border-[#3e4556] text-white hover:border-amber-500 hover:text-amber-400'
+                  }`}
                 >
                   {isKhmer ? 'ចាប់ផ្តើម' : 'Start Guide'}
                 </button>
@@ -484,40 +411,23 @@ export default function App() {
       </div>
 
       {/* Quick Launch Actions */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div className="flex flex-col gap-1.5">
         <button
+          type="button"
           onClick={handleOpenDemoTestbed}
-          style={{
-            width: '100%',
-            backgroundColor: '#181b22',
-            border: '1px dashed #3e4556',
-            color: '#f59e0b',
-            padding: '9px',
-            borderRadius: '8px',
-            fontSize: '11px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            textAlign: 'center',
-          }}
+          className="w-full bg-[#181b22] border border-dashed border-[#3e4556] hover:border-amber-500 text-amber-400 hover:text-amber-300 p-2 rounded-lg text-[11px] font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
         >
-          🚀 {isKhmer ? 'បើកទំព័រសាកល្បង Demo Testbed' : 'Open Local Demo Testbed Page'}
+          <FiExternalLink className="w-3.5 h-3.5" />
+          <span>{isKhmer ? 'បើកទំព័រសាកល្បង Demo Testbed' : 'Open Local Demo Testbed Page'}</span>
         </button>
 
         <button
+          type="button"
           onClick={handleOpenGoogleDocs}
-          style={{
-            width: '100%',
-            backgroundColor: 'transparent',
-            border: '1px solid #2a2f3b',
-            color: '#94a3b8',
-            padding: '8px',
-            borderRadius: '8px',
-            fontSize: '11px',
-            cursor: 'pointer',
-            textAlign: 'center',
-          }}
+          className="w-full bg-transparent border border-[#2a2f3b] hover:border-slate-500 text-slate-400 hover:text-slate-200 p-2 rounded-lg text-[11px] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
         >
-          📄 {isKhmer ? 'បើកឯកសារ Google Docs ថ្មី' : 'Open New Google Doc Tab'}
+          <FiFileText className="w-3.5 h-3.5" />
+          <span>{isKhmer ? 'បើកឯកសារ Google Docs ថ្មី' : 'Open New Google Doc Tab'}</span>
         </button>
       </div>
     </div>
