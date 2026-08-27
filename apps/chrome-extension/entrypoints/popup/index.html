@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GuideMe</title>
     <style>
-      body {
+      /* Reset all old dark-theme body styles */
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body, #root {
         margin: 0;
         padding: 0;
-        width: 340px;
-        background-color: #0f172a;
-        color: #f8fafc;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        width: 360px;
+        background-color: #ffffff;
+        color: #111827;
+        overflow: hidden; /* prevents scrollbars on the chrome popup window */
       }
     </style>
   </head>

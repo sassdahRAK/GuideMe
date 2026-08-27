@@ -1,6 +1,9 @@
 import React from 'react';
 
-export function LanguageToggle({
+/**
+ * LanguagePill / LanguageToggle — Segmented KH | EN pill toggle matching the popup design.
+ */
+export function LanguagePill({
   currentLanguage = 'km',
   onChange,
   className = '',
@@ -11,41 +14,47 @@ export function LanguageToggle({
     <div
       role="radiogroup"
       aria-label="ជ្រើសរើសភាសា / Select Language"
-      className={`inline-flex items-center bg-[#181b22] border border-[#2e3545] rounded-full p-[2px] select-none gap-[2px] ${className}`}
+      className={`inline-flex items-center rounded-full overflow-hidden border border-gray-200 dark:border-[#3f3f5a] bg-gray-100 dark:bg-[#2a2a3c] ${className}`}
+      onPointerDown={(e) => e.stopPropagation()}
     >
-      {/* Khmer Option */}
       <button
         type="button"
         role="radio"
         aria-checked={isKhmer}
-        aria-label="ភាសាខ្មែរ (Khmer)"
-        onClick={() => onChange && onChange('km')}
-        className={`flex items-center gap-1 px-2.5 py-1 text-[11px] leading-tight rounded-full font-kantumruy transition-all duration-150 cursor-pointer ${
+        title="Switch to Khmer"
+        onClick={(e) => {
+          e.stopPropagation();
+          onChange && onChange('km');
+        }}
+        className={`px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer border-0 leading-tight ${
           isKhmer
-            ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black font-bold shadow-[0_2px_6px_rgba(245,158,11,0.35)]'
-            : 'bg-transparent text-slate-400 font-medium hover:text-white'
+            ? 'bg-purple-600 text-white shadow-sm'
+            : 'bg-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'
         }`}
       >
-        <span>🇰🇭</span>
-        <span>ខ្មែរ</span>
+        KH
       </button>
-
-      {/* English Option */}
       <button
         type="button"
         role="radio"
         aria-checked={!isKhmer}
-        aria-label="English"
-        onClick={() => onChange && onChange('en')}
-        className={`flex items-center gap-1 px-2.5 py-1 text-[11px] leading-tight rounded-full font-sans transition-all duration-150 cursor-pointer ${
+        title="Switch to English"
+        onClick={(e) => {
+          e.stopPropagation();
+          onChange && onChange('en');
+        }}
+        className={`px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer border-0 leading-tight ${
           !isKhmer
-            ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black font-bold shadow-[0_2px_6px_rgba(245,158,11,0.35)]'
-            : 'bg-transparent text-slate-400 font-medium hover:text-white'
+            ? 'bg-purple-600 text-white shadow-sm'
+            : 'bg-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'
         }`}
       >
-        <span>🇬🇧</span>
-        <span>EN</span>
+        EN
       </button>
     </div>
   );
+}
+
+export function LanguageToggle(props) {
+  return <LanguagePill {...props} />;
 }

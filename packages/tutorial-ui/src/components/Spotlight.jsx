@@ -7,10 +7,10 @@ export function Spotlight({
   actionText = 'ចុចទីនេះ / CLICK',
   showPointer = true,
 }) {
+  // Full-screen dim when no target is specified (modal mode)
   if (!targetBoundingBox) {
-    // Dim entire screen if no target is active (modal mode)
     return (
-      <div className="fixed inset-0 w-screen h-screen bg-black/80 z-[999990] pointer-events-auto transition-all duration-300 backdrop-blur-[2px]" />
+      <div className="fixed inset-0 w-screen h-screen bg-black/60 z-[999990] pointer-events-auto transition-all duration-300 backdrop-blur-[1px]" />
     );
   }
 
@@ -20,7 +20,7 @@ export function Spotlight({
   const height = targetBoundingBox.height + padding * 2;
   const centerX = x + width / 2;
 
-  // Calculate pointer line orientation
+  // Calculate pointer line direction based on viewport position
   const isNearBottom = typeof window !== 'undefined' && y + height + 90 > window.innerHeight;
   const lineLength = 26;
   const lineStartY = isNearBottom ? y : y + height;
@@ -29,13 +29,13 @@ export function Spotlight({
 
   return (
     <>
-      {/* SVG Mask Overlay */}
+      {/* ── SVG Backdrop Mask with Cutout ── */}
       <svg className="fixed inset-0 w-screen h-screen z-[999990] pointer-events-none transition-all duration-200">
         <defs>
           <mask id="guideme-spotlight-mask">
-            {/* White covers entire viewport (dims it) */}
+            {/* White = dimmed area */}
             <rect x="0" y="0" width="100%" height="100%" fill="white" />
-            {/* Black cutout creates transparent hole */}
+            {/* Black = transparent spotlight cutout */}
             <rect
               x={x}
               y={y}
@@ -48,24 +48,24 @@ export function Spotlight({
           </mask>
         </defs>
 
-        {/* Dimmed backdrop filled with SVG mask */}
+        {/* Semi-transparent overlay with spotlight cutout */}
         <rect
           x="0"
           y="0"
           width="100%"
           height="100%"
-          fill="rgba(15, 17, 23, 0.82)"
+          fill="rgba(0, 0, 0, 0.62)"
           mask="url(#guideme-spotlight-mask)"
         />
 
-        {/* Dotted Vertical Connector Line */}
+        {/* Purple dotted connector line */}
         {showPointer && (
           <line
             x1={centerX}
             y1={lineStartY}
             x2={centerX}
             y2={lineEndY}
-            stroke="#f59e0b"
+            stroke="#9333ea"
             strokeWidth="2.5"
             strokeDasharray="4 3"
             strokeLinecap="round"
@@ -74,9 +74,9 @@ export function Spotlight({
         )}
       </svg>
 
-      {/* Target Focus Border Glow (10% Accent: Warm Amber-Orange) */}
+      {/* ── Purple Focus Border & Glow Ring around target element ── */}
       <div
-        className="fixed z-[999991] pointer-events-none transition-all duration-200 border-[2.5px] border-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.25),0_0_24px_rgba(245,158,11,0.45)] animate-[guideme-pulse_2s_infinite]"
+        className="fixed z-[999991] pointer-events-none transition-all duration-200 border-[2.5px] border-purple-600 shadow-[0_0_0_4px_rgba(147,51,234,0.20),0_0_20px_rgba(147,51,234,0.35)] animate-[guideme-pulse_2s_infinite]"
         style={{
           top: `${y}px`,
           left: `${x}px`,
@@ -86,10 +86,10 @@ export function Spotlight({
         }}
       />
 
-      {/* Target Callout Indicator Pill (Zero Emojis, uses React Icons) */}
+      {/* ── Purple Action Indicator Pill (CLICK HERE) ── */}
       {showPointer && (
         <div
-          className="fixed z-[999992] pointer-events-none -translate-x-1/2 inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 text-black px-4 py-1.5 rounded-full text-xs font-extrabold tracking-wide shadow-[0_8px_20px_-3px_rgba(245,158,11,0.5),0_4px_10px_rgba(0,0,0,0.4)] whitespace-nowrap transition-all duration-200 font-kantumruy"
+          className="fixed z-[999992] pointer-events-none -translate-x-1/2 inline-flex items-center gap-1.5 bg-purple-600 text-white px-4 py-1.5 rounded-full text-xs font-extrabold tracking-wide shadow-[0_8px_20px_-3px_rgba(147,51,234,0.45),0_4px_10px_rgba(0,0,0,0.2)] whitespace-nowrap transition-all duration-200 font-kantumruy"
           style={{
             top: `${pillTop}px`,
             left: `${centerX}px`,

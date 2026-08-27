@@ -2,19 +2,32 @@
 
 ## 1. Visual Theme & Philosophy
 
-GuideMe follows a **Dark Luxury Glassmorphic Aesthetic** with high-contrast amber/gold brand accents. The interface is engineered to feel modern, sleek, non-intrusive, and accessible across any host website.
+GuideMe follows a **Clean High-Contrast Light Aesthetic** with a focused purple brand accent, strictly adhering to the **60-30-10 design rule**. The interface is engineered to feel modern, accessible, and non-intrusive across any host website.
 
-- **Theme Base:** Dark slate/navy surfaces (`#12141a`, `#1e222b`) with subtle translucent borders (`rgba(255, 255, 255, 0.08)` / `#2a2f3b`).
-- **Brand Accent:** Warm Amber Gold (`#f59e0b` to `#d97706`), conveying mastery, guidance, and premium polish.
-- **Visual Distinction:** Strong contrast between darkened backdrop cutouts and illuminated target elements to guide user focus immediately.
+> **Old theme (deprecated):** Dark Luxury Glassmorphic with Amber Gold (`#f59e0b`) accent.
+> **Current theme:** High-contrast light with Purple (`#9333ea`) as the single accent.
 
-### The 60-30-10 Color Rule Breakdown
+- **Theme Base:** White surfaces (`#FFFFFF`) with neutral gray structural elements (`#F3F4F6`, `#E5E7EB`).
+- **Brand Accent:** Purple (`#9333ea` — Tailwind `purple-600`), exclusively on CTAs, focus states, and badge indicators.
+- **Visual Distinction:** Black/60% semi-transparent backdrop cutout (SVG mask) with a purple glow ring around the target element.
+
+### The 60-30-10 Color Rule Breakdown (Light Mode)
 
 | Ratio | Role | Color & Hex | Purpose in GuideMe UI |
 | :--- | :--- | :--- | :--- |
-| **60%** (Dominant) | **Dark Base & Backdrop** | `#0f1117` / `#12141a`<br/>`rgba(15, 17, 23, 0.82)` | Full-screen dimming mask cutout, main popup background, deep canvas. Creates maximum focus on the spotlighted element. |
-| **30%** (Secondary) | **Surfaces, Cards & Text** | `#1e222b` (Card Surface)<br/>`#2a2f3b` (Subtle Borders)<br/>`#cbd5e1` / `#ffffff` (Text) | StepCard containers, search inputs, modal boxes, dividers, and readable instruction typography. |
-| **10%** (Accent) | **Brand Gold & Action Highlights** | `#f59e0b` (Amber Gold)<br/>`#10b981` (Emerald Action)<br/>`#3b82f6` (Blue Input) | Glowing spotlight pulse rings, primary CTA buttons ("Next", "Start Guide"), active step counters, and audio equalizer bars. |
+| **60%** (Dominant) | **White Base Surfaces** | `#FFFFFF` | Card backgrounds, popup container, floating widget surface, completion modal. |
+| **30%** (Secondary) | **Neutrals / Grays & Dark Typography** | `#111827` / `#374151` (Text)<br/>`#F3F4F6` (Input fill)<br/>`#E5E7EB` (Borders)<br/>`#6B7280` (Muted labels) | All structural content, input containers, body copy, divider lines, placeholder text, and secondary labels. |
+| **10%** (Accent) | **Purple Brand Accent** | `#9333EA` (Primary)<br/>`#7C3AED` (Hover)<br/>`#F3E8FF` (Light tint) | Exclusively: primary CTA ("Extract Separate UI"), Next/Finish step button, spotlight glow ring, connector line, active language pill, progress bar fill, step counter badge. |
+
+### Dark Mode Token Mapping
+
+To maintain the exact same 60-30-10 balance in dark mode, invert the neutral roles while keeping the accent focused:
+
+| Role | Percentage | Dark Mode Token | Usage |
+| :--- | :--- | :--- | :--- |
+| **Dominant** | **60%** | Deep Slate (`#1E1E2E` / `#121212`) | Card & popup background |
+| **Secondary** | **30%** | Muted Grays & Off-White (`#E4E4E7` / `#2A2A3C`) | Input bg, subtle borders, text labels |
+| **Accent** | **10%** | Lighter Purple (`#A855F7` / `#C084FC`) | Primary CTA & active focus states |
 
 ---
 
@@ -63,63 +76,75 @@ TutorialOverlay (Root Shadow DOM Container)
 
 ---
 
-## 4. Design Tokens & Color Palette
-
 ## 4. Exact Implemented Design Tokens & Color Palette
 
-All colors match the exact Tailwind `@theme` in `apps/chrome-extension/entrypoints/content/style.css` and `popup/style.css`.
+All tokens are defined in the Tailwind `@theme` in `apps/chrome-extension/entrypoints/content/style.css` and `popup/style.css`.
 
-### 4.1 Surface, Background & Border Tokens (`@theme`)
+### 4.1 Light Mode Tokens (Current Implementation)
 ```css
-/* 60% Dominant: Dark Backdrops & Surfaces */
---color-gm-backdrop: rgba(15, 17, 23, 0.82);      /* Full-screen SVG spotlight mask */
---color-gm-dark: #0f1117;                          /* Deepest background base */
---color-gm-surface: #12141a;                       /* Popup body & StepCard root */
---color-gm-card: #12141a;                          /* Tooltip card container */
---color-gm-card-hover: #181b22;                    /* Interactive card / survey box */
---color-gm-elevated: #1e222b;                      /* Elevated header & pill surfaces */
+/* 60% Dominant: White Surfaces */
+--color-gm-bg: #ffffff;
+--color-gm-surface: #ffffff;
+--color-gm-card: #ffffff;
 
-/* 30% Secondary: Borders & Structural Dividers */
---color-gm-border: #2a2f3b;                        /* Default card & modal borders */
---color-gm-border-hover: #3e4556;                  /* Interactive button hover borders */
---color-gm-border-subtle: #232734;                 /* Header & footer divider lines */
+/* 30% Secondary: Neutral Grays & Typography */
+--color-gm-elevated: #f9fafb;          /* Page-level elevated surfaces */
+--color-gm-input-bg: #f3f4f6;         /* Input field fill */
+--color-gm-border: #e5e7eb;           /* Default card & modal borders */
+--color-gm-border-hover: #d1d5db;     /* Hover state borders */
+--color-gm-border-subtle: #f3f4f6;    /* Header & footer dividers */
+--color-gm-text-primary: #111827;     /* Primary headings & strong text */
+--color-gm-text-secondary: #374151;   /* Body copy */
+--color-gm-text-muted: #6b7280;       /* Subtitles & icons */
+--color-gm-text-placeholder: #9ca3af; /* Input placeholder */
+
+/* 10% Accent: Purple */
+--color-gm-accent: #9333ea;           /* Tailwind purple-600 */
+--color-gm-accent-hover: #7c3aed;     /* Tailwind violet-700 */
+--color-gm-accent-active: #6d28d9;    /* Tailwind violet-800 */
+--color-gm-accent-light: #f3e8ff;     /* purple-100 tint for bg fills */
+--color-gm-accent-contrast: #ffffff;  /* White text on purple buttons */
+
+/* Dark Mode Tokens */
+--color-gm-dark-bg: #1e1e2e;
+--color-gm-dark-card: #121212;
+--color-gm-dark-input: #2a2a3c;
+--color-gm-dark-border: #3f3f5a;
+--color-gm-dark-text: #e4e4e7;
+--color-gm-dark-accent: #a855f7;      /* Tailwind purple-500 (lighter for dark bg) */
 ```
 
-### 4.2 Component Surface Hierarchy (Actual Hex Values in Components)
-| Component Layer | Background Hex | Border Hex | Used in Component |
+### 4.2 Component Surface Hierarchy
+| Component Layer | Background | Border | Used in |
 | :--- | :--- | :--- | :--- |
-| **Card Header Gradient** | `from-[#1a1e28] to-[#12141a]` | `border-[#232734]` | `StepCard.jsx` |
-| **Audio Narration Bar** | `bg-[#181c26]` | `border-[#2a3142]` | `StepCard.jsx` |
-| **Listen Again Button** | `bg-[#1e232d]` (Hover `#272e3b`) | `border-[#333a4a]` (Hover `#f59e0b`) | `StepCard.jsx` |
-| **Survey / Feedback Box** | `bg-[#181b22]` | `border-[#2a2f3b]` | `TutorialOverlay.jsx` |
-| **Feedback Action Button** | `bg-[#262b35]` | `border-[#3e4556]` | `TutorialOverlay.jsx` |
+| **Card / Popup Container** | `bg-white` | `border-gray-200` | `StepCard.jsx`, `FloatingPromptWidget.jsx` |
+| **Card Header** | `bg-white` / `bg-gray-50` (on drag) | `border-b border-gray-100` | `StepCard.jsx` |
+| **Audio Narration Bar** | `bg-gray-50` | `border-gray-200` | `StepCard.jsx` |
+| **Listen Again Button** | `bg-gray-100` (Hover `bg-gray-200`) | `border-gray-200` (Hover `border-purple-300`) | `StepCard.jsx` |
+| **Input Field** | `bg-gray-50` (Focus `bg-white`) | `border-gray-200` (Focus `border-purple-400`) | `App.jsx`, `FloatingPromptWidget.jsx` |
+| **Survey / Feedback Box** | `bg-gray-50` | `border-gray-200` | `TutorialOverlay.jsx` |
+| **Settings Sections** | `bg-purple-50` | none | `App.jsx` (Settings Panel) |
 
-### 4.3 10% Brand Accent & Glowing Focus (Amber Gold)
-```css
-/* Brand Gold Accent Tokens */
---color-gm-accent: #f59e0b;                        /* Amber-500 (Primary Gold) */
---color-gm-accent-hover: #d97706;                  /* Amber-600 (Button Hover) */
---color-gm-accent-active: #b45309;                 /* Amber-700 (Button Active) */
---color-gm-accent-contrast: #000000;               /* Black text on Gold buttons */
-```
-
-| Element | Implemented Styling Classes | Visual Appearance |
+### 4.3 10% Brand Accent — Purple
+| Element | Tailwind Classes | Visual Appearance |
 | :--- | :--- | :--- |
-| **Primary CTA Button** | `bg-gradient-to-r from-amber-500 to-amber-600 text-black font-extrabold` | High-contrast gold gradient button |
-| **Spotlight Target Glow** | `border-[2.5px] border-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.25),0_0_24px_rgba(245,158,11,0.45)]` | Glowing yellow pulse focus on element |
-| **Pointer Callout Pill** | `bg-gradient-to-r from-amber-500 to-amber-600 text-black` | Floating "ចុចទីនេះ / CLICK" indicator |
-| **Step Counter Badge** | `bg-amber-500/15 text-amber-500 border-amber-500/30` | Subtle translucent gold pill badge |
-| **Audio Equalizer Waves** | `bg-amber-500` with `guideme-wave` animation | 5 animated vertical gold bars |
+| **Primary CTA Button** | `bg-purple-600 hover:bg-purple-700 text-white font-semibold` | Solid purple button, white label |
+| **Spotlight Target Glow** | `border-[2.5px] border-purple-600 shadow-[0_0_0_4px_rgba(147,51,234,0.20),0_0_20px_rgba(147,51,234,0.35)]` | Purple pulse focus ring |
+| **Pointer Callout Pill** | `bg-purple-600 text-white` | Floating "ចុចទីនេះ / CLICK" indicator |
+| **Step Counter Badge** | `bg-purple-100 text-purple-700 border border-purple-200` | Subtle purple pill badge |
+| **Audio Equalizer Waves** | `bg-purple-500` with `guideme-wave` animation | 5 animated vertical purple bars |
+| **Progress Bar Fill** | `bg-purple-600 shadow-[0_0_6px_rgba(147,51,234,0.4)]` | Purple progress with soft glow |
+| **Active Language Pill** | `bg-purple-600 text-white` | Solid purple pill |
+| **Focus Ring on Inputs** | `focus-within:border-purple-400 focus-within:shadow-[0_0_0_3px_rgba(147,51,234,0.08)]` | Subtle purple outline |
 
 ### 4.4 Typography Tokens
 ```css
---color-gm-text-primary: #ffffff;                  /* Primary titles & headings */
---color-gm-text-secondary: #cbd5e1;                /* Body copy (slate-300) */
---color-gm-text-muted: #94a3b8;                    /* Subtitles & icons (slate-400) */
+--color-gm-text-primary: #111827;    /* Primary titles & headings (gray-900) */
+--color-gm-text-secondary: #374151;  /* Body copy (gray-700) */
+--color-gm-text-muted: #6b7280;      /* Subtitles & icons (gray-500) */
 
---font-kantumruy: 'Kantumruy Pro', sans-serif;    /* Primary font (Khmer + English) */
---font-sans: 'Inter', sans-serif;                 /* Fallback Latin font */
---font-mono: ui-monospace, monospace;             /* Selectors & IDs */
+--font-kantumruy: 'Kantumruy Pro', sans-serif;  /* Primary font (Khmer + English) */
+--font-sans: 'Inter', sans-serif;               /* Fallback Latin font */
 ```
 
 ---
@@ -135,5 +160,6 @@ The floating `Tooltip` calculates optimal placement around the target element's 
 
 ### 5.2 Micro-Animations & Transitions
 - **`guideme-card-pop`:** Tooltip entry animation (scale `0.95` -> `1`, translateY `6px` -> `0`, opacity `0` -> `1` in `200ms ease-out`).
-- **`guideme-pulse`:** Continuous golden glow ring animation around target spotlight cutout (`box-shadow` pulse in `2s infinite`).
-- **`guideme-wave`:** Equalizer bar animation for active audio playback (`height` oscillation in `1s ease-in-out infinite`).
+- **`guideme-pulse`:** Continuous **purple** glow ring animation around target spotlight cutout (`box-shadow` pulse with `rgba(147, 51, 234, ...)` in `2s infinite`).
+- **`guideme-wave`:** Equalizer bar animation for active audio playback — **purple bars** (`height` oscillation in `0.8s ease-in-out infinite alternate`).
+- **`guideme-spin`:** Circular spinner for the processing/loading state inside the prompt input (linear `0.8s` rotation).

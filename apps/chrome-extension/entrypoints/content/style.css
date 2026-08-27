@@ -2,25 +2,41 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @source "../../../../packages/tutorial-ui/src";
 
 @theme {
-  --color-gm-backdrop: rgba(15, 17, 23, 0.82);
-  --color-gm-surface: #12141a;
-  --color-gm-card: #12141a;
-  --color-gm-card-hover: #181b22;
-  --color-gm-elevated: #1e222b;
-  --color-gm-dark: #0f1117;
-  --color-gm-border: #2a2f3b;
-  --color-gm-border-hover: #3e4556;
-  --color-gm-border-subtle: #232734;
-  --color-gm-text-primary: #ffffff;
-  --color-gm-text-secondary: #cbd5e1;
-  --color-gm-text-muted: #94a3b8;
-  --color-gm-accent: #f59e0b;
-  --color-gm-accent-hover: #d97706;
-  --color-gm-accent-active: #b45309;
-  --color-gm-accent-contrast: #000000;
+  /* ─── 60% Dominant: White Base Surfaces ─── */
+  --color-gm-bg: #ffffff;
+  --color-gm-surface: #ffffff;
+  --color-gm-card: #ffffff;
+  --color-gm-backdrop: rgba(0, 0, 0, 0.60);
+
+  /* ─── 30% Secondary: Neutrals / Grays & Dark Typography ─── */
+  --color-gm-elevated: #f9fafb;
+  --color-gm-input-bg: #f3f4f6;
+  --color-gm-border: #e5e7eb;
+  --color-gm-border-hover: #d1d5db;
+  --color-gm-border-subtle: #f3f4f6;
+  --color-gm-text-primary: #111827;
+  --color-gm-text-secondary: #374151;
+  --color-gm-text-muted: #6b7280;
+  --color-gm-text-placeholder: #9ca3af;
+
+  /* ─── 10% Accent: Purple ─── */
+  --color-gm-accent: #9333ea;
+  --color-gm-accent-hover: #7c3aed;
+  --color-gm-accent-active: #6d28d9;
+  --color-gm-accent-light: #f3e8ff;
+  --color-gm-accent-contrast: #ffffff;
+
+  /* ─── Dark Mode Tokens ─── */
+  --color-gm-dark-bg: #1e1e2e;
+  --color-gm-dark-card: #121212;
+  --color-gm-dark-input: #2a2a3c;
+  --color-gm-dark-border: #3f3f5a;
+  --color-gm-dark-text: #e4e4e7;
+  --color-gm-dark-accent: #a855f7;
 
   --font-kantumruy: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -28,13 +44,13 @@
 
 :host {
   all: initial;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 0;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2147483647;
   pointer-events: none;
-  font-family: 'Kantumruy Pro', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Inter', 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -42,15 +58,17 @@
   box-sizing: border-box;
 }
 
+/* ─── Purple spotlight pulse glow ring ─── */
 @keyframes guideme-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.25), 0 0 20px rgba(245, 158, 11, 0.35);
+    box-shadow: 0 0 0 4px rgba(147, 51, 234, 0.20), 0 0 16px rgba(147, 51, 234, 0.30);
   }
   50% {
-    box-shadow: 0 0 0 7px rgba(245, 158, 11, 0.45), 0 0 30px rgba(245, 158, 11, 0.6);
+    box-shadow: 0 0 0 7px rgba(147, 51, 234, 0.35), 0 0 28px rgba(147, 51, 234, 0.50);
   }
 }
 
+/* ─── Audio equalizer bar wave animation ─── */
 @keyframes guideme-wave {
   0% {
     height: 20%;
@@ -63,6 +81,7 @@
   }
 }
 
+/* ─── Tooltip/card pop-in entry animation ─── */
 @keyframes guideme-card-pop {
   0% {
     opacity: 0;
@@ -72,4 +91,32 @@
     opacity: 1;
     transform: scale(1) translateY(0);
   }
+}
+
+/* ─── Circular spinner for loading state ─── */
+@keyframes guideme-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Custom scrollbar for shadow DOM */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #3f3f5a;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #56567a;
 }

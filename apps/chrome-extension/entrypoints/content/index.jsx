@@ -19,9 +19,10 @@ export default defineContentScript({
 
     const ui = await createShadowRootUi(ctx, {
       name: 'guideme-tutorial-root',
-      position: 'inline',
+      position: 'overlay',
       anchor: 'body',
       append: 'last',
+      zIndex: 2147483647,
       onMount(uiContainer) {
         const root = ReactDOM.createRoot(uiContainer);
 
@@ -32,10 +33,31 @@ export default defineContentScript({
             language: Language.KM,
           }));
           const [isPromptOpen, setIsPromptOpen] = useState(false);
+          const [theme, setTheme] = useState('light');
           const [availableTutorials, setAvailableTutorials] = useState(() =>
             typeof window !== 'undefined' ? getTutorialsForUrl(window.location.href) : []
           );
           const engineRef = useRef(null);
+
+          // Synchronize dark class on uiContainer for Tailwind dark: variants inside Shadow DOM
+          useEffect(() => {
+            if (uiContainer) {
+              uiContainer.classList.toggle('dark', theme === 'dark');
+            }
+          }, [theme]);
+
+          // Load theme preference from storage on mount
+          useEffect(() => {
+            try {
+              chrome.storage?.local?.get(['guideme_theme'], (result) => {
+                if (result?.guideme_theme) {
+                  setTheme(result.guideme_theme);
+                }
+              });
+            } catch {
+              // Ignore if storage unavailable
+            }
+          }, []);
 
           useEffect(() => {
             const adapter = new ChromeAdapter();
@@ -66,6 +88,14 @@ export default defineContentScript({
               if (!message || !message.action) return false;
 
               switch (message.action) {
+                case 'GUIDEME_SET_THEME': {
+                  if (message.payload?.theme) {
+                    setTheme(message.payload.theme);
+                    sendResponse({ success: true, theme: message.payload.theme });
+                  }
+                  break;
+                }
+
                 case ExtensionMessageAction.OPEN_FLOATING_PROMPT: {
                   setIsPromptOpen(true);
                   sendResponse({ success: true });
@@ -185,20 +215,22 @@ export default defineContentScript({
           };
 
           return (
-            <TutorialOverlay
-              state={engineState}
-              isPromptOpen={isPromptOpen}
-              onTogglePrompt={(isOpen) => setIsPromptOpen(isOpen)}
-              availableTutorials={availableTutorials}
-              onStartDynamicGuide={handleStartDynamicGuide}
-              onStartTutorial={handleStartTutorial}
-              onLanguageChange={(newLang) => engineRef.current?.setLanguage(newLang)}
-              onReplayAudio={() => engineRef.current?.getAudioEngine()?.replay()}
-              onNext={() => engineRef.current?.nextStep()}
-              onPrev={() => engineRef.current?.prevStep()}
-              onSkip={() => engineRef.current?.skipStep()}
-              onClose={() => engineRef.current?.stop()}
-            />
+            <div className={theme === 'dark' ? 'dark' : ''}>
+              <TutorialOverlay
+                state={engineState}
+                isPromptOpen={isPromptOpen}
+                onTogglePrompt={(isOpen) => setIsPromptOpen(isOpen)}
+                availableTutorials={availableTutorials}
+                onStartDynamicGuide={handleStartDynamicGuide}
+                onStartTutorial={handleStartTutorial}
+                onLanguageChange={(newLang) => engineRef.current?.setLanguage(newLang)}
+                onReplayAudio={() => engineRef.current?.getAudioEngine()?.replay()}
+                onNext={() => engineRef.current?.nextStep()}
+                onPrev={() => engineRef.current?.prevStep()}
+                onSkip={() => engineRef.current?.skipStep()}
+                onClose={() => engineRef.current?.stop()}
+              />
+            </div>
           );
         }
 

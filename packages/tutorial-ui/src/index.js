@@ -6,3 +6,5 @@ export * from './components/ProgressBar.jsx';
 export * from './components/FloatingAssistantButton.jsx';
 export * from './components/FloatingPromptWidget.jsx';
 export * from './components/LanguageToggle.jsx';
+export * from './components/GuideMeLogo.jsx';
+export * from './i18n/ui-strings.js';

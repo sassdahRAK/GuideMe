@@ -16,7 +16,7 @@ export default defineBackground(() => {
         });
         chrome.action.setBadgeBackgroundColor({
           tabId: sender.tab.id,
-          color: '#0284c7',
+          color: '#9333ea', // Brand purple
         });
       } else if (sender.tab?.id) {
         chrome.action.setBadgeText({
