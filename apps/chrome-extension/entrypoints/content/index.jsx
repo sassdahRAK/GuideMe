@@ -2,7 +2,7 @@ import { defineContentScript } from 'wxt/sandbox';
 import { createShadowRootUi } from 'wxt/client';
 import ReactDOM from 'react-dom/client';
 import React, { useEffect, useState, useRef } from 'react';
-import { TutorialEngine, DynamicPageAnalyzer } from '@guideme/engine';
+import { TutorialEngine, DynamicPageAnalyzer, TtsRegistry } from '@guideme/engine';
 import { ChromeAdapter } from '@guideme/chrome-adapter';
 import { TutorialOverlay } from '@guideme/tutorial-ui';
 import { ExtensionMessageAction, Language } from '@guideme/core-types';
@@ -11,7 +11,8 @@ import './style.css';
 import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../src/catalog.js';
 
 export default defineContentScript({
-  matches: ['<all_urls>'],
+  matches: ['*://*/*', '<all_urls>'],
+  runAt: 'document_idle',
   cssInjectionMode: 'ui',
 
   async main(ctx) {
@@ -33,6 +34,10 @@ export default defineContentScript({
             language: Language.KM,
           }));
           const [isPromptOpen, setIsPromptOpen] = useState(false);
+          const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+          const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+          const [isFullPopupOpen, setIsFullPopupOpen] = useState(false);
+          const [isDismissed, setIsDismissed] = useState(false); // hidden via context menu "Close"
           const [theme, setTheme] = useState('light');
           const [availableTutorials, setAvailableTutorials] = useState(() =>
             typeof window !== 'undefined' ? getTutorialsForUrl(window.location.href) : []
@@ -46,14 +51,27 @@ export default defineContentScript({
             }
           }, [theme]);
 
-          // Load theme preference from storage on mount
+          // Load preferences from storage on mount & listen to live changes
           useEffect(() => {
             try {
-              chrome.storage?.local?.get(['guideme_theme'], (result) => {
+              chrome.storage?.local?.get(['guideme_theme', 'guideme_onboarding_done'], (result) => {
                 if (result?.guideme_theme) {
                   setTheme(result.guideme_theme);
+                } else if (window.matchMedia?.('(prefers-color-scheme: dark)')?.matches) {
+                  setTheme('dark');
+                }
+                if (!result?.guideme_onboarding_done) {
+                  setIsOnboardingOpen(true);
                 }
               });
+
+              const storageListener = (changes, areaName) => {
+                if (areaName === 'local' && changes.guideme_theme) {
+                  setTheme(changes.guideme_theme.newValue);
+                }
+              };
+              chrome.storage?.onChanged?.addListener(storageListener);
+              return () => chrome.storage?.onChanged?.removeListener(storageListener);
             } catch {
               // Ignore if storage unavailable
             }
@@ -61,7 +79,14 @@ export default defineContentScript({
 
           useEffect(() => {
             const adapter = new ChromeAdapter();
-            const engine = new TutorialEngine({ adapter });
+
+            // Dynamically instantiate AI TTS provider from environment variables
+            const ttsProvider = TtsRegistry.fromEnv(import.meta.env);
+
+            const engine = new TutorialEngine({
+              adapter,
+              ttsProvider,
+            });
             engineRef.current = engine;
 
             const unsubscribe = engine.subscribe((state) => {
@@ -96,8 +121,43 @@ export default defineContentScript({
                   break;
                 }
 
+                case 'OPEN_ONBOARDING_OVERLAY': {
+                  setIsDismissed(false);
+                  setIsOnboardingOpen(true);
+                  sendResponse({ success: true });
+                  break;
+                }
+
+                case 'CLOSE_ONBOARDING_OVERLAY': {
+                  setIsOnboardingOpen(false);
+                  sendResponse({ success: true });
+                  break;
+                }
+
+                case 'OPEN_DASHBOARD_OVERLAY':
+                case 'OPEN_DASHBOARD': {
+                  setIsDismissed(false);
+                  setIsDashboardOpen(true);
+                  sendResponse({ success: true });
+                  break;
+                }
+
+                case 'CLOSE_DASHBOARD_OVERLAY': {
+                  setIsDashboardOpen(false);
+                  sendResponse({ success: true });
+                  break;
+                }
+
                 case ExtensionMessageAction.OPEN_FLOATING_PROMPT: {
+                  setIsDismissed(false);
                   setIsPromptOpen(true);
+                  sendResponse({ success: true });
+                  break;
+                }
+
+                case 'OPEN_FULL_POPUP': {
+                  setIsDismissed(false);
+                  setIsFullPopupOpen(true);
                   sendResponse({ success: true });
                   break;
                 }
@@ -105,7 +165,9 @@ export default defineContentScript({
                 case ExtensionMessageAction.START_TUTORIAL: {
                   const tutorial = TUTORIAL_CATALOG.find((t) => t.id === message.payload?.tutorialId) || TUTORIAL_CATALOG[0];
                   if (tutorial) {
+                    setIsDismissed(false);
                     setIsPromptOpen(false);
+                    setIsFullPopupOpen(false);
                     engine.start(tutorial, message.payload?.startStepIndex);
                     sendResponse({ success: true, tutorialId: tutorial.id });
                   } else {
@@ -118,7 +180,9 @@ export default defineContentScript({
                   try {
                     const prompt = message.payload?.prompt || message.payload?.userPrompt || '';
                     const dynamicTutorial = DynamicPageAnalyzer.generateDynamicTutorial(document, window.location.href, prompt);
+                    setIsDismissed(false);
                     setIsPromptOpen(false);
+                    setIsFullPopupOpen(false);
                     engine.start(dynamicTutorial, 0);
                     sendResponse({ success: true, tutorialId: dynamicTutorial.id, dynamic: true });
                   } catch (err) {
@@ -200,6 +264,7 @@ export default defineContentScript({
                 prompt
               );
               setIsPromptOpen(false);
+              setIsFullPopupOpen(false);
               engineRef.current?.start(dynamicTutorial, 0);
             } catch (err) {
               console.error('[GuideMe] Dynamic guide generation failed:', err);
@@ -210,9 +275,13 @@ export default defineContentScript({
             const tutorial = TUTORIAL_CATALOG.find((t) => t.id === tutorialId) || TUTORIAL_CATALOG[0];
             if (tutorial) {
               setIsPromptOpen(false);
+              setIsFullPopupOpen(false);
               engineRef.current?.start(tutorial, 0);
             }
           };
+
+          // If the user dismissed the floating UI via context menu, render nothing
+          if (isDismissed) return null;
 
           return (
             <div className={theme === 'dark' ? 'dark' : ''}>
@@ -220,6 +289,23 @@ export default defineContentScript({
                 state={engineState}
                 isPromptOpen={isPromptOpen}
                 onTogglePrompt={(isOpen) => setIsPromptOpen(isOpen)}
+                isOnboardingOpen={isOnboardingOpen}
+                onToggleOnboarding={(isOpen) => setIsOnboardingOpen(isOpen)}
+                onCompleteOnboarding={() => {
+                  setIsOnboardingOpen(false);
+                  setIsDashboardOpen(true);
+                }}
+                isDashboardOpen={isDashboardOpen}
+                onToggleDashboard={(isOpen) => setIsDashboardOpen(isOpen)}
+                isFullPopupOpen={isFullPopupOpen}
+                onToggleFullPopup={(isOpen) => setIsFullPopupOpen(isOpen)}
+                onDismiss={() => {
+                  setIsPromptOpen(false);
+                  setIsOnboardingOpen(false);
+                  setIsDashboardOpen(false);
+                  setIsFullPopupOpen(false);
+                  setIsDismissed(true);
+                }}
                 availableTutorials={availableTutorials}
                 onStartDynamicGuide={handleStartDynamicGuide}
                 onStartTutorial={handleStartTutorial}
@@ -229,6 +315,13 @@ export default defineContentScript({
                 onPrev={() => engineRef.current?.prevStep()}
                 onSkip={() => engineRef.current?.skipStep()}
                 onClose={() => engineRef.current?.stop()}
+                theme={theme}
+                onThemeChange={(newTheme) => {
+                  setTheme(newTheme);
+                  try {
+                    chrome.storage?.local?.set({ guideme_theme: newTheme });
+                  } catch { }
+                }}
               />
             </div>
           );

@@ -10,3 +10,6 @@ export * from './runtime/session-manager.js';
 export * from './dynamic/dynamic-analyzer.js';
 export * from './i18n/i18n-manager.js';
 export * from './audio/audio-engine.js';
+export * from './audio/ai-tts-provider.js';
+export * from './audio/generic-http-tts-provider.js';
+export * from './audio/tts-registry.js';

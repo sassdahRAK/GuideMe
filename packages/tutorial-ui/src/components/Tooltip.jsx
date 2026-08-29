@@ -163,7 +163,7 @@ export function Tooltip({
   return (
     <div
       ref={containerRef}
-      className={`fixed z-[999995] pointer-events-auto ${
+      className={`fixed z-[999995] pointer-events-none ${
         isDragging
           ? 'transition-none select-none cursor-grabbing'
           : 'transition-all duration-200 ease-out'
@@ -186,6 +186,7 @@ export function Tooltip({
         isPlayingAudio={isPlayingAudio}
         isDragging={isDragging}
         isCustomPositioned={Boolean(customPosition)}
+        isGeneralStep={!targetBoundingBox || placement === 'center'}
         onResetPosition={handleResetPosition}
         onDragStart={handlePointerDown}
         onDragMove={handlePointerMove}

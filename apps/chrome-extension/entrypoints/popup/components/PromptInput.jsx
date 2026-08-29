@@ -1,9 +1,46 @@
 import React from 'react';
-import { FiMic, FiMicOff, FiSend } from 'react-icons/fi';
 import { getUIString } from '@guideme/tutorial-ui';
 
+/** Send arrow icon matching user screenshot */
+function SendIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <g transform="rotate(90,12,12)">
+        <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+      </g>
+    </svg>
+  );
+}
+
+/** Mic icon matching user screenshot */
+function MicIcon({ className = "w-4 h-4" }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8" />
+    </svg>
+  );
+}
+
 /**
- * PromptInput — Form container with input field, mic trigger, submit button, spinner, and soundwave indicator.
+ * PromptInput — Precision styled input row with sharp dark mode support.
  */
 export function PromptInput({
   customPrompt,
@@ -18,42 +55,63 @@ export function PromptInput({
   const hasText = customPrompt.trim().length > 0;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col">
       <form onSubmit={onSubmit} className="m-0">
-        <div className="flex items-center gap-2.5 bg-gray-50 dark:bg-[#2a2a3c] border border-gray-200 dark:border-[#3f3f5a] focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-500/20 rounded-xl px-3.5 py-2.5 transition-all">
-          {/* Loading Spinner */}
+        <div
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-[#181826] transition-all ${
+            isListening
+              ? 'border border-[#ede4ff] dark:border-[#a855f7]/50 dark:shadow-[0_0_12px_rgba(168,85,247,0.2)]'
+              : hasText
+              ? 'border border-[#8b5cf6] dark:border-[#a855f7] ring-2 ring-[#8b5cf6]/20 dark:ring-[#a855f7]/30'
+              : 'border border-[#ede4ff] dark:border-[#2d2d44] focus-within:border-[#8b5cf6] dark:focus-within:border-[#a855f7] focus-within:ring-2 focus-within:ring-[#8b5cf6]/20 dark:focus-within:ring-[#a855f7]/30'
+          }`}
+          id="prompt-input-row"
+        >
+          {/* Spinner while processing */}
           {isProcessing && (
-            <div className="w-5 h-5 rounded-full border-2 border-gray-200 dark:border-gray-700 border-t-purple-600 animate-spin shrink-0" />
+            <div className="w-4 h-4 rounded-full border-2 border-gray-200 dark:border-zinc-700 border-t-[#8b5cf6] dark:border-t-[#a855f7] animate-spin shrink-0" />
           )}
 
-          {/* Text Input */}
-          <input
-            type="text"
-            id="prompt-input"
-            value={customPrompt}
-            onChange={(e) => onPromptChange(e.target.value)}
-            placeholder={getUIString('typePrompt', currentLanguage)}
-            disabled={isListening}
-            title={isListening ? getUIString('listening', currentLanguage) : ''}
-            className="flex-1 bg-transparent border-none outline-none text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 disabled:opacity-70"
-          />
+          {/* Listening State vs Input Field */}
+          {isListening ? (
+            <span className="flex-1 text-[13px] font-normal text-[#8b5cf6] dark:text-[#c084fc] select-none animate-pulse">
+              Listening...
+            </span>
+          ) : (
+            <input
+              id="chat-input"
+              type="text"
+              value={customPrompt}
+              onChange={(e) => onPromptChange(e.target.value)}
+              placeholder="Type to GuideMe..."
+              className="flex-1 bg-transparent border-0 outline-none text-[13px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-500 font-normal"
+              style={{ border: 'none', outline: 'none' }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  onSubmit(e);
+                }
+              }}
+            />
+          )}
 
-          {/* Action: Send (has text) vs Mic (empty text) */}
+          {/* Right Action Button */}
           {hasText ? (
             <button
               type="submit"
               id="send-btn"
               title={getUIString('sendPrompt', currentLanguage)}
               aria-label={getUIString('sendPrompt', currentLanguage)}
-              className="text-purple-600 dark:text-purple-400 hover:text-purple-700 p-0 border-0 bg-transparent cursor-pointer flex items-center shrink-0"
+              className="w-[30px] h-[30px] rounded-[10px] flex items-center justify-center text-white shrink-0 cursor-pointer border-0 transition-all bg-[#8b5cf6] dark:bg-[#a855f7] shadow-sm hover:brightness-110 active:scale-95 dark:shadow-[0_2px_10px_rgba(168,85,247,0.4)]"
             >
-              <FiSend size={17} />
+              <SendIcon />
             </button>
           ) : (
             <button
               type="button"
               id="mic-btn"
               onClick={onMicToggle}
+              disabled={!speechSupported}
               title={
                 !speechSupported
                   ? getUIString('voiceNotSupported', currentLanguage)
@@ -67,35 +125,19 @@ export function PromptInput({
                   : getUIString('voiceInput', currentLanguage)
               }
               aria-pressed={isListening}
-              className={`flex items-center p-1 rounded-md transition-all shrink-0 border-0 bg-transparent ${
+              className={`w-[30px] h-[30px] rounded-[10px] flex items-center justify-center shrink-0 border-0 transition-all cursor-pointer ${
                 !speechSupported
-                  ? 'opacity-40 cursor-not-allowed text-gray-400'
+                  ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-zinc-600 bg-transparent'
                   : isListening
-                  ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-600 animate-pulse cursor-pointer'
-                  : 'text-gray-400 dark:text-zinc-500 hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer'
+                  ? 'text-white bg-[#8b5cf6] dark:bg-[#a855f7] shadow-sm hover:brightness-110 dark:shadow-[0_2px_12px_rgba(168,85,247,0.5)]'
+                  : 'bg-transparent text-[#8b5cf6] dark:text-[#a855f7] hover:bg-purple-50 dark:hover:bg-[#a855f7]/15'
               }`}
             >
-              {isListening ? <FiMicOff size={17} /> : <FiMic size={17} />}
+              <MicIcon className={isListening ? "w-[15px] h-[15px]" : "w-[17px] h-[17px]"} />
             </button>
           )}
         </div>
       </form>
-
-      {/* Listening Soundwave Animation */}
-      {isListening && (
-        <div className="flex items-center gap-1.5 text-xs text-purple-600 font-medium pt-1">
-          <div className="flex gap-0.5 h-3.5 items-end">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="w-[3px] bg-purple-600 rounded-full animate-pulse h-full"
-                style={{ animationDelay: `${i * 150}ms` }}
-              />
-            ))}
-          </div>
-          <span>{getUIString('listening', currentLanguage)}</span>
-        </div>
-      )}
     </div>
   );
 }

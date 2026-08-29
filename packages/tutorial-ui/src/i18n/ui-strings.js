@@ -36,6 +36,14 @@ export const UI_STRINGS = {
     km: 'បើកផ្ទាំង Extension',
     en: 'Go to Extension',
   },
+  openDashboard: {
+    km: 'បើក Dashboard',
+    en: 'Open Dashboard',
+  },
+  dismissFloating: {
+    km: 'បិទ',
+    en: 'Close',
+  },
 
   // Input & Voice Interactions
   typePrompt: {
@@ -225,6 +233,14 @@ export const UI_STRINGS = {
   stepsCount: {
     km: 'ជំហាន',
     en: 'Steps',
+  },
+  generalGuidance: {
+    km: 'ព័ត៌មានណែនាំទូទៅ',
+    en: 'General Overview',
+  },
+  noTargetNotice: {
+    km: 'មិនមានប៊ូតុងតម្រូវឱ្យចុចទេ — សូមអានរួចចុចបន្ត',
+    en: 'No specific element to click — read and continue',
   },
 };
 

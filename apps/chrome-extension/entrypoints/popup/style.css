@@ -2,78 +2,197 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
 @source "../..";
 @source "../../../../packages/tutorial-ui/src";
 
-@theme {
-  /* ─── 60% Dominant: White Base Surfaces ─── */
-  --color-gm-bg: #ffffff;
-  --color-gm-surface: #ffffff;
-  --color-gm-card: #ffffff;
+/* ──────────────────────────────────────────────────
+   Design Tokens — Black / White / Purple theme
+────────────────────────────────────────────────── */
+:root {
+  --bg:            #ffffff;
+  --bg-card:       #ffffff;
+  --bg-subtle:     #f8f5ff;
+  --border:        #ede4ff;
+  --border-subtle: #f3ecff;
+  --text:          #1f1d2b;
+  --text-muted:    #6b7280;
 
-  /* ─── 30% Secondary: Neutrals / Grays & Dark Typography ─── */
-  --color-gm-elevated: #f9fafb;
-  --color-gm-input-bg: #f3f4f6;
-  --color-gm-border: #e5e7eb;
-  --color-gm-border-hover: #d1d5db;
-  --color-gm-border-subtle: #f3f4f6;
-  --color-gm-text-primary: #111827;
-  --color-gm-text-secondary: #374151;
-  --color-gm-text-muted: #6b7280;
-  --color-gm-text-placeholder: #9ca3af;
+  --accent:        #8b5cf6;
+  --accent-hover:  #7c3aed;
+  --accent-active: #6d28d9;
+  --accent-light:  #f5efff;
+  --accent-glow:   rgba(139, 92, 246, 0.25);
 
-  /* ─── 10% Accent: Purple ─── */
-  --color-gm-accent: #9333ea;
-  --color-gm-accent-hover: #7c3aed;
-  --color-gm-accent-active: #6d28d9;
-  --color-gm-accent-light: #f3e8ff;
-  --color-gm-accent-contrast: #ffffff;
+  --grad-primary:  linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
 
-  /* ─── Dark Mode Tokens (mapped for dark theme) ─── */
-  --color-gm-dark-bg: #1e1e2e;
-  --color-gm-dark-card: #121212;
-  --color-gm-dark-input: #2a2a3c;
-  --color-gm-dark-border: #3f3f5a;
-  --color-gm-dark-text: #e4e4e7;
-  --color-gm-dark-accent: #a855f7;
+/* ── Dark mode token overrides — Sharp Neon Purple & Deep Obsidian ── */
+html.dark {
+  --bg:            #101018;
+  --bg-card:       #181826;
+  --bg-subtle:     #222236;
+  --border:        #2d2d44;
+  --border-subtle: #242438;
+  --text:          #f9fafb;
+  --text-muted:    #9ca3af;
 
-  --font-kantumruy: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Sharp vibrant purple accent */
+  --accent:        #a855f7;
+  --accent-hover:  #b366ff;
+  --accent-active: #9333ea;
+  --accent-light:  rgba(168, 85, 247, 0.16);
+  --accent-glow:   rgba(168, 85, 247, 0.40);
+
+  --grad-primary:  linear-gradient(135deg, #a855f7, #7c3aed);
+}
+
+/* ── Base ─────────────────────────────────────── */
+* {
+  font-family: 'Inter', 'Kantumruy Pro', -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: #ffffff;
-  color: #111827;
-  font-family: 'Inter', 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
 
-html.dark, html.dark body, body.dark {
-  background-color: #1e1e2e;
-  color: #e4e4e7;
+/* ── Popup window shell ───────────────────────── */
+.popup-window {
+  width: 380px;
+  height: 580px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 12px 32px rgba(139, 92, 246, 0.08);
 }
 
-/* Custom scrollbar for clean look */
-::-webkit-scrollbar {
-  width: 4px;
+html.dark .popup-window {
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 16px 40px rgba(0, 0, 0, 0.6);
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+/* ── Body (chat + bottom bar) ────────────────── */
+.popup-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
 }
+
+/* ── Bottom action bar ───────────────────────── */
+.popup-bottom {
+  padding: 12px 16px 16px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Primary buttons ─────────────────────────── */
+.btn-primary {
+  width: 100%;
+  padding: 11px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Extract Separate UI — vibrant purple */
+.btn-extract {
+  background: var(--grad-primary);
+  color: #ffffff;
+  box-shadow: 0 3px 12px var(--accent-glow);
+}
+.btn-extract:hover  { filter: brightness(1.08); }
+.btn-extract:active { transform: translateY(1px); }
+.btn-extract:disabled {
+  background: #c4b5fd;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+html.dark .btn-extract {
+  background: linear-gradient(135deg, #a855f7, #8b5cf6);
+  box-shadow: 0 4px 18px rgba(168, 85, 247, 0.45);
+}
+
+/* Open Dashboard — soft lavender outline / sharp purple glow in dark */
+.btn-dashboard {
+  background: var(--accent-light);
+  color: #7c3aed;
+  border: 1px solid var(--border);
+}
+.btn-dashboard:hover { background: #ede4ff; }
+.btn-dashboard:active { transform: translateY(1px); }
+
+html.dark .btn-dashboard {
+  background: rgba(168, 85, 247, 0.14);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.32);
+}
+html.dark .btn-dashboard:hover {
+  background: rgba(168, 85, 247, 0.24);
+  border-color: rgba(168, 85, 247, 0.55);
+  color: #f3e8ff;
+}
+
+/* ── Slide-in entry animation ────────────────── */
+.slide-in {
+  animation: slideIn 0.25s ease-out;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Dropdown fade-in ────────────────────────── */
+.animate-dropdown {
+  animation: fadeIn 0.15s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Soundwave bar animation ─────────────────── */
+@keyframes soundwave {
+  from { transform: scaleY(0.3); }
+  to   { transform: scaleY(1); }
+}
+
+/* ── Scrollbar ───────────────────────────────── */
+::-webkit-scrollbar { width: 3.5px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 2px;
+  background: #e2d9f3;
+  border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
+::-webkit-scrollbar-thumb:hover { background: #cbb8ec; }
 
-html.dark ::-webkit-scrollbar-thumb, .dark ::-webkit-scrollbar-thumb {
-  background: #3f3f5a;
+html.dark ::-webkit-scrollbar-thumb {
+  background: #383854;
 }
-html.dark ::-webkit-scrollbar-thumb:hover, .dark ::-webkit-scrollbar-thumb:hover {
-  background: #56567a;
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4e4e73;
 }

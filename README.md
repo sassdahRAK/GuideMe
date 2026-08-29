@@ -59,7 +59,9 @@ For complete details on monorepo architecture, curated walkthroughs, Dynamic Aut
 ---
 
 ## 📄 Documentation Links
+- [Core Components & Lifecycle](docs/CORE_COMPONENTS_AND_LIFECYCLE.md)
 - [Setup & Usage Guide](docs/SETUP_AND_USAGE_GUIDE.md)
+- [Usability Testing Guide](docs/USABILITY_TESTING_GUIDE.md)
 - [Architecture Specification](docs/ARCHITECTURE_SPECIFICATION.md)
 - [Requirements](docs/REQUIREMENTS.md)
 - [New Requirements](docs/New_Requirements.md)

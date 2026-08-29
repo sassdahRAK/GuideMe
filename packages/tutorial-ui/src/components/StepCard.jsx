@@ -1,13 +1,29 @@
 import React from 'react';
-import { FiX, FiVolume2, FiRotateCcw, FiRefreshCw } from 'react-icons/fi';
-import { ProgressBar } from './ProgressBar.jsx';
-import { LanguageToggle } from './LanguageToggle.jsx';
+import { FiX, FiVolume2, FiRotateCcw, FiSkipForward } from 'react-icons/fi';
 import { GuideMeLogo } from './GuideMeLogo.jsx';
 import { getUIString } from '../i18n/ui-strings.js';
 
+/* ─── Khmer numeral converter ─── */
 function toKhmerNumber(num) {
   const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
   return String(num).replace(/[0-9]/g, (d) => khmerDigits[d]);
+}
+
+/* ─── Language Toggle Pill ─── */
+function LangPill({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold transition-all duration-150 cursor-pointer border-0 ${
+        active
+          ? 'bg-purple-600 text-white shadow-sm'
+          : 'bg-gray-100 dark:bg-[#2a2a3c] text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-[#32324a]'
+      }`}
+    >
+      {label}
+    </button>
+  );
 }
 
 export function StepCard({
@@ -17,7 +33,6 @@ export function StepCard({
   coachTitle = 'GuideMe - AI Live Coach',
   audioStatusText,
   language = 'km',
-  stepBadgeText,
   currentStepIndex = 0,
   totalSteps = 1,
   isFirstStep = false,
@@ -26,7 +41,7 @@ export function StepCard({
   isPlayingAudio = true,
   isDragging = false,
   isCustomPositioned = false,
-  onResetPosition,
+  isGeneralStep = false,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -41,129 +56,98 @@ export function StepCard({
   const isKhmer = lang === 'km';
   const stepNumber = currentStepIndex + 1;
 
-  const defaultStepBadge = isKhmer
+  // "STEP 1 OF 3" — always English label for scannability
+  const stepLabel = `STEP ${stepNumber} OF ${totalSteps}`;
+  // Right-side step badge in Khmer or English
+  const stepBadge = isKhmer
     ? `ជំហានទី ${toKhmerNumber(stepNumber)}/${toKhmerNumber(totalSteps)}`
-    : `Step ${stepNumber}/${totalSteps}`;
+    : `Step ${stepNumber} / ${totalSteps}`;
 
-  const badgeText = stepBadgeText || defaultStepBadge;
+  const percentage = totalSteps > 1 ? Math.round((stepNumber / totalSteps) * 100) : 100;
 
-  const defaultAudioText = isKhmer
-    ? 'កំពុងអានការណែនាំជាសំឡេង...'
-    : 'Playing voice guidance...';
+  const audioText = audioStatusText || (isKhmer ? 'ការណែនាំជាសំឡេង (Voice Guidance)' : 'Voice Guidance');
 
-  const displayAudioText = audioStatusText || defaultAudioText;
-
-  const handleReplay = () => {
-    if (onReplayAudio) onReplayAudio();
-  };
+  // Wrap content in quotes if not already
+  const displayContent = content
+    ? content.startsWith('"') || content.startsWith('"')
+      ? content
+      : `"${content}"`
+    : '';
 
   return (
     <div
-      className={`pointer-events-auto bg-white dark:bg-[#1e1e2e] text-gray-900 dark:text-zinc-100 rounded-2xl border border-gray-200 dark:border-[#3f3f5a] w-[430px] max-w-[94vw] box-border overflow-hidden animate-[guideme-card-pop_0.25s_cubic-bezier(0.16,1,0.3,1)] transition-all duration-200 shadow-[0_8px_32px_-4px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.4)] ${
-        isDragging
-          ? 'shadow-[0_24px_48px_-8px_rgba(147,51,234,0.25),0_0_20px_rgba(147,51,234,0.15)] scale-[1.01] border-purple-300 dark:border-purple-500'
-          : ''
+      className={`pointer-events-auto bg-white dark:bg-[#1e1e2e] text-gray-900 dark:text-zinc-100 rounded-2xl border border-gray-200 dark:border-[#3f3f5a] w-[430px] max-w-[94vw] box-border overflow-hidden shadow-[0_20px_50px_-10px_rgba(0,0,0,0.22),0_0_0_1px_rgba(147,51,234,0.15),0_8px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.75),0_0_0_1px_rgba(147,51,234,0.3)] animate-[guideme-card-pop_0.25s_cubic-bezier(0.16,1,0.3,1)] ${
+        isDragging ? 'scale-[1.01]' : ''
       } ${isKhmer ? 'font-kantumruy' : 'font-sans'}`}
     >
-      {/* ── Header: Drag handle, Logo, Title, Language Toggle, Step Badge, Close ── */}
+      {/* ── Header ── */}
       <div
         onPointerDown={onDragStart}
         onPointerMove={onDragMove}
         onPointerUp={onDragEnd}
         onPointerCancel={onDragEnd}
-        onDoubleClick={onResetPosition}
-        title={getUIString('dragHandleTooltip', lang)}
-        className={`bg-white dark:bg-[#1e1e2e] px-3.5 py-3 flex justify-between items-center border-b border-gray-100 dark:border-[#2a2a3c] gap-2 select-none cursor-grab active:cursor-grabbing transition-colors ${
+        className={`px-3.5 py-2.5 flex items-center gap-2 border-b border-gray-100 dark:border-[#2a2a3c] select-none cursor-grab active:cursor-grabbing ${
           isDragging ? 'cursor-grabbing bg-gray-50 dark:bg-[#252538]' : ''
         }`}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          {/* 6-dot drag grip */}
-          <div
-            className="flex flex-col gap-0.5 text-gray-300 dark:text-zinc-600 hover:text-purple-400 dark:hover:text-purple-400 p-0.5 cursor-grab active:cursor-grabbing shrink-0 transition-colors"
-            aria-label="Drag Handle"
-          >
-            <div className="flex gap-0.5">
-              <span className="w-1 h-1 rounded-full bg-current" />
-              <span className="w-1 h-1 rounded-full bg-current" />
-            </div>
-            <div className="flex gap-0.5">
-              <span className="w-1 h-1 rounded-full bg-current" />
-              <span className="w-1 h-1 rounded-full bg-current" />
-            </div>
-            <div className="flex gap-0.5">
-              <span className="w-1 h-1 rounded-full bg-current" />
-              <span className="w-1 h-1 rounded-full bg-current" />
-            </div>
-          </div>
-
-          {/* Logo */}
-          <GuideMeLogo size={28} className="shrink-0" />
-
-          <div className="min-w-0">
-            <div className="text-[12.5px] font-bold text-gray-900 dark:text-zinc-100 leading-tight tracking-tight truncate flex items-center gap-1.5">
-              <span>{coachTitle}</span>
-              {isCustomPositioned && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onResetPosition) onResetPosition();
-                  }}
-                  title={getUIString('resetPosition', lang)}
-                  className="text-[10px] text-purple-600 dark:text-purple-300 hover:text-purple-700 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800/40 px-1.5 py-0.5 rounded font-normal flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <FiRefreshCw className="w-2.5 h-2.5" />
-                  <span>{getUIString('snap', lang)}</span>
-                </button>
-              )}
-            </div>
-            {title && title !== coachTitle && (
-              <div className="text-[10.5px] text-gray-400 dark:text-zinc-400 mt-0.5 truncate">{title}</div>
-            )}
-          </div>
+        {/* Logo badge */}
+        <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+          <GuideMeLogo size={28} />
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <LanguageToggle currentLanguage={lang} onChange={onLanguageChange} />
-
-          {/* Step badge pill */}
-          <span className="bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50 px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap">
-            {badgeText}
-          </span>
-
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close tutorial"
-            className="text-gray-400 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-[#2a2a3c] p-1 rounded-lg transition-colors duration-150 cursor-pointer flex items-center justify-center"
-          >
-            <FiX className="w-4 h-4 stroke-[2.2]" />
-          </button>
+        {/* Title + subtitle */}
+        <div className="flex-1 min-w-0">
+          <div className="text-[12.5px] font-bold text-gray-900 dark:text-zinc-100 leading-tight truncate">
+            {coachTitle}
+          </div>
+          {title && title !== coachTitle && (
+            <div className="text-[10.5px] text-gray-400 dark:text-zinc-500 truncate">{title}</div>
+          )}
         </div>
+
+        {/* Online dot */}
+        <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)] shrink-0 animate-pulse" />
+
+        {/* Language pills */}
+        <div className="flex gap-1 shrink-0">
+          <LangPill label="KH" active={isKhmer} onClick={() => onLanguageChange?.('km')} />
+          <LangPill label="EN" active={!isKhmer} onClick={() => onLanguageChange?.('en')} />
+        </div>
+
+        {/* Step badge */}
+        <span className="bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50 px-2 py-0.5 rounded-full text-[10.5px] font-bold whitespace-nowrap shrink-0">
+          {stepBadge}
+        </span>
+
+        {/* Close */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close tutorial"
+          className="text-gray-400 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-[#2a2a3c] p-1 rounded-lg transition-colors duration-150 cursor-pointer flex items-center justify-center border-0 bg-transparent shrink-0"
+        >
+          <FiX className="w-3.5 h-3.5 stroke-[2.5]" />
+        </button>
       </div>
 
-      <div className="p-4 sm:p-[18px]">
-        {/* ── Audio Narration Bar ── */}
-        <div className="bg-gray-50 dark:bg-[#252538] border border-gray-200 dark:border-[#3f3f5a] rounded-xl px-3 py-2 flex items-center justify-between mb-3.5">
-          <div className="flex items-center gap-2 min-w-0">
-            <FiVolume2 className="w-4 h-4 text-purple-500 dark:text-purple-400 shrink-0" />
-            <span className="text-xs text-gray-600 dark:text-zinc-300 font-medium truncate">
-              {displayAudioText}
-            </span>
-          </div>
-
-          {/* Animated equalizer bars — purple accent */}
-          <div className="flex items-end gap-0.5 h-3.5 pl-2 shrink-0">
-            {[0.6, 1, 0.4, 0.8, 0.5].map((heightRatio, i) => (
+      {/* ── Body ── */}
+      <div className="p-4">
+        {/* Audio narration bar */}
+        <div className="flex items-center gap-2.5 mb-3.5">
+          <FiVolume2 className="w-4 h-4 text-purple-500 dark:text-purple-400 shrink-0" />
+          <span className="flex-1 text-[12px] text-gray-600 dark:text-zinc-300 font-medium truncate">
+            {audioText}
+          </span>
+          {/* Animated equalizer bars */}
+          <div className="flex items-end gap-[2.5px] h-4 shrink-0">
+            {[0.55, 1, 0.4, 0.75, 0.5, 0.85, 0.35].map((ratio, i) => (
               <span
                 key={i}
-                className="inline-block w-[3px] bg-purple-500 dark:bg-purple-400 rounded-sm transition-all duration-200"
+                className="inline-block w-[2.5px] bg-purple-500 dark:bg-purple-400 rounded-full"
                 style={{
-                  height: isPlayingAudio ? '100%' : `${heightRatio * 100}%`,
+                  height: isPlayingAudio ? '100%' : `${ratio * 100}%`,
                   animation: isPlayingAudio
-                    ? `guideme-wave 0.8s ease-in-out infinite alternate ${i * 0.15}s`
+                    ? `guideme-wave 0.7s ease-in-out infinite alternate ${i * 0.12}s`
                     : 'none',
                 }}
               />
@@ -171,64 +155,80 @@ export function StepCard({
           </div>
         </div>
 
-        {/* ── Main Instruction Content ── */}
-        <div className="mb-3.5">
-          <div className={`text-sm leading-relaxed text-gray-900 dark:text-zinc-100 font-semibold ${subtitle ? 'mb-1.5' : 'mb-0'}`}>
-            {content ? (content.startsWith('"') ? content : `"${content}"`) : ''}
-          </div>
-          {subtitle && (
-            <div className="text-xs leading-normal text-gray-500 dark:text-zinc-400 italic">
-              {subtitle.startsWith('(') ? subtitle : `(${subtitle})`}
+        {/* Main instruction content */}
+        <p className="text-[14px] font-bold leading-snug text-gray-900 dark:text-zinc-100 mb-1 m-0">
+          {displayContent}
+        </p>
+        {subtitle && (
+          <p className="text-[11.5px] text-gray-500 dark:text-zinc-400 italic leading-normal m-0 mb-3">
+            {subtitle.startsWith('(') ? subtitle : `(${subtitle})`}
+          </p>
+        )}
+
+        {/* Progress section */}
+        {totalSteps > 1 && (
+          <div className="mt-4 mb-1">
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-[10px] font-extrabold tracking-widest text-purple-600 dark:text-purple-400 uppercase">
+                {stepLabel}
+              </span>
+              <span className="text-[11px] font-semibold text-gray-400 dark:text-zinc-500">
+                {percentage}%
+              </span>
             </div>
-          )}
-        </div>
+            <div className="w-full h-[5px] bg-gray-200 dark:bg-[#2a2a3c] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-purple-500 to-violet-500 dark:from-purple-600 dark:to-violet-500 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(147,51,234,0.5)]"
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+          </div>
+        )}
 
-        {/* ── Progress Bar ── */}
-        <div className="mb-3.5">
-          <ProgressBar currentStepIndex={currentStepIndex} totalSteps={totalSteps} />
-        </div>
-
-        {/* ── Navigation Footer ── */}
-        <div className="flex justify-between items-center pt-3 border-t border-gray-100 dark:border-[#2a2a3c] gap-2">
-          {/* Listen Again */}
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2 mt-4 pt-3.5 border-t border-gray-100 dark:border-[#2a2a3c]">
+          {/* Replay */}
           <button
             type="button"
-            onClick={handleReplay}
+            onClick={onReplayAudio}
             title={getUIString('replayVoiceTooltip', lang)}
-            aria-label={getUIString('replayVoice', lang)}
-            className="bg-gray-100 dark:bg-[#252538] border border-gray-200 dark:border-[#3f3f5a] text-gray-600 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-[#2e2e42] hover:border-purple-300 dark:hover:border-purple-500 hover:text-purple-700 dark:hover:text-purple-300 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all duration-150 whitespace-nowrap"
+            className="flex items-center gap-1.5 text-gray-500 dark:text-zinc-400 hover:text-purple-600 dark:hover:text-purple-300 text-[12px] font-semibold cursor-pointer border-0 bg-transparent transition-colors px-0 py-0"
           >
             <FiRotateCcw className="w-3.5 h-3.5 stroke-[2.2]" />
             <span>{getUIString('replayVoice', lang)}</span>
           </button>
 
-          {/* Step Navigation Controls */}
-          <div className="flex gap-1.5 items-center">
+          {/* Right side controls */}
+          <div className="flex items-center gap-2">
+            {/* Back — only shown if not first step */}
             {!isFirstStep && (
               <button
                 type="button"
                 onClick={onPrev}
-                className="bg-transparent border border-gray-200 dark:border-[#3f3f5a] text-gray-500 dark:text-zinc-400 hover:border-gray-400 dark:hover:border-zinc-500 hover:text-gray-900 dark:hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all duration-150"
+                className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-[#3f3f5a] text-[12px] font-semibold text-gray-600 dark:text-zinc-300 hover:border-purple-400 dark:hover:border-purple-500 hover:text-purple-700 dark:hover:text-purple-300 cursor-pointer bg-transparent transition-all duration-150"
               >
                 {getUIString('back', lang)}
               </button>
             )}
 
+            {/* Skip — circle icon button */}
             {canSkip && !isLastStep && (
               <button
                 type="button"
                 onClick={onSkip}
-                className="bg-transparent border-0 text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 px-2 py-1.5 text-xs cursor-pointer transition-colors duration-150"
+                title={getUIString('skip', lang)}
+                aria-label={getUIString('skip', lang)}
+                className="w-7 h-7 rounded-full border border-gray-200 dark:border-[#3f3f5a] text-gray-400 dark:text-zinc-500 hover:border-purple-400 dark:hover:border-purple-500 hover:text-purple-500 dark:hover:text-purple-400 flex items-center justify-center cursor-pointer bg-transparent transition-all duration-150"
               >
-                {getUIString('skip', lang)}
+                <FiSkipForward className="w-3.5 h-3.5 stroke-[2]" />
               </button>
             )}
 
-            {/* Primary CTA — purple */}
+            {/* Primary CTA — Next / Finish */}
             <button
               type="button"
               onClick={onNext}
-              className="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-extrabold px-4 py-1.5 rounded-lg text-xs cursor-pointer shadow-[0_2px_8px_rgba(147,51,234,0.30)] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(147,51,234,0.40)] transition-all duration-150"
+              className="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-extrabold px-5 py-1.5 rounded-lg text-[13px] cursor-pointer shadow-[0_3px_10px_rgba(147,51,234,0.35)] hover:-translate-y-0.5 hover:shadow-[0_5px_14px_rgba(147,51,234,0.45)] transition-all duration-150 border-0"
             >
               {isLastStep ? getUIString('finish', lang) : getUIString('next', lang)}
             </button>

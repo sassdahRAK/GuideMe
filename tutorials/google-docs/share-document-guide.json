@@ -33,8 +33,8 @@
       "title": "Add Collaborators",
       "description": "Enter the email addresses of teammates you'd like to collaborate with.",
       "target": {
-        "css": "input[aria-label*='Add people'], input[type='email'], input#demo-email-input, textarea",
-        "ariaLabel": "Add people and groups"
+        "css": "input[aria-label*='Add people'], input[aria-autocomplete='list'], input[type='email'], input#demo-email-input",
+        "ariaLabel": "Add people"
       },
       "action": {
         "type": "spotlight",

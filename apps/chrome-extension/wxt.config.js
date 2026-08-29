@@ -9,16 +9,22 @@ export default defineConfig({
     version: '1.0.0',
     permissions: [
       'storage',
-      'activeTab',
       'tabs',
       'scripting',
     ],
     host_permissions: [
+      '*://*/*',
       '<all_urls>',
     ],
     action: {
       default_title: 'GuideMe Tutorials',
     },
+    web_accessible_resources: [
+      {
+        resources: ['popup.html', 'logo.svg', 'chunks/*', 'assets/*'],
+        matches: ['<all_urls>'],
+      },
+    ],
   },
   runner: {
     disabled: true,

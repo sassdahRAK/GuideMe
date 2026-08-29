@@ -7,11 +7,9 @@ export function Spotlight({
   actionText = 'ចុចទីនេះ / CLICK',
   showPointer = true,
 }) {
-  // Full-screen dim when no target is specified (modal mode)
+  // Zero-dim policy: Do not dim or block the screen when no target is specified
   if (!targetBoundingBox) {
-    return (
-      <div className="fixed inset-0 w-screen h-screen bg-black/60 z-[999990] pointer-events-auto transition-all duration-300 backdrop-blur-[1px]" />
-    );
+    return null;
   }
 
   const x = Math.max(0, targetBoundingBox.left - padding);
@@ -29,37 +27,9 @@ export function Spotlight({
 
   return (
     <>
-      {/* ── SVG Backdrop Mask with Cutout ── */}
-      <svg className="fixed inset-0 w-screen h-screen z-[999990] pointer-events-none transition-all duration-200">
-        <defs>
-          <mask id="guideme-spotlight-mask">
-            {/* White = dimmed area */}
-            <rect x="0" y="0" width="100%" height="100%" fill="white" />
-            {/* Black = transparent spotlight cutout */}
-            <rect
-              x={x}
-              y={y}
-              width={width}
-              height={height}
-              rx={borderRadius}
-              ry={borderRadius}
-              fill="black"
-            />
-          </mask>
-        </defs>
-
-        {/* Semi-transparent overlay with spotlight cutout */}
-        <rect
-          x="0"
-          y="0"
-          width="100%"
-          height="100%"
-          fill="rgba(0, 0, 0, 0.62)"
-          mask="url(#guideme-spotlight-mask)"
-        />
-
-        {/* Purple dotted connector line */}
-        {showPointer && (
+      {/* ── Non-blocking connector line (Zero Dim) ── */}
+      {showPointer && (
+        <svg className="fixed inset-0 w-screen h-screen z-[999990] pointer-events-none transition-all duration-200">
           <line
             x1={centerX}
             y1={lineStartY}
@@ -71,12 +41,12 @@ export function Spotlight({
             strokeLinecap="round"
             className="transition-all duration-200"
           />
-        )}
-      </svg>
+        </svg>
+      )}
 
-      {/* ── Purple Focus Border & Glow Ring around target element ── */}
+      {/* ── High-Contrast Focus Ring & Radiant Pulse Glow (Zero Dim) ── */}
       <div
-        className="fixed z-[999991] pointer-events-none transition-all duration-200 border-[2.5px] border-purple-600 shadow-[0_0_0_4px_rgba(147,51,234,0.20),0_0_20px_rgba(147,51,234,0.35)] animate-[guideme-pulse_2s_infinite]"
+        className="fixed z-[999991] pointer-events-none transition-all duration-200 border-[3px] border-purple-600 dark:border-purple-400 shadow-[0_0_0_4px_rgba(147,51,234,0.30),0_0_24px_rgba(147,51,234,0.50),0_0_48px_rgba(147,51,234,0.30)] animate-[guideme-pulse_2s_infinite]"
         style={{
           top: `${y}px`,
           left: `${x}px`,
@@ -86,10 +56,10 @@ export function Spotlight({
         }}
       />
 
-      {/* ── Purple Action Indicator Pill (CLICK HERE) ── */}
+      {/* ── High-Visibility Action Indicator Pill (CLICK HERE) ── */}
       {showPointer && (
         <div
-          className="fixed z-[999992] pointer-events-none -translate-x-1/2 inline-flex items-center gap-1.5 bg-purple-600 text-white px-4 py-1.5 rounded-full text-xs font-extrabold tracking-wide shadow-[0_8px_20px_-3px_rgba(147,51,234,0.45),0_4px_10px_rgba(0,0,0,0.2)] whitespace-nowrap transition-all duration-200 font-kantumruy"
+          className="fixed z-[999992] pointer-events-none -translate-x-1/2 inline-flex items-center gap-1.5 bg-purple-600 text-white px-4 py-1.5 rounded-full text-xs font-extrabold tracking-wide shadow-[0_10px_25px_-3px_rgba(147,51,234,0.55),0_4px_12px_rgba(0,0,0,0.3)] whitespace-nowrap transition-all duration-200 font-kantumruy"
           style={{
             top: `${pillTop}px`,
             left: `${centerX}px`,

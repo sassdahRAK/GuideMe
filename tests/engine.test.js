@@ -10,6 +10,9 @@ import {
   I18nManager,
   AudioEngine,
   BaseTtsProvider,
+  AiTtsProvider,
+  GenericHttpTtsProvider,
+  TtsRegistry,
 } from '../packages/engine/src/index.js';
 import { BaseTutorialAdapter } from '../packages/adapter-interface/src/index.js';
 import { EngineStatus, Language, AudioPlaybackStatus } from '../packages/core-types/src/index.js';
@@ -206,6 +209,151 @@ describe('GuideMe Tutorial Engine & Bilingual / Audio Tests', () => {
 
     assert.strictEqual(speakCalled, true);
     assert.strictEqual(statusUpdate, AudioPlaybackStatus.ENDED);
+  });
+
+  test('AiTtsProvider initializes with API key and handles fetch & fallback execution', async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchedUrl = '';
+    let fetchedHeaders = {};
+    let fetchedBody = null;
+
+    globalThis.fetch = async (url, options) => {
+      fetchedUrl = url;
+      fetchedHeaders = options.headers;
+      fetchedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        blob: async () => ({ size: 1024, type: 'audio/mpeg' }),
+      };
+    };
+
+    try {
+      const aiProvider = new AiTtsProvider({
+        apiKey: 'test-sk-12345',
+        provider: 'openai',
+        model: 'tts-1-hd',
+        voice: 'nova',
+      });
+
+      assert.strictEqual(aiProvider.apiKey, 'test-sk-12345');
+      assert.strictEqual(aiProvider.provider, 'openai');
+      assert.strictEqual(aiProvider.model, 'tts-1-hd');
+      assert.strictEqual(aiProvider.voice, 'nova');
+
+      let started = false;
+      let ended = false;
+
+      await aiProvider.speak({
+        text: 'សូមចុចប៊ូតុង',
+        lang: Language.KM,
+        rate: 1.0,
+        onStart: () => { started = true; },
+        onEnd: () => { ended = true; },
+      });
+
+      assert.strictEqual(fetchedUrl, 'https://api.openai.com/v1/audio/speech');
+      assert.strictEqual(fetchedHeaders['Authorization'], 'Bearer test-sk-12345');
+      assert.strictEqual(fetchedBody.input, 'សូមចុចប៊ូតុង');
+      assert.strictEqual(fetchedBody.model, 'tts-1-hd');
+      assert.strictEqual(fetchedBody.voice, 'nova');
+      assert.strictEqual(started, true);
+      assert.strictEqual(ended, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('GenericHttpTtsProvider dynamically interpolates template variables for custom AI endpoints', async () => {
+    const originalFetch = globalThis.fetch;
+    let requestCaptured = null;
+
+    globalThis.fetch = async (url, options) => {
+      requestCaptured = {
+        url,
+        headers: options.headers,
+        body: JSON.parse(options.body),
+      };
+      return {
+        ok: true,
+        blob: async () => ({ size: 2048, type: 'audio/wav' }),
+      };
+    };
+
+    try {
+      const customAiProvider = new GenericHttpTtsProvider({
+        endpoint: 'https://khmer-ai.example.com/api/v1/synthesize?voice={{VOICE}}',
+        apiKey: 'khmer-secret-key-999',
+        headers: {
+          'X-Api-Key': '{{API_KEY}}',
+          'X-Custom-Engine': 'GuideMe',
+        },
+        bodyTemplate: {
+          khmerText: '{{TEXT}}',
+          lang: '{{LANG}}',
+          speed: '{{RATE}}',
+          speaker: '{{VOICE}}',
+        },
+        voice: 'female-channary',
+      });
+
+      let started = false;
+      let ended = false;
+
+      await customAiProvider.speak({
+        text: 'សូមស្វាគមន៍មកកាន់ GuideMe',
+        lang: Language.KM,
+        rate: 0.9,
+        onStart: () => { started = true; },
+        onEnd: () => { ended = true; },
+      });
+
+      assert.strictEqual(requestCaptured.url, 'https://khmer-ai.example.com/api/v1/synthesize?voice=female-channary');
+      assert.strictEqual(requestCaptured.headers['X-Api-Key'], 'khmer-secret-key-999');
+      assert.strictEqual(requestCaptured.headers['X-Custom-Engine'], 'GuideMe');
+      assert.strictEqual(requestCaptured.body.khmerText, 'សូមស្វាគមន៍មកកាន់ GuideMe');
+      assert.strictEqual(requestCaptured.body.lang, 'km');
+      assert.strictEqual(requestCaptured.body.speed, 0.9);
+      assert.strictEqual(requestCaptured.body.speaker, 'female-channary');
+      assert.strictEqual(started, true);
+      assert.strictEqual(ended, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('TtsRegistry creates providers dynamically from environment variables', () => {
+    // 1. OpenAI preset from env
+    const openAiProvider = TtsRegistry.fromEnv({
+      WXT_TTS_API_KEY: 'sk-sample-env-key',
+      WXT_TTS_PRESET: 'openai',
+      WXT_TTS_MODEL: 'tts-1-hd',
+    });
+    assert.strictEqual(openAiProvider.apiKey, 'sk-sample-env-key');
+    assert.strictEqual(openAiProvider.model, 'tts-1-hd');
+
+    // 2. ElevenLabs preset from env
+    const elevenLabsProvider = TtsRegistry.fromEnv({
+      WXT_TTS_API_KEY: 'eleven-env-key',
+      WXT_TTS_PRESET: 'elevenlabs',
+      WXT_TTS_VOICE: 'rachel-voice-id',
+    });
+    assert.strictEqual(elevenLabsProvider.apiKey, 'eleven-env-key');
+    assert.strictEqual(elevenLabsProvider.voice, 'rachel-voice-id');
+
+    // 3. Custom endpoint from env
+    const customEnvProvider = TtsRegistry.fromEnv({
+      WXT_TTS_PRESET: 'custom',
+      WXT_TTS_ENDPOINT: 'https://my-proxy.internal/tts',
+      WXT_TTS_API_KEY: 'proxy-token',
+    });
+    assert.strictEqual(customEnvProvider.endpoint, 'https://my-proxy.internal/tts');
+    assert.strictEqual(customEnvProvider.apiKey, 'proxy-token');
+
+    // 4. Custom registered runtime driver
+    class BrandNewTtsEngine extends BaseTtsProvider {}
+    TtsRegistry.register('custom-plugin', () => new BrandNewTtsEngine());
+    const registeredProvider = TtsRegistry.create('custom-plugin');
+    assert.ok(registeredProvider instanceof BrandNewTtsEngine);
   });
 
   test('Engine starts bilingual tutorial and reactively updates on language toggle', async () => {
