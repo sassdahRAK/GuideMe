@@ -382,7 +382,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   manifest: {
-    name: 'GuideMe — Universal Tutorial Engine',
+    name: 'GuideMe: Universal Tutorial Engine',
     description: 'Interactive step-by-step guidance overlays for any web application.',
     version: '1.0.0',
     permissions: [

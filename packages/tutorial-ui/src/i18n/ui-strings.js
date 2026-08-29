@@ -138,21 +138,49 @@ export const UI_STRINGS = {
   },
   getHelp: {
     km: 'ជំនួយបន្ថែម',
-    en: 'Get help',
+    en: 'Get Help',
   },
   contactUs: {
-    km: 'ទំនាក់ទំនង',
+    km: 'ទំនាក់ទំនងយើង',
     en: 'Contact Us',
   },
   survey: {
     km: 'ការស្ទង់មតិ',
     en: 'Survey',
   },
+  defaultSpeaker: {
+    km: 'លំនាំដើម',
+    en: 'Default',
+  },
+  items: {
+    km: 'ប្រវត្តិ',
+    en: 'items',
+  },
+  item: {
+    km: 'ប្រវត្តិ',
+    en: 'item',
+  },
+  justNow: {
+    km: 'ឥឡូវនេះ',
+    en: 'Just now',
+  },
 
   // In-Page Coach / StepCard Controls
   coachTitleDefault: {
     km: 'GuideMe - AI Live Coach',
     en: 'GuideMe - AI Live Coach',
+  },
+  explainDetail: {
+    km: 'ពន្យល់លម្អិត',
+    en: 'Explain detail',
+  },
+  hideDetail: {
+    km: 'លាក់ការពន្យល់',
+    en: 'Hide detail',
+  },
+  stepOf: {
+    km: 'ជំហាន',
+    en: 'Step',
   },
   replayVoice: {
     km: 'ស្តាប់ឡើងវិញ',
@@ -254,4 +282,16 @@ export function getUIString(key, lang = 'km') {
   const item = UI_STRINGS[key];
   if (!item) return key;
   return item[lang] || item['km'] || item['en'] || key;
+}
+
+const KHMER_DIGITS = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
+
+/**
+ * Converts Western digits (0-9) to Khmer numerals (០-៩).
+ * @param {number|string} num
+ * @returns {string}
+ */
+export function toKhmerNumber(num) {
+  if (num === null || num === undefined) return '';
+  return String(num).replace(/[0-9]/g, (digit) => KHMER_DIGITS[parseInt(digit, 10)]);
 }

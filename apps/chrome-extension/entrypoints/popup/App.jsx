@@ -15,16 +15,14 @@ import { SettingsOverlay } from './components/SettingsOverlay.jsx';
 import { ChatArea }        from './components/ChatArea.jsx';
 
 /** Initial greeting from GuideMe AI assistant */
-const INITIAL_ASSISTANT_MESSAGE = {
-  role: 'assistant',
-  content:
-    "Hi! I'm your GuideMe AI assistant. I can help you create guides, explain page elements, or answer questions about any webpage. What would you like to do?",
-  time: 'Now',
+const INITIAL_GREETINGS = {
+  km: "សួស្ដី! ខ្ញុំជាជំនួយការ AI របស់ GuideMe។ ខ្ញុំអាចជួយអ្នកបង្កើតការណែនាំ ពន្យល់ពីប៊ូតុងនានា ឬឆ្លើយសំណួរអំពីទំព័រវេបសាយនេះ។ តើអ្នកចង់ឱ្យខ្ញុំជួយអ្វីដែរ?",
+  en: "Hi! I'm your GuideMe AI assistant. I can help you create guides, explain page elements, or answer questions about any webpage. What would you like to do?",
 };
 
-/** A simple timestamp like "Just now" or "10:32 AM" */
-function nowTime() {
-  return 'Just now';
+/** A simple timestamp like "Just now" or "ឥឡូវនេះ" */
+function nowTime(lang = 'km') {
+  return getUIString('justNow', lang);
 }
 
 /**
@@ -41,8 +39,30 @@ export default function App() {
   const [isProcessing,      setIsProcessing]      = useState(false);
 
   // ── Chat state ──────────────────────────────────────────────────────────────
-  const [messages,      setMessages]      = useState([INITIAL_ASSISTANT_MESSAGE]);
+  const [messages,      setMessages]      = useState(() => [
+    {
+      role: 'assistant',
+      content: INITIAL_GREETINGS.km,
+      time: nowTime('km'),
+    },
+  ]);
   const [customPrompt,  setCustomPrompt]  = useState('');
+
+  // Update initial greeting if chat is still untouched when language changes
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 1 && prev[0].role === 'assistant') {
+        return [
+          {
+            role: 'assistant',
+            content: INITIAL_GREETINGS[currentLanguage] || INITIAL_GREETINGS.km,
+            time: nowTime(currentLanguage),
+          },
+        ];
+      }
+      return prev;
+    });
+  }, [currentLanguage]);
 
   const isChromeInternalUrl =
     (currentTab?.url || '').startsWith('chrome://') ||
@@ -54,7 +74,7 @@ export default function App() {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
-  // ── Load preferences on mount ────────────────────────────────────────────────
+  // ── Load preferences on mount & listen to live changes ─────────────────────
   useEffect(() => {
     (async () => {
       try {
@@ -90,8 +110,12 @@ export default function App() {
           }
         }
 
-        if (stored[STORAGE_KEY_LANG])    setCurrentLanguage(stored[STORAGE_KEY_LANG]);
-        if (stored[STORAGE_KEY_THEME])   setTheme(stored[STORAGE_KEY_THEME]);
+        if (stored[STORAGE_KEY_LANG]) setCurrentLanguage(stored[STORAGE_KEY_LANG]);
+        if (stored[STORAGE_KEY_THEME]) {
+          setTheme(stored[STORAGE_KEY_THEME]);
+        } else if (window.matchMedia?.('(prefers-color-scheme: dark)')?.matches) {
+          setTheme('dark');
+        }
         if (stored[STORAGE_KEY_SPEAKER]) setCurrentSpeaker(stored[STORAGE_KEY_SPEAKER]);
         if (stored[STORAGE_KEY_HISTORY]) setHistory(stored[STORAGE_KEY_HISTORY]);
 
@@ -106,6 +130,20 @@ export default function App() {
         console.warn('[GuideMe Popup] Init error:', err);
       }
     })();
+
+    // Listen for storage changes from in-page overlays
+    const storageListener = (changes, areaName) => {
+      if (areaName === 'local') {
+        if (changes[STORAGE_KEY_THEME]) {
+          setTheme(changes[STORAGE_KEY_THEME].newValue);
+        }
+        if (changes[STORAGE_KEY_LANG]) {
+          setCurrentLanguage(changes[STORAGE_KEY_LANG].newValue);
+        }
+      }
+    };
+    chrome.storage?.onChanged?.addListener(storageListener);
+    return () => chrome.storage?.onChanged?.removeListener(storageListener);
   }, []);
 
   // ── Language ─────────────────────────────────────────────────────────────────
@@ -216,7 +254,7 @@ export default function App() {
     chrome.storage.local.set({ [STORAGE_KEY_HISTORY]: newHistory });
 
     // Add user message to chat immediately
-    const userMsg = { role: 'user', content: prompt, time: nowTime() };
+    const userMsg = { role: 'user', content: prompt, time: nowTime(currentLanguage) };
     setMessages((prev) => [...prev, userMsg]);
     setCustomPrompt('');
 
@@ -224,15 +262,23 @@ export default function App() {
     setIsProcessing(true);
     setTimeout(() => {
       setIsProcessing(false);
-      const contextualReplies = [
-        "I can help you with that! Click 'Extract Separate UI' to start interactive step-by-step guidance on this page.",
-        "Great question! I'm analyzing this webpage to provide the best walkthrough for you.",
-        "Got it! You can start a tutorial or ask me to explain any specific button or form on this screen.",
-      ];
-      const reply = contextualReplies[Math.floor(Math.random() * contextualReplies.length)];
+      const contextualReplies = {
+        km: [
+          "ខ្ញុំអាចជួយអ្នកបាន! ចុច 'បំបែក UI ចេញពីផ្ទាំងនេះ' ដើម្បីចាប់ផ្ដើមការណែនាំជាជំហានៗលើទំព័រនេះ។",
+          "សំណួរល្អណាស់! ខ្ញុំកំពុងវិភាគទំព័រវេបសាយនេះដើម្បីផ្ដល់ការណែនាំដ៏ល្អបំផុតសម្រាប់អ្នក។",
+          "យល់ហើយ! អ្នកអាចចាប់ផ្ដើមមេរៀន ឬសួរខ្ញុំឱ្យពន្យល់ពីប៊ូតុង ឬទម្រង់ណាមួយលើអេក្រង់នេះ។",
+        ],
+        en: [
+          "I can help you with that! Click 'Extract Separate UI' to start interactive step-by-step guidance on this page.",
+          "Great question! I'm analyzing this webpage to provide the best walkthrough for you.",
+          "Got it! You can start a tutorial or ask me to explain any specific button or form on this screen.",
+        ],
+      };
+      const list = contextualReplies[currentLanguage] || contextualReplies.km;
+      const reply = list[Math.floor(Math.random() * list.length)];
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: reply, time: 'Just now' },
+        { role: 'assistant', content: reply, time: nowTime(currentLanguage) },
       ]);
     }, 600);
   };
@@ -259,12 +305,14 @@ export default function App() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="popup-window slide-in">
+    <div className={`popup-window slide-in ${currentLanguage === 'km' ? 'font-kantumruy' : 'font-sans'}`}>
       {/* Settings slide-in overlay (absolute, covers the popup) */}
       <SettingsOverlay
         open={showSettings}
         currentLanguage={currentLanguage}
         onLanguageChange={handleLanguageChange}
+        theme={theme}
+        onThemeChange={handleThemeChange}
         currentSpeaker={currentSpeaker}
         onSpeakerChange={handleSpeakerChange}
         history={history}
@@ -313,7 +361,7 @@ export default function App() {
             onClick={handleOpenDashboard}
             className="btn-primary btn-dashboard"
           >
-            Open Dashboard
+            {getUIString('openDashboard', currentLanguage)}
           </button>
 
           {/* Prompt input row */}

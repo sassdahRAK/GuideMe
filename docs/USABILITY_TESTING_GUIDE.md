@@ -1,4 +1,4 @@
-# GuideMe — Usability Testing Guide & Quality Assurance Protocol
+# GuideMe: Usability Testing Guide & Quality Assurance Protocol
 
 This guide establishes a comprehensive, standard operating procedure for conducting **Usability Testing**, **Interactive QA**, and **User Experience (UX) Validation** on the GuideMe Universal Tutorial Engine Chrome extension.
 
@@ -184,3 +184,20 @@ npm test
 This verifies:
 - `dynamic-analyzer.test.js`: Form, E-Commerce, Search, and Settings DOM classification.
 - `engine.test.js`: Bilingual step indexing, I18nManager locale switching, AudioEngine playback states, and spreadsheet walkthrough schemas.
+
+---
+
+## 8. Mandatory Post-Implementation Verification Checklist
+
+For every code change or feature implementation:
+1. **Dark Mode & Light (White) Mode**:
+   - Inspect all updated UI components in both Light and Dark mode.
+   - Verify color contrast, borders, text readability, and immediate response to theme toggles.
+   - Confirm `@custom-variant dark (&:where(.dark, .dark *));` is active in Tailwind v4 CSS.
+2. **Khmer (`km`) & English (`en`)**:
+   - Verify zero hardcoded English strings in UI text.
+   - Centralize all strings in `ui-strings.js` or bilingual `{ km, en }` structures.
+   - Test toggling between `km` and `en` to ensure immediate reactive UI updates.
+3. **Build & Tests**:
+   - Run `pnpm test` and `pnpm build` to guarantee error-free production bundles.
+

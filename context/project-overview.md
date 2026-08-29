@@ -1,4 +1,4 @@
-# GuideMe — Project Overview
+# GuideMe: Project Overview
 
 ## 1. Overview
 

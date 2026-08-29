@@ -355,7 +355,7 @@ export function OnboardingOverlay({
         </div>
 
         <p className="text-center text-[11px] text-gray-400 dark:text-zinc-500 mt-5 font-medium">
-          GuideMe — Universal AI Tutorial Engine (Draggable)
+          GuideMe: Universal AI Tutorial Engine (Draggable)
         </p>
       </div>
     </div>

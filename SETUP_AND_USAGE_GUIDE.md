@@ -121,21 +121,75 @@ All main commands can be run from the repository root:
 | `npx pnpm dev` | Launches the WXT development server with Hot Module Reloading (HMR). |
 | `npx pnpm build` | Builds the production Manifest V3 extension inside `apps/chrome-extension/.output/chrome-mv3`. |
 | `npx pnpm --filter @guideme/chrome-extension dev:firefox` | Runs development server targeting Mozilla Firefox. |
-| `npx pnpm --filter @guideme/chrome-extension build:firefox` | Builds distribution package for Firefox inside `.output/firefox-mv2`. |
-| `npx pnpm test` | Runs the Node.js unit test suites in `tests/` (`engine.test.js`, `dynamic-analyzer.test.js`). |
-| `npx pnpm clean` | Removes `node_modules` and build output artifacts (`.output`, `.wxt`). |
+Ensure you have the following installed on your development machine:
+- **Node.js**: `v18.0.0` or later (tested on Node v20/v22).
+- **pnpm**: `v9.0.0` or later (recommended package manager).
+- **Google Chrome / Chromium-based Browser**: Chrome v102+ with Manifest V3 support.
 
 ---
 
-## 5. Loading Extension into Browser
+## 3. Repository Installation
 
-### Google Chrome / Brave / Edge / Opera
+Clone the repository and install all workspace dependencies:
 
-1. Run the build command in terminal:
-   ```bash
-   pnpm build
-   ```
-2. Open Chrome (or your Chromium browser) and navigate to:
+```bash
+# Clone the repository
+git clone https://github.com/sassdahRAK/GuideMe.git
+cd GuideMe
+
+# Install all monorepo dependencies
+pnpm install
+```
+
+---
+
+## 4. Environment Configuration
+
+Copy the example `.env` file to create your extension environment configuration:
+
+```bash
+cp apps/chrome-extension/.env.example apps/chrome-extension/.env
+```
+
+Open `apps/chrome-extension/.env` in your editor and configure your preferred AI provider API key:
+
+```env
+# Google Gemini API Key (Default)
+VITE_GEMINI_API_KEY="your-gemini-api-key-here"
+
+# Optional: Anthropic Claude API Key
+VITE_ANTHROPIC_API_KEY=""
+
+# Optional: OpenAI API Key
+VITE_OPENAI_API_KEY=""
+
+# Optional: DeepSeek API Key
+VITE_DEEPSEEK_API_KEY=""
+```
+
+> **Note**: Even without an API key, GuideMe ships with built-in mock/demo guides for Google Docs and general test environments that work 100% offline out-of-the-box!
+
+---
+
+## 5. Building & Loading the Extension
+
+### 5.1 Build the Extension
+
+Run the production build command:
+
+```bash
+pnpm build
+```
+
+This compiles all packages and generates the unpacked Chrome extension into:
+```
+apps/chrome-extension/.output/chrome-mv3/
+```
+
+### 5.2 Load into Google Chrome
+
+1. Open Google Chrome.
+2. In the address bar, navigate to:
    ```
    chrome://extensions
    ```
@@ -145,7 +199,7 @@ All main commands can be run from the repository root:
    ```
    GuideMe/apps/chrome-extension/.output/chrome-mv3
    ```
-6. The **GuideMe — Universal Tutorial Engine** extension icon (gold "G" emblem) will now appear in your browser toolbar.
+6. The **GuideMe: Universal Tutorial Engine** extension icon will now appear in your browser toolbar.
 
 ---
 
@@ -371,4 +425,4 @@ Below is a complete, working example tutorial definition (`tutorials/general/wel
 
 ---
 
-*GuideMe — Universal Tutorial Engine Docs*
+*GuideMe: Universal Tutorial Engine Docs*

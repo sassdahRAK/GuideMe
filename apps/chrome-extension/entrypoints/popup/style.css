@@ -2,6 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @source "../..";
 @source "../../../../packages/tutorial-ui/src";
 
@@ -24,6 +25,7 @@
   --accent-glow:   rgba(139, 92, 246, 0.25);
 
   --grad-primary:  linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color-scheme: light;
 }
 
 /* ── Dark mode token overrides — Sharp Neon Purple & Deep Obsidian ── */
@@ -44,6 +46,7 @@ html.dark {
   --accent-glow:   rgba(168, 85, 247, 0.40);
 
   --grad-primary:  linear-gradient(135deg, #a855f7, #7c3aed);
+  color-scheme: dark;
 }
 
 /* ── Base ─────────────────────────────────────── */

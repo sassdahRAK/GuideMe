@@ -16,8 +16,8 @@ import { SPEAKER_OPTIONS } from '../constants.js';
 
 /** All supported languages with flags */
 const LANGUAGES_FULL = [
-  { code: 'km', label: 'Khmer',   flag: '🇰🇭' },
-  { code: 'en', label: 'English', flag: '🇬🇧' },
+  { code: 'km', label: { km: 'ភាសាខ្មែរ', en: 'Khmer' }, flag: '🇰🇭' },
+  { code: 'en', label: { km: 'អង់គ្លេស (English)', en: 'English' }, flag: '🇬🇧' },
 ];
 
 /** Translate Icon (Character + Letter A) */
@@ -140,11 +140,11 @@ function OptionRow({ leftIcon, label, active, onClick, disabled, showRadio = tru
 }
 
 /**
- * SettingsOverlay — Slide-over settings drawer.
+ * SettingsOverlay — Slide-over settings drawer with full bilingual (Khmer / English) support.
  */
 export function SettingsOverlay({
   open,
-  currentLanguage,
+  currentLanguage = 'km',
   onLanguageChange,
   theme,
   onThemeChange,
@@ -157,6 +157,7 @@ export function SettingsOverlay({
   onExtractUI,
   isChromeInternalUrl,
 }) {
+  const isKhmer = currentLanguage === 'km';
   // Exclusive accordion: only one section open at a time
   const [openSection, setOpenSection] = useState(null);
 
@@ -172,6 +173,8 @@ export function SettingsOverlay({
   return (
     <div
       className={`absolute inset-0 bg-white dark:bg-[#101018] text-gray-900 dark:text-zinc-100 z-50 flex flex-col rounded-2xl overflow-hidden transition-transform duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${
+        isKhmer ? 'font-kantumruy' : 'font-sans'
+      } ${
         open ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'
       }`}
     >
@@ -192,7 +195,9 @@ export function SettingsOverlay({
             <path d="M19 12H5M12 5l-7 7 7 7" />
           </svg>
         </button>
-        <span className="font-semibold text-sm text-gray-900 dark:text-white">Settings</span>
+        <span className="font-semibold text-sm text-gray-900 dark:text-white">
+          {getUIString('settings', currentLanguage)}
+        </span>
       </div>
 
       {/* Scrollable accordion body with full height and comfortable padding */}
@@ -201,7 +206,7 @@ export function SettingsOverlay({
         {/* ── 1. Language ── */}
         <AccordionSection
           icon={<TranslateIcon className="w-3.5 h-3.5" />}
-          label="Language"
+          label={getUIString('language', currentLanguage)}
           isOpen={openSection === 'Language'}
           onToggle={() => toggle('Language')}
         >
@@ -209,7 +214,7 @@ export function SettingsOverlay({
             <OptionRow
               key={lang.code}
               leftIcon={<span>{lang.flag}</span>}
-              label={lang.label}
+              label={typeof lang.label === 'object' ? (lang.label[currentLanguage] || lang.label.en) : lang.label}
               active={currentLanguage === lang.code}
               showRadio={true}
               onClick={() => onLanguageChange(lang.code)}
@@ -220,20 +225,20 @@ export function SettingsOverlay({
         {/* ── 2. Theme ── */}
         <AccordionSection
           icon={<FiSun size={15} />}
-          label="Theme"
+          label={getUIString('theme', currentLanguage)}
           isOpen={openSection === 'Theme'}
           onToggle={() => toggle('Theme')}
         >
           <OptionRow
             leftIcon={<FiSun size={14} />}
-            label="Light"
+            label={getUIString('light', currentLanguage)}
             active={theme === 'light'}
             showRadio={true}
             onClick={() => onThemeChange('light')}
           />
           <OptionRow
             leftIcon={<FiMoon size={14} />}
-            label="Dark"
+            label={getUIString('dark', currentLanguage)}
             active={theme === 'dark'}
             showRadio={true}
             onClick={() => onThemeChange('dark')}
@@ -243,14 +248,14 @@ export function SettingsOverlay({
         {/* ── 3. History ── */}
         <AccordionSection
           icon={<FiClock size={15} />}
-          label="History"
+          label={getUIString('history', currentLanguage)}
           isOpen={openSection === 'History'}
           onToggle={() => toggle('History')}
         >
           {history.length === 0 ? (
             <div className="px-3.5 py-3 border-t border-[#ede4ff]/80 dark:border-[#2d2d44]">
               <span className="text-xs text-gray-400 dark:text-zinc-500 italic">
-                {getUIString('noHistory', currentLanguage) || 'No history yet'}
+                {getUIString('noHistory', currentLanguage)}
               </span>
             </div>
           ) : (
@@ -277,10 +282,10 @@ export function SettingsOverlay({
                   className="text-xs font-semibold text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 bg-transparent border-0 cursor-pointer flex items-center gap-1.5 transition-colors"
                 >
                   <FiTrash2 size={12} />
-                  <span>{getUIString('clearAll', currentLanguage) || 'Clear all'}</span>
+                  <span>{getUIString('clearAll', currentLanguage)}</span>
                 </button>
                 <span className="text-[10px] text-gray-400 dark:text-zinc-500">
-                  {history.length} {history.length === 1 ? 'item' : 'items'}
+                  {history.length} {isKhmer ? 'ប្រវត្តិ' : (history.length === 1 ? 'item' : 'items')}
                 </span>
               </div>
             </div>
@@ -290,7 +295,7 @@ export function SettingsOverlay({
         {/* ── 4. Speaker Assistant ── */}
         <AccordionSection
           icon={<FiMic size={15} />}
-          label="Speaker Assistant"
+          label={getUIString('speakerAssistant', currentLanguage)}
           isOpen={openSection === 'Speaker'}
           onToggle={() => toggle('Speaker')}
         >
@@ -298,7 +303,7 @@ export function SettingsOverlay({
             <OptionRow
               key={s.id}
               leftIcon={<FiMic size={13} />}
-              label={s.label}
+              label={typeof s.label === 'object' ? (s.label[currentLanguage] || s.label.en) : s.label}
               active={currentSpeaker === s.id}
               showRadio={true}
               onClick={() => onSpeakerChange(s.id)}
@@ -309,13 +314,13 @@ export function SettingsOverlay({
         {/* ── 5. Get Help ── */}
         <AccordionSection
           icon={<FiInfo size={15} />}
-          label="Get Help"
+          label={getUIString('getHelp', currentLanguage)}
           isOpen={openSection === 'Help'}
           onToggle={() => toggle('Help')}
         >
           <OptionRow
             leftIcon={<FiPhone size={13} />}
-            label="Contact Us"
+            label={getUIString('contactUs', currentLanguage)}
             active={false}
             showRadio={false}
             rightIcon={<FiExternalLink size={12} />}
@@ -323,7 +328,7 @@ export function SettingsOverlay({
           />
           <OptionRow
             leftIcon={<FiFileText size={13} />}
-            label="Survey"
+            label={getUIString('survey', currentLanguage)}
             active={false}
             showRadio={false}
             rightIcon={<FiExternalLink size={12} />}

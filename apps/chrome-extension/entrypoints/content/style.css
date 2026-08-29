@@ -99,6 +99,43 @@
   to { transform: rotate(360deg); }
 }
 
+/* ─── Pointing hand cursor gentle tap motion ─── */
+@keyframes guideme-point-left {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-7px);
+  }
+}
+
+@keyframes guideme-point-right {
+  0%, 100% {
+    transform: scaleX(-1) translateX(0);
+  }
+  50% {
+    transform: scaleX(-1) translateX(-7px);
+  }
+}
+
+@keyframes guideme-point-up {
+  0%, 100% {
+    transform: rotate(90deg) translateX(0);
+  }
+  50% {
+    transform: rotate(90deg) translateX(-7px);
+  }
+}
+
+@keyframes guideme-point-down {
+  0%, 100% {
+    transform: rotate(-90deg) translateX(0);
+  }
+  50% {
+    transform: rotate(-90deg) translateX(-7px);
+  }
+}
+
 /* Custom scrollbar for shadow DOM */
 ::-webkit-scrollbar {
   width: 4px;

@@ -222,7 +222,7 @@ export function DashboardOverlay({
           </div>
 
           <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400 flex items-center gap-1.5">
-            <span>GuideMe — Dashboard v2.1.0</span>
+            <span>GuideMe: Dashboard v2.1.0</span>
             <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.2 rounded">
               DRAGGABLE
             </span>

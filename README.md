@@ -1,4 +1,4 @@
-# GuideMe — Universal Tutorial Engine
+# GuideMe: Universal Tutorial Engine
 
 > Interactive step-by-step guidance overlays, SVG spotlights, and dynamic DOM auto-guidance for web applications.
 
@@ -55,6 +55,15 @@ For complete details on monorepo architecture, curated walkthroughs, Dynamic Aut
 - **`npx pnpm build`**: Build production Chrome Manifest V3 extension
 - **`npx pnpm test`**: Run engine and dynamic analyzer unit test suite
 - **`npx pnpm clean`**: Clean build outputs and cached packages
+
+---
+
+## 🛡️ Implementation & QA Guidelines
+
+For every implementation, feature addition, or UI change:
+1. **Dark Mode & Light (White) Mode**: Verify visual contrast, surfaces, borders, and theme toggle responsiveness in both modes.
+2. **Khmer (`km`) & English (`en`) Support**: Never hardcode English strings. Centralize all UI text in `ui-strings.js` or bilingual `{ km, en }` definitions and verify live switching.
+3. **Build & Test**: Ensure `pnpm test` (14/14 tests) and `pnpm build` pass with zero errors.
 
 ---
 

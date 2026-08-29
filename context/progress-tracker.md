@@ -6,9 +6,9 @@
 
 ## 1. Project Health & Test Status
 
-- **Automated Test Suite:** 11 / 11 tests passing (`tests/engine.test.js`, `tests/dynamic-analyzer.test.js`).
-- **Build Status:** Manifest V3 production bundle (`apps/chrome-extension/.output/chrome-mv3`) compiling cleanly via WXT.
-- **Specification Status:** Architecture and requirements unified across `docs/` and `context/`.
+- **Automated Test Suite:** 14 / 14 tests passing (`tests/engine.test.js`, `tests/dynamic-analyzer.test.js`).
+- **Build Status:** Manifest V3 production bundle (`apps/chrome-extension/.output/chrome-mv3`) compiling cleanly via WXT + Vite.
+- **Specification Status:** Architecture and requirements unified across `docs/`, `context/`, and `AGENTS.md`.
 
 ---
 
@@ -23,7 +23,7 @@
 ### Phase 2: Chrome Adapter & Isolated UI Overlay
 - [x] Developed `ChromeAdapter` with `DOMObserver`, `MutationObserver` element polling, and `URLListener`.
 - [x] Mounted `TutorialOverlay` inside isolated Shadow DOM (`guideme-tutorial-root`) via WXT `createShadowRootUi`.
-- [x] Built interactive SVG `Spotlight` with cutout mask, corner smoothing, and golden glow pulse ring.
+- [x] Built interactive SVG `Spotlight` with cutout mask, corner smoothing, and radiant pulse glow ring.
 - [x] Built auto-flipping `StepCard` / `Tooltip` with responsive viewport collision avoidance.
 - [x] Built extension popup with active tab matching, category filters, and quick launch actions.
 
@@ -34,15 +34,12 @@
 - [x] Built `AudioEngine` with pluggable `BaseTtsProvider` interface and voice prompt playback controls.
 - [x] Created offline sandbox demo testbed (`test-demo.html`) and pre-built walkthrough catalog.
 
----
-
-## 3. Current Phase
-
-### Phase 4: Production Hardening & Specification Alignment
+### Phase 4: Production Hardening, Dark/Light Mode & Specification Alignment
 - [x] Master context files authored and fully aligned with GuideMe architecture in `context/`.
-- [ ] Connect production online Khmer TTS API provider from AI team to `AudioEngine`.
-- [ ] Expand curated walkthrough catalog for high-complexity SaaS targets (Google Docs, Google Sheets, Jira, Notion).
-- [ ] Enhance complex nested Shadow DOM / iframe target element traversal in `DOMObserver`.
+- [x] Seamless Dark Mode & Light (White) Mode with Tailwind v4 `@custom-variant dark` support.
+- [x] Full Khmer (`km`) translation across Popup, Settings drawer, Overlays, and dynamic AI assistant responses.
+- [x] Official high-res extension branding and logo icon integration across all Chrome toolbar sizes.
+- [x] Unified `AGENTS.md` operating protocol bound strictly to `context/`.
 
 ---
 

@@ -75,7 +75,7 @@ export function PromptInput({
           {/* Listening State vs Input Field */}
           {isListening ? (
             <span className="flex-1 text-[13px] font-normal text-[#8b5cf6] dark:text-[#c084fc] select-none animate-pulse">
-              Listening...
+              {getUIString('listening', currentLanguage)}
             </span>
           ) : (
             <input
@@ -83,7 +83,7 @@ export function PromptInput({
               type="text"
               value={customPrompt}
               onChange={(e) => onPromptChange(e.target.value)}
-              placeholder="Type to GuideMe..."
+              placeholder={getUIString('typePrompt', currentLanguage)}
               className="flex-1 bg-transparent border-0 outline-none text-[13px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-500 font-normal"
               style={{ border: 'none', outline: 'none' }}
               onKeyDown={(e) => {

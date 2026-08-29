@@ -10,16 +10,16 @@ export const STORAGE_KEY_HISTORY = 'guideme_history';
  * Supported speech synthesis voice presets.
  */
 export const SPEAKER_OPTIONS = [
-  { id: 'default', label: 'Default' },
-  { id: 'samantha', label: 'Samantha' },
-  { id: 'daniel', label: 'Daniel' },
-  { id: 'karen', label: 'Karen' },
+  { id: 'default', label: { km: 'លំនាំដើម (Default)', en: 'Default' } },
+  { id: 'samantha', label: { km: 'សាម៉ានថា (Samantha)', en: 'Samantha' } },
+  { id: 'daniel', label: { km: 'ដានីយ៉ែល (Daniel)', en: 'Daniel' } },
+  { id: 'karen', label: { km: 'ការ៉ែន (Karen)', en: 'Karen' } },
 ];
 
 /**
  * Supported languages in GuideMe.
  */
 export const LANGUAGES = [
-  { code: 'km', label: 'Khmer' },
-  { code: 'en', label: 'English' },
+  { code: 'km', label: { km: 'ភាសាខ្មែរ', en: 'Khmer' } },
+  { code: 'en', label: { km: 'អង់គ្លេស', en: 'English' } },
 ];

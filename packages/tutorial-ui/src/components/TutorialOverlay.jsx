@@ -231,13 +231,23 @@ export function TutorialOverlay({
         onReplayAudio={onReplayAudio}
       />
 
-      {/* 3. Floating "Ask GuideMe" button */}
+      {/* 3. Floating single-line prompt widget */}
+      {isPromptOpen && (
+        <FloatingPromptWidget
+          isOpen={isPromptOpen}
+          onToggleOpen={onTogglePrompt}
+          onStartDynamicGuide={onStartDynamicGuide}
+          language={language || 'km'}
+        />
+      )}
+
+      {/* 4. Floating "Ask GuideMe" button */}
       <FloatingAssistantButton
-        onClick={onToggleLauncher || onClose}
+        onClick={() => onTogglePrompt && onTogglePrompt(!isPromptOpen)}
         onDismiss={onDismiss || onClose}
         onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
         isActive={true}
-        isOpen={true}
+        isOpen={isPromptOpen}
         language={lang}
       />
     </div>

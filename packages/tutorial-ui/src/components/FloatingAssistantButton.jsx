@@ -4,10 +4,10 @@ import { getUIString } from '../i18n/ui-strings.js';
 
 /* ─────────────────────────────────────────────────────────────────
    ContextMenu — right-click menu for the floating button.
-   3 options:
-     1. Close          — hides the floating button
-     2. Open Dashboard — opens guideme.app/dashboard in a new tab
-     3. Go to Extension— triggers the native Chrome extension toolbar popup
+   Includes:
+     1. Open Dashboard — purple primary button
+     2. Go to Extension— secondary button
+     3. Close          — subtle red text button
 ───────────────────────────────────────────────────────────────── */
 function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, onGoToExtension }) {
   return (
@@ -17,26 +17,13 @@ function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, 
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-      className="fixed z-[1000001] pointer-events-auto bg-white dark:bg-[#181826] rounded-xl overflow-hidden min-w-[180px] border border-gray-200 dark:border-[#2d2d44] animate-[guideme-card-pop_0.15s_ease-out] shadow-[0_12px_40px_rgba(0,0,0,0.22),0_0_0_1px_rgba(147,51,234,0.2)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.8)]"
+      className="fixed z-[1000001] pointer-events-auto bg-white/98 dark:bg-[#181826]/98 backdrop-blur-md rounded-2xl p-2 min-w-[175px] border border-gray-200/90 dark:border-[#2d2d44] animate-[guideme-card-pop_0.15s_ease-out] flex flex-col gap-1.5"
       style={{
         top: `${position.y}px`,
         left: `${position.x}px`,
+        boxShadow: '0 10px 25px -4px rgba(0, 0, 0, 0.16), 0 3px 8px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.06)',
       }}
     >
-      {/* ── Close ── */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDismiss?.();
-        }}
-        className="w-full text-center px-4 py-2.5 text-[13px] font-medium text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#252538] transition-colors cursor-pointer border-0 bg-transparent"
-      >
-        {getUIString('dismissFloating', language)}
-      </button>
-
-      <div className="h-px bg-gray-100 dark:bg-[#2a2a3c]" />
-
       {/* ── Open Dashboard ── */}
       <button
         type="button"
@@ -44,12 +31,10 @@ function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, 
           e.stopPropagation();
           onOpenDashboard?.();
         }}
-        className="w-full text-center px-4 py-2.5 text-[13px] font-semibold text-white bg-purple-600 hover:bg-purple-700 transition-colors cursor-pointer border-0 shadow-sm"
+        className="w-full text-center py-2 px-3 text-[13px] font-semibold text-white bg-[#8b5cf6] hover:bg-[#7c3aed] active:bg-[#6d28d9] rounded-xl transition-all cursor-pointer border-0 shadow-[0_2px_8px_rgba(139,92,246,0.30)]"
       >
         {getUIString('openDashboard', language)}
       </button>
-
-      <div className="h-px bg-purple-700/30" />
 
       {/* ── Go to Extension ── */}
       <button
@@ -58,26 +43,39 @@ function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, 
           e.stopPropagation();
           onGoToExtension?.();
         }}
-        className="w-full text-center px-4 py-2.5 text-[13px] font-medium text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#252538] transition-colors cursor-pointer border-0 bg-transparent"
+        className="w-full text-center py-2 px-3 text-[13px] font-medium text-gray-700 dark:text-zinc-200 bg-gray-100 hover:bg-gray-200/80 dark:bg-[#252538] dark:hover:bg-[#303046] rounded-xl transition-colors cursor-pointer border-0"
       >
         {getUIString('goToExtension', language)}
+      </button>
+
+      {/* ── Close ── */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDismiss?.();
+        }}
+        className="w-full text-center py-1.5 text-[12.5px] font-medium text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+      >
+        {getUIString('close', language)}
       </button>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   FloatingAssistantButton
-   - Always visible in bottom-right corner
+   FloatingAssistantButton — Floating launcher in bottom-right corner.
+   - Compact rounded card with pulsing green active dot
+   - Smooth hover expansion showing "Ask GuideMe"
    - Left-click  → toggle floating prompt widget
-   - Right-click → context menu (Close / Open Dashboard / Go to Extension)
+   - Right-click → context menu (Open Dashboard, Go to Extension, Close)
 ───────────────────────────────────────────────────────────────── */
 export function FloatingAssistantButton({
   onClick,
   onDismiss,
   onOpenDashboard,
-  isActive = true,
   isOpen = false,
+  isActive = true,
   language = 'km',
 }) {
   const [customPosition, setCustomPosition] = useState(null);
@@ -158,7 +156,7 @@ export function FloatingAssistantButton({
     e.stopPropagation();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const menuW = 185;
+    const menuW = 180;
     const menuH = 135;
     const x = Math.min(e.clientX, vw - menuW - 12);
     const y = Math.min(e.clientY, vh - menuH - 12);
@@ -173,15 +171,7 @@ export function FloatingAssistantButton({
 
   const handleOpenDashboard = () => {
     setContextMenu(null);
-    if (onOpenDashboard) {
-      onOpenDashboard();
-      return;
-    }
-    try {
-      chrome.runtime?.sendMessage({
-        action: 'OPEN_DASHBOARD_OVERLAY',
-      });
-    } catch { }
+    onOpenDashboard?.();
   };
 
   const handleGoToExtension = () => {
@@ -208,7 +198,7 @@ export function FloatingAssistantButton({
         className={`fixed z-[999998] pointer-events-auto select-none group ${
           isDragging
             ? 'transition-none cursor-grabbing scale-105'
-            : 'transition-[top,left,bottom,right] duration-300 cursor-grab'
+            : 'transition-[top,left,bottom,right] duration-300 cursor-pointer'
         }`}
       >
         <div
@@ -222,13 +212,15 @@ export function FloatingAssistantButton({
               : 'border-[#ede4ff] dark:border-[#2d2d44] hover:border-[#8b5cf6] dark:hover:border-[#a855f7]'
           }`}
         >
+          {/* Logo container with Green Active Dot */}
           <div className="w-[38px] h-[38px] rounded-[12px] overflow-hidden flex items-center justify-center shrink-0 shadow-sm relative">
             <GuideMeLogo size={38} />
             {isActive && (
-              <span className="absolute top-[2px] right-[2px] w-2 h-2 rounded-full bg-emerald-500 border-[1.5px] border-white dark:border-[#181826] shadow-[0_0_5px_rgba(52,211,153,0.6)]" />
+              <span className="absolute top-[2px] right-[2px] w-2.5 h-2.5 rounded-full bg-emerald-500 border-[1.5px] border-white dark:border-[#181826] shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
             )}
           </div>
 
+          {/* Smooth hover expand text */}
           <div className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-[110px] group-hover:opacity-100 group-hover:ml-2.5 transition-all duration-300 ease-out whitespace-nowrap flex flex-col text-left leading-[1.15]">
             <span className="text-[11.5px] font-bold text-gray-900 dark:text-white">
               {getUIString('ask', language)}

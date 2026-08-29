@@ -132,10 +132,17 @@ export function FloatingPromptWidget({
   return (
     <div
       ref={widgetRef}
-      style={{ top: `${position.top}px`, left: `${position.left}px`, width: `${cardWidth}px` }}
-      className={`fixed z-[999998] pointer-events-auto max-w-[94vw] bg-white dark:bg-[#181826] border border-[#ede4ff] dark:border-[#2d2d44] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_8px_rgba(139,92,246,0.18)] dark:shadow-[0_16px_50px_rgba(0,0,0,0.8)] text-gray-900 dark:text-zinc-100 overflow-hidden animate-[guideme-card-pop_0.25s_ease-out] transition-shadow duration-200 ${
-        isDragging ? 'cursor-grabbing select-none scale-[1.01] shadow-2xl' : ''
-      }`}
+      style={{
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+        width: `${cardWidth}px`,
+        boxShadow: isDragging
+          ? '0 30px 80px rgba(0, 0, 0, 0.38), 0 12px 28px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.08)'
+          : '0 20px 55px -8px rgba(0, 0, 0, 0.26), 0 8px 22px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06)',
+      }}
+      className={`fixed z-[999998] pointer-events-auto max-w-[94vw] bg-white dark:bg-[#181826] border border-gray-200 dark:border-[#38384f] rounded-2xl text-gray-900 dark:text-zinc-100 overflow-hidden animate-[guideme-card-pop_0.25s_ease-out] transition-shadow duration-200 ${
+        isDragging ? 'cursor-grabbing select-none scale-[1.01]' : ''
+      } ${language === 'km' ? 'font-kantumruy' : 'font-sans'}`}
     >
       {/* ── Draggable Header ── */}
       <div
@@ -169,7 +176,7 @@ export function FloatingPromptWidget({
       {/* ── Body — Prompt Input ── */}
       <div className="px-3.5 py-3">
         <form onSubmit={handleSubmitPrompt} className="m-0">
-          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-[#ede4ff] dark:border-[#2d2d44] bg-white dark:bg-[#101018] focus-within:border-[#8b5cf6] dark:focus-within:border-[#a855f7] focus-within:ring-2 focus-within:ring-[#8b5cf6]/20 transition-all">
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-[#2d2d44] bg-gray-50/60 dark:bg-[#101018] focus-within:bg-white dark:focus-within:bg-[#101018] focus-within:border-[#8b5cf6] dark:focus-within:border-[#a855f7] focus-within:ring-2 focus-within:ring-[#8b5cf6]/20 transition-all">
             {/* Left '+' or processing spinner */}
             {isProcessing ? (
               <ProcessingSpinner percentage={67} />
@@ -183,8 +190,8 @@ export function FloatingPromptWidget({
               type="text"
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
-              placeholder="Ask anything ..."
-              className="flex-1 bg-transparent border-0 outline-none text-[13px] text-gray-900 dark:text-white placeholder:text-purple-400/80 dark:placeholder:text-zinc-500 font-normal min-w-0"
+              placeholder={getUIString('askAnything', language)}
+              className="flex-1 bg-transparent border-0 outline-none text-[13px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-500 font-normal min-w-0"
               style={{ border: 'none', outline: 'none' }}
             />
 

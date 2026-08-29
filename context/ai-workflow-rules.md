@@ -26,17 +26,34 @@ Build and refine GuideMe incrementally using a **spec-driven, test-validated wor
 
 ## 3. Implementation & Scoping Rules
 
-- **Work in Atomic Feature Units:** Deliver focused, verifiable increments (e.g. adding a validation type, refining a selector strategy, enhancing audio playback).
-- **Run Tests Regularly:** Execute `npm test` after modifying any logic in `packages/` to ensure 0 regression across the test suite.
+- **Work in Atomic Feature Units:** Deliver focused, verifiable increments without touching unrelated code.
+- **Preserve Working Logic:** NEVER rewrite, discard, or break existing working solutions when implementing requested features.
+- **Surgical Edits Only:** Limit blast radius strictly to the component, style, or logic requested by the user.
+- **Run Tests Regularly:** Execute `pnpm test` after modifying any logic to ensure 0 regression across the test suite.
 - **Defensive Error Handling:** Wrap external DOM queries, storage calls, and runtime messaging in defensive try/catch blocks with sensible fallbacks.
 
 ---
 
-## 4. Definition of Done Checklist
+---
+
+## 4. Rule & Context Violation Protocol
+
+If any prompt or request violates the rules, architectural boundaries, 60-30-10 design system, or context documents in `context/`:
+- **Do NOT execute breaking changes silently.**
+- **Flag the violation directly to the prompter:**
+  - Cite the conflicting `context/<file>.md` specification.
+  - Explain the technical conflict ("because...").
+  - Offer the clean recommended architecture.
+  - Ask for explicit user confirmation before applying any override.
+
+---
+
+## 5. Definition of Done Checklist
 
 Before considering an implementation task complete:
 1. [ ] The feature works end-to-end within its defined package boundaries.
 2. [ ] All invariants in `context/architecture.md` are preserved.
-3. [ ] All unit tests in `tests/` pass (`npm test`).
-4. [ ] Bilingual Khmer/English support is maintained.
-5. [ ] `context/progress-tracker.md` is updated to reflect current state and completed milestones.
+3. [ ] All unit tests in `tests/` pass (`pnpm test`).
+4. [ ] Both Dark Mode and Light (White) Mode are verified.
+5. [ ] Bilingual Khmer/English support with zero hardcoded strings is maintained.
+6. [ ] `context/progress-tracker.md` is updated to reflect current state and completed milestones.

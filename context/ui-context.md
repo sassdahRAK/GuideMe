@@ -55,24 +55,24 @@ To maintain the exact same 60-30-10 balance in dark mode, invert the neutral rol
 
 ```text
 TutorialOverlay (Root Shadow DOM Container)
-├── Spotlight (SVG Mask Cutout with Glow Pulse Ring)
+├── Spotlight (Target Glow & Stylized Pointing Hand Cursor)
+├── FloatingPromptWidget ("Extract Separate UI" Floating Prompt Bar)
+├── FloatingAssistantButton (Black Pill "Ask GuideMe" Floating Button)
 └── Tooltip (Auto-Positioned Floating Container)
-    └── StepCard
-        ├── Header (Step Counter Badge, LanguageToggle, Close Button)
-        ├── Content (Bilingual Title, Instruction, Step Type Badge)
-        ├── Audio Bar (Equalizer Visualization, "ស្តាប់ឡើងវិញ / Listen" Button)
-        ├── ProgressBar (Step Completion Gauge)
-        └── Navigation Footer (Back, Skip, Next / Complete Action Button)
+    └── StepCard (Translucent Dark Frosted Glassmorphic Step Card)
+        ├── Top Header (Speaker & Sound Wave Equalizer | Step X/Y + Language Pill + Close)
+        ├── Instruction Body (Clean instruction text)
+        ├── Action Pill ("Explain detail" / "ពន្យល់លម្អិត" expandable drawer)
+        └── Navigation Footer (Progress bar with thumb handle | Back [←], Skip, Next [→])
 ```
 
 | Component | Responsibility |
 | :--- | :--- |
-| **`TutorialOverlay`** | Orchestrates SVG cutout, floating tooltip, and global keybindings (`Escape`, `ArrowRight`). |
-| **`Spotlight`** | Computes SVG `path` mask with `evenodd` fill rule and rounded cutout around target DOM `DOMRect`. |
-| **`StepCard`** | Renders localized instructions, audio equalizer, step badge, and navigation buttons. |
-| **`LanguageToggle`** | Interactive bilingual pill switch (`🇰🇭 ខ្មែរ` / `🇬🇧 EN`) with instant state synchronization. |
-| **`ProgressBar`** | Visual indicator displaying current step progress (`(currentStep / totalSteps) * 100%`). |
-| **`FloatingAssistantButton`** | Collapsible floating bubble providing a quick way to resume or restart tutorials. |
+| **`TutorialOverlay`** | Orchestrates spotlight, floating step card, floating prompt bar, and global keybindings. |
+| **`Spotlight`** | Computes target glowing boundary box and renders the stylized pointing hand cursor directly pointing at the target element. |
+| **`StepCard`** | Translucent frosted glass step card with audio wave controls, step counter, "Explain detail" pill, progress thumb slider, and navigation arrows. |
+| **`FloatingPromptWidget`** | In-page draggable prompt bar for AI guidance queries ("Ask anything..."). |
+| **`FloatingAssistantButton`** | Black rounded button in the bottom-right corner ("Ask GuideMe") to open prompt or access context menu. |
 
 ---
 
