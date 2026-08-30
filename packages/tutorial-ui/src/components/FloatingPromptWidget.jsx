@@ -4,6 +4,7 @@ import {
   FiMic,
   FiSend,
   FiPlus,
+  FiExternalLink,
 } from 'react-icons/fi';
 import { GuideMeLogo } from './GuideMeLogo.jsx';
 import { getUIString } from '../i18n/ui-strings.js';
@@ -54,6 +55,7 @@ function ProcessingSpinner({ percentage = 67 }) {
 export function FloatingPromptWidget({
   isOpen = false,
   onToggleOpen,
+  onPopOut,
   onStartDynamicGuide,
   language = 'km',
   initialPosition = null,
@@ -163,14 +165,27 @@ export function FloatingPromptWidget({
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={handleClose}
-          aria-label={getUIString('close', language)}
-          className="text-gray-400 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#252538] transition-colors cursor-pointer flex items-center justify-center border-0 bg-transparent"
-        >
-          <FiX className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-0.5">
+          {onPopOut && (
+            <button
+              type="button"
+              onClick={onPopOut}
+              title="Pop out to floating window"
+              aria-label="Pop out to floating window"
+              className="text-gray-400 hover:text-purple-600 dark:text-zinc-400 dark:hover:text-purple-400 p-1 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors cursor-pointer flex items-center justify-center border-0 bg-transparent"
+            >
+              <FiExternalLink className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label={getUIString('close', language)}
+            className="text-gray-400 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#252538] transition-colors cursor-pointer flex items-center justify-center border-0 bg-transparent"
+          >
+            <FiX className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* ── Body — Prompt Input ── */}

@@ -9,4 +9,8 @@ export * from './components/DashboardOverlay.jsx';
 export * from './components/OnboardingOverlay.jsx';
 export * from './components/LanguageToggle.jsx';
 export * from './components/GuideMeLogo.jsx';
+export * from './components/PipOrchestrator.jsx';
+export * from './components/FloatingPipPortal.jsx';
+export * from './components/FloatingPipLauncher.jsx';
+export * from './hooks/useDocumentPip.ts';
 export * from './i18n/ui-strings.js';

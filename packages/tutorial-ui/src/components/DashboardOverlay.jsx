@@ -22,6 +22,7 @@ import {
   FiZap,
   FiCompass,
   FiVolume2,
+  FiExternalLink,
 } from 'react-icons/fi';
 import { GuideMeLogo } from './GuideMeLogo.jsx';
 
@@ -39,6 +40,7 @@ const TABS = [
 export function DashboardOverlay({
   isOpen = false,
   onClose,
+  onPopOut,
   availableTutorials = [],
   onStartTutorial,
   language = 'km',
@@ -228,15 +230,28 @@ export function DashboardOverlay({
             </span>
           </span>
 
-          {/* Close button on right */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-gray-200/60 dark:hover:bg-[#202032] cursor-pointer border-0 bg-transparent transition-colors"
-          >
-            <FiX className="w-3.5 h-3.5" />
-          </button>
+          {/* Pop-out & Close buttons on right */}
+          <div className="flex items-center gap-1">
+            {onPopOut && (
+              <button
+                type="button"
+                onClick={onPopOut}
+                title="Pop out to floating window"
+                aria-label="Pop out to floating window"
+                className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-purple-600 dark:text-zinc-400 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer border-0 bg-transparent transition-colors"
+              >
+                <FiExternalLink className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-gray-200/60 dark:hover:bg-[#202032] cursor-pointer border-0 bg-transparent transition-colors"
+            >
+              <FiX className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* ── Window Body (Sidebar + Main Content) ── */}

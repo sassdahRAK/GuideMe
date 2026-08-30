@@ -4,8 +4,9 @@ import ReactDOM from 'react-dom/client';
 import React, { useEffect, useState, useRef } from 'react';
 import { TutorialEngine, DynamicPageAnalyzer, TtsRegistry } from '@guideme/engine';
 import { ChromeAdapter } from '@guideme/chrome-adapter';
-import { TutorialOverlay } from '@guideme/tutorial-ui';
+import { TutorialOverlay, GuideMeLogo, getUIString } from '@guideme/tutorial-ui';
 import { ExtensionMessageAction, Language } from '@guideme/core-types';
+import { FiPlus, FiMic } from 'react-icons/fi';
 import './style.css';
 
 import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../src/catalog.js';
@@ -59,6 +60,8 @@ export default defineContentScript({
           const [isDashboardOpen, setIsDashboardOpen] = useState(false);
           const [isFullPopupOpen, setIsFullPopupOpen] = useState(false);
           const [isDismissed, setIsDismissed] = useState(false); // hidden via context menu "Close"
+          const [isLauncherPoppedOut, setIsLauncherPoppedOut] = useState(false); // launcher icon lives in PiP
+          const [launcherPipWindow, setLauncherPipWindow] = useState(null);
           const [theme, setTheme] = useState('light');
           const [availableTutorials, setAvailableTutorials] = useState(() =>
             typeof window !== 'undefined' ? getTutorialsForUrl(window.location.href) : []
@@ -96,6 +99,105 @@ export default defineContentScript({
             } catch {
               // Ignore if storage unavailable
             }
+          }, []);
+
+          // ── Document PiP window management ──
+          const pipRootRef = useRef(null);
+
+          const openPipWindow = useCallback(async () => {
+            if (!('documentPictureInPicture' in window)) {
+              console.error('[GuideMe] Document PiP API not supported');
+              return;
+            }
+            try {
+              const dw = await window.documentPictureInPicture.requestWindow({
+                width: 480,
+                height: 110,
+                disallowReturnToOpener: false,
+              });
+
+              // Copy styles from Shadow DOM
+              const shadowHost = document.querySelector('guideme-tutorial-root, #guideme-tutorial-root');
+              const shadowRoot = shadowHost?.shadowRoot;
+              if (shadowRoot) {
+                shadowRoot.querySelectorAll('style').forEach((s) => {
+                  const c = dw.document.createElement('style');
+                  c.textContent = s.textContent;
+                  dw.document.head.appendChild(c);
+                });
+              }
+
+              // Set up the PiP document
+              dw.document.body.className = 'bg-transparent m-0 p-0 overflow-hidden';
+              const mount = dw.document.createElement('div');
+              mount.id = 'guideme-pip-root';
+              dw.document.body.appendChild(mount);
+
+              // Render the floating card into the PiP window
+              const pipRoot = ReactDOM.createRoot(mount);
+              pipRootRef.current = pipRoot;
+
+              const themeClass = theme === 'dark' ? 'dark' : '';
+              const langClass = (engineState?.language || 'km') === 'km' ? 'font-kantumruy' : 'font-sans';
+
+              pipRoot.render(
+                <div className={`floating-card ${langClass} ${themeClass}`}>
+                  <header className="floating-header">
+                    <div className="floating-header-title">
+                      <div className="floating-header-logo">
+                        <GuideMeLogo size={24} />
+                      </div>
+                      <span className="floating-header-text">Guide Me</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="floating-close-btn"
+                      onClick={() => dw.close()}
+                      aria-label="Close"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </header>
+                  <main className="floating-body">
+                    <form className="floating-form" onSubmit={(e) => e.preventDefault()}>
+                      <div className="floating-input-wrapper">
+                        <FiPlus className="floating-input-icon" />
+                        <input
+                          type="text"
+                          className="floating-input"
+                          placeholder={getUIString('askAnything', engineState?.language || 'km')}
+                          style={{ border: 'none', outline: 'none' }}
+                        />
+                        <button type="button" className="floating-mic-btn">
+                          <FiMic className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </form>
+                  </main>
+                </div>
+              );
+
+              dw.addEventListener('pagehide', () => {
+                pipRoot.unmount();
+                pipRootRef.current = null;
+                setIsLauncherPoppedOut(false);
+              });
+
+              setLauncherPipWindow(dw);
+            } catch (err) {
+              console.error('[GuideMe] PiP open failed:', err);
+            }
+          }, [theme, engineState?.language]);
+
+          // Cleanup PiP root on unmount
+          useEffect(() => {
+            return () => {
+              if (pipRootRef.current) {
+                pipRootRef.current.unmount();
+              }
+            };
           }, []);
 
           useEffect(() => {
@@ -172,6 +274,23 @@ export default defineContentScript({
                 case ExtensionMessageAction.OPEN_FLOATING_PROMPT: {
                   setIsDismissed(false);
                   setIsPromptOpen(true);
+                  sendResponse({ success: true });
+                  break;
+                }
+
+                case 'GUIDEME_OPEN_PIP_WINDOW': {
+                  // Open the Document PiP window with the floating card
+                  setIsDismissed(false);
+                  setIsLauncherPoppedOut(true);
+                  openPipWindow();
+                  sendResponse({ success: true });
+                  break;
+                }
+
+                case 'GUIDEME_LAUNCHER_DOCKED': {
+                  // Floating window was closed — restore in-page UI
+                  setIsLauncherPoppedOut(false);
+                  setIsDismissed(false);
                   sendResponse({ success: true });
                   break;
                 }
@@ -301,8 +420,20 @@ export default defineContentScript({
             }
           };
 
+          // Launcher popped out to PiP → hide in-page button; docked → show it again
+          const handlePopOutLauncher = (action) => {
+            if (action === 'pop') {
+              setIsLauncherPoppedOut(true);
+            } else if (action === 'dock') {
+              setIsLauncherPoppedOut(false);
+            }
+          };
+
           // If the user dismissed the floating UI via context menu, render nothing
           if (isDismissed) return null;
+
+          // When launcher is popped out to PiP, hide in-page overlays to avoid duplication
+          const isInPageHidden = isLauncherPoppedOut;
 
           return (
             <div className={theme === 'dark' ? 'dark' : ''}>
@@ -327,6 +458,7 @@ export default defineContentScript({
                   setIsFullPopupOpen(false);
                   setIsDismissed(true);
                 }}
+                onPopOutLauncher={handlePopOutLauncher}
                 availableTutorials={availableTutorials}
                 onStartDynamicGuide={handleStartDynamicGuide}
                 onStartTutorial={handleStartTutorial}

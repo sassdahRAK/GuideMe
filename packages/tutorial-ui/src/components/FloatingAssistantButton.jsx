@@ -9,7 +9,7 @@ import { getUIString } from '../i18n/ui-strings.js';
      2. Go to Extension— secondary button
      3. Close          — subtle red text button
 ───────────────────────────────────────────────────────────────── */
-function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, onGoToExtension }) {
+function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, onGoToExtension, onPopOut }) {
   return (
     <div
       ref={menuRef}
@@ -34,6 +34,18 @@ function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, 
         className="w-full text-center py-2 px-3 text-[13px] font-semibold text-white bg-[#8b5cf6] hover:bg-[#7c3aed] active:bg-[#6d28d9] rounded-xl transition-all cursor-pointer border-0 shadow-[0_2px_8px_rgba(139,92,246,0.30)]"
       >
         {getUIString('openDashboard', language)}
+      </button>
+
+      {/* ── Pop out to Desktop (PiP) ── */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPopOut?.();
+        }}
+        className="w-full text-center py-2 px-3 text-[13px] font-medium text-gray-700 dark:text-zinc-200 bg-gray-100 hover:bg-gray-200/80 dark:bg-[#252538] dark:hover:bg-[#303046] rounded-xl transition-colors cursor-pointer border-0"
+      >
+        {getUIString('popOutDesktop', language)}
       </button>
 
       {/* ── Go to Extension ── */}
@@ -74,6 +86,7 @@ export function FloatingAssistantButton({
   onClick,
   onDismiss,
   onOpenDashboard,
+  onPopOut,
   isOpen = false,
   isActive = true,
   language = 'km',
@@ -181,6 +194,11 @@ export function FloatingAssistantButton({
     } catch { }
   };
 
+  const handlePopOut = () => {
+    setContextMenu(null);
+    onPopOut?.();
+  };
+
   const positionStyle = customPosition
     ? { top: `${customPosition.top}px`, left: `${customPosition.left}px`, bottom: 'auto', right: 'auto' }
     : { bottom: '24px', right: '24px' };
@@ -240,6 +258,7 @@ export function FloatingAssistantButton({
           onDismiss={handleDismiss}
           onOpenDashboard={handleOpenDashboard}
           onGoToExtension={handleGoToExtension}
+          onPopOut={handlePopOut}
         />
       )}
     </>

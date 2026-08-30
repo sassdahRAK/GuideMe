@@ -90,6 +90,9 @@ export default function App() {
         ]);
 
         // First time open: Launch in-page onboarding overlay on active tab
+        // NOTE: We do NOT close the popup here — the popup should stay open so
+        // the user can interact with the chat UI. The onboarding overlay renders
+        // on the page *alongside* the popup, not instead of it.
         if (!stored.guideme_onboarding_done) {
           if (tab?.id && !tab.url?.startsWith('chrome://') && !tab.url?.startsWith('chrome-extension://')) {
             const payload = { action: 'OPEN_ONBOARDING_OVERLAY' };
@@ -100,13 +103,13 @@ export default function App() {
                     target: { tabId: tab.id },
                     files: ['content-scripts/content.js'],
                   });
-                  setTimeout(() => chrome.tabs.sendMessage(tab.id, payload, () => window.close()), 300);
-                  return;
-                } catch { }
+                  // Retry after injection — but do NOT close the popup
+                  setTimeout(() => chrome.tabs.sendMessage(tab.id, payload, () => {}), 300);
+                } catch (err) {
+                  console.warn('[GuideMe Popup] Could not inject content script for onboarding:', err);
+                }
               }
-              window.close();
             });
-            return;
           }
         }
 
@@ -196,48 +199,38 @@ export default function App() {
     chrome.storage.local.set({ [STORAGE_KEY_HISTORY]: [] });
   };
 
-  // ── Extract UI ───────────────────────────────────────────────────────────────
+  // ── Extract UI — Open floating always-on-top popup window ────────────────────
   const handleExtractUI = () => {
-    if (!currentTab?.id || isChromeInternalUrl) return;
-    const payload = { action: ExtensionMessageAction.OPEN_FLOATING_PROMPT };
-    chrome.tabs.sendMessage(currentTab.id, payload, async (res) => {
-      if (chrome.runtime.lastError || !res?.success) {
-        try {
-          await chrome.scripting?.executeScript({
-            target: { tabId: currentTab.id },
-            files: ['content-scripts/content.js'],
-          });
-          setTimeout(() => chrome.tabs.sendMessage(currentTab.id, payload, () => window.close()), 300);
-          return;
-        } catch (err) {
-          console.error('[GuideMe Popup] Failed to inject content script:', err);
-        }
+    if (isChromeInternalUrl) return;
+    // Tell background to create the floating window
+    chrome.runtime.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }, (res) => {
+      if (chrome.runtime.lastError) {
+        console.error('[GuideMe Popup] Failed to open floating window:', chrome.runtime.lastError);
+        return;
       }
+      // Only close the popup if the PiP window was actually created successfully
+      if (res?.success !== true) {
+        console.error('[GuideMe Popup] PiP window creation failed:', res?.error || 'Unknown error');
+        return;
+      }
+      // Close the popup — the floating window now holds the UI
       window.close();
     });
   };
 
-  // ── Open Dashboard ───────────────────────────────────────────────────────────
+  // ── Open Dashboard as standalone window (outside Chrome) ──
   const handleOpenDashboard = () => {
-    if (!currentTab?.id || isChromeInternalUrl) {
-      window.close();
-      return;
-    }
-
-    const payload = { action: 'OPEN_DASHBOARD_OVERLAY' };
-    chrome.tabs.sendMessage(currentTab.id, payload, async (res) => {
-      if (chrome.runtime.lastError || !res?.success) {
-        try {
-          await chrome.scripting?.executeScript({
-            target: { tabId: currentTab.id },
-            files: ['content-scripts/content.js'],
-          });
-          setTimeout(() => chrome.tabs.sendMessage(currentTab.id, payload, () => window.close()), 300);
-          return;
-        } catch (err) {
-          console.error('[GuideMe Popup] Failed to inject content script:', err);
-        }
+    chrome.runtime.sendMessage({ action: 'OPEN_DASHBOARD_STANDALONE' }, (res) => {
+      if (chrome.runtime.lastError) {
+        console.error('[GuideMe Popup] Failed to open dashboard window:', chrome.runtime.lastError);
+        return;
       }
+      // Only close the popup if the dashboard window was created successfully
+      if (res?.success !== true) {
+        console.error('[GuideMe Popup] Dashboard window creation failed:', res?.error || 'Unknown error');
+        return;
+      }
+      // Close the popup — the dashboard now lives in its own window
       window.close();
     });
   };

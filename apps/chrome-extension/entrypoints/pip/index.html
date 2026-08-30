@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="km">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/icons/icon-32.png" />
+    <title>GuideMe PiP</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 480px;
+        height: 120px;
+        overflow: hidden;
+        background: transparent;
+        font-family: 'Inter', 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* ── Floating Card ────────────────────────────── */
+      .floating-card {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        overflow: hidden;
+      }
+
+      html.dark .floating-card {
+        background: #181826;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      }
+
+      /* ── Title Bar ─────────────────────────────────── */
+      .pip-titlebar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 12px;
+        border-bottom: 1px solid #f3f4f6;
+        flex-shrink: 0;
+        -webkit-app-region: drag;
+      }
+
+      html.dark .pip-titlebar {
+        border-bottom-color: #2d2d44;
+      }
+
+      .pip-titlebar-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        -webkit-app-region: no-drag;
+      }
+
+      .pip-titlebar-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .pip-titlebar-text {
+        font-size: 11px;
+        font-weight: 600;
+        color: #111827;
+      }
+
+      html.dark .pip-titlebar-text { color: #e4e4e7; }
+
+      .pip-theme-toggle {
+        -webkit-app-region: no-drag;
+        background: transparent;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #6b7280;
+        transition: all 0.15s;
+        padding: 0;
+      }
+
+      .pip-theme-toggle:hover {
+        background: #f3f4f6;
+        color: #111827;
+        border-color: #d1d5db;
+      }
+
+      html.dark .pip-theme-toggle {
+        border-color: #2d2d44;
+        color: #a1a1aa;
+      }
+
+      html.dark .pip-theme-toggle:hover {
+        background: #252538;
+        color: #e4e4e7;
+        border-color: #3f3f5f;
+      }
+
+      .pip-theme-toggle svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* ── Body ─────────────────────────────────────── */
+      .floating-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        padding: 8px 12px 12px;
+      }
+
+      .floating-form {
+        width: 100%;
+        margin: 0;
+      }
+
+      .floating-input-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        background: rgba(249, 250, 251, 0.6);
+        transition: all 0.15s;
+      }
+
+      .floating-input-wrapper:focus-within {
+        background: #ffffff;
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+      }
+
+      html.dark .floating-input-wrapper {
+        border-color: #2d2d44;
+        background: #101018;
+      }
+
+      html.dark .floating-input-wrapper:focus-within {
+        background: #101018;
+        border-color: #a855f7;
+        box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+      }
+
+      .floating-input-icon {
+        width: 16px;
+        height: 16px;
+        color: #8b5cf6;
+        flex-shrink: 0;
+      }
+
+      html.dark .floating-input-icon { color: #a855f7; }
+
+      .floating-input {
+        flex: 1;
+        min-width: 0;
+        background: transparent;
+        border: none;
+        outline: none;
+        font-size: 13px;
+        color: #111827;
+        font-weight: 400;
+      }
+
+      .floating-input::placeholder {
+        color: #9ca3af;
+      }
+
+      html.dark .floating-input { color: #ffffff; }
+      html.dark .floating-input::placeholder { color: #71717a; }
+
+      .floating-mic-btn,
+      .floating-send-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .floating-mic-btn {
+        background: transparent;
+        color: #8b5cf6;
+      }
+
+      .floating-mic-btn:hover {
+        background: #f3e8ff;
+      }
+
+      html.dark .floating-mic-btn { color: #a855f7; }
+      html.dark .floating-mic-btn:hover { background: rgba(168, 85, 247, 0.1); }
+
+      .floating-mic-btn.listening {
+        background: #8b5cf6;
+        color: #ffffff;
+        animation: pulse 1.5s infinite;
+      }
+
+      html.dark .floating-mic-btn.listening { background: #a855f7; }
+
+      .floating-send-btn {
+        background: #8b5cf6;
+        color: #ffffff;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+
+      .floating-send-btn:hover { filter: brightness(1.1); }
+
+      html.dark .floating-send-btn { background: #a855f7; }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="guideme-pip-root" class="floating-card">
+      <!-- ── Title Bar ── -->
+      <div class="pip-titlebar">
+        <div class="pip-titlebar-title">
+          <div class="pip-titlebar-icon" id="pip-logo"></div>
+          <span class="pip-titlebar-text">GuideMe</span>
+        </div>
+        <button type="button" class="pip-theme-toggle" id="pip-theme-btn" title="Toggle theme">
+          <!-- Sun icon (shown in dark mode to switch to light) -->
+          <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+          <!-- Moon icon (shown in light mode to switch to dark) -->
+          <svg id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- ── Input Bar ── -->
+      <main class="floating-body">
+        <form class="floating-form" id="pip-form">
+          <div class="floating-input-wrapper">
+            <!-- Plus icon -->
+            <svg class="floating-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+
+            <input
+              type="text"
+              class="floating-input"
+              id="pip-input"
+              placeholder="សួរអ្វីមួយ..."
+              autocomplete="off"
+              style="border: none; outline: none;"
+            />
+
+            <!-- Mic / Send Button -->
+            <button type="button" class="floating-mic-btn" id="pip-mic" title="Voice input">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            </button>
+            <button type="submit" class="floating-send-btn" id="pip-send" title="Send" style="display: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </button>
+          </div>
+        </form>
+      </main>
+    </div>
+    <script src="./main.js"></script>
+  </body>
+</html>

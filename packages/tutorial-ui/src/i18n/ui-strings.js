@@ -36,6 +36,10 @@ export const UI_STRINGS = {
     km: 'បើកផ្ទាំង Extension',
     en: 'Go to Extension',
   },
+  popOutDesktop: {
+    km: 'បើកក្រៅ Chrome',
+    en: 'Pop out to Desktop',
+  },
   openDashboard: {
     km: 'បើក Dashboard',
     en: 'Open Dashboard',

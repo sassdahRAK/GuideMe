@@ -6,6 +6,9 @@ import { FloatingAssistantButton } from './FloatingAssistantButton.jsx';
 import { FloatingPromptWidget } from './FloatingPromptWidget.jsx';
 import { DashboardOverlay } from './DashboardOverlay.jsx';
 import { OnboardingOverlay } from './OnboardingOverlay.jsx';
+import { PipOrchestrator } from './PipOrchestrator.jsx';
+import { FloatingPipLauncher } from './FloatingPipLauncher.jsx';
+import { useDocumentPip } from '../hooks/useDocumentPip.ts';
 import { getUIString } from '../i18n/ui-strings.js';
 
 export function TutorialOverlay({
@@ -29,6 +32,7 @@ export function TutorialOverlay({
   theme = 'light',
   onThemeChange,
   onDismiss,
+  onPopOutLauncher,
   availableTutorials = [],
 }) {
   const [rating, setRating] = useState(null);
@@ -36,6 +40,64 @@ export function TutorialOverlay({
 
   const lang = state?.language || 'km';
   const isKhmer = lang === 'km';
+
+  // ── Document Picture-in-Picture window management ──
+  const {
+    openPip: openDashboardPip,
+    closePip: closeDashboardPip,
+    pipWindow: dashboardPipWindow,
+  } = useDocumentPip(() => {
+    // Dock back: restore in-page Dashboard
+    onToggleDashboard?.(true);
+  });
+
+  const {
+    openPip: openPromptPip,
+    closePip: closePromptPip,
+    pipWindow: promptPipWindow,
+  } = useDocumentPip(() => {
+    // Dock back: restore in-page Prompt
+    onTogglePrompt?.(true);
+  });
+
+  // Launcher PiP — the floating always-on-top icon outside Chrome
+  const {
+    openPip: openLauncherPip,
+    closePip: closeLauncherPip,
+    pipWindow: launcherPipWindow,
+  } = useDocumentPip(() => {
+    // Dock back: re-show the in-page floating assistant button
+    onPopOutLauncher?.('dock');
+  });
+
+  // Pop-out handlers: hide in-page + open PiP window
+  const handleDashboardPopOut = () => {
+    onToggleDashboard?.(false);
+    openDashboardPip(800, 600);
+  };
+
+  const handlePromptPopOut = () => {
+    onTogglePrompt?.(false);
+    openPromptPip(500, 140);
+  };
+
+  const handleLauncherPopOut = () => {
+    // Hide in-page button + open launcher icon in PiP
+    onPopOutLauncher?.('pop');
+    openLauncherPip(64, 64);
+  };
+
+  // Launcher click: open the prompt widget in PiP
+  const handleLauncherClick = () => {
+    if (promptPipWindow) {
+      // Already open — close it
+      closePromptPip();
+      onTogglePrompt?.(true);
+    } else {
+      // Open prompt in PiP
+      openPromptPip(500, 140);
+    }
+  };
 
   // ── In-Page Modal Overlays ──
   const modalOverlays = (
@@ -56,6 +118,7 @@ export function TutorialOverlay({
       <DashboardOverlay
         isOpen={isDashboardOpen}
         onClose={() => onToggleDashboard && onToggleDashboard(false)}
+        onPopOut={handleDashboardPopOut}
         availableTutorials={availableTutorials}
         onStartTutorial={onStartTutorial}
         language={lang}
@@ -66,11 +129,59 @@ export function TutorialOverlay({
     </>
   );
 
+  // ── PiP Content — rendered into floating OS windows when popped out ──
+  const pipDashboardContent = dashboardPipWindow ? (
+    <DashboardOverlay
+      isOpen={true}
+      onClose={() => { closeDashboardPip(); onToggleDashboard?.(true); }}
+      availableTutorials={availableTutorials}
+      onStartTutorial={(tutorialId) => {
+        onStartTutorial?.(tutorialId);
+        closeDashboardPip();
+        onToggleDashboard?.(true);
+      }}
+      language={lang}
+      onLanguageChange={onLanguageChange}
+      theme={theme}
+      onThemeChange={onThemeChange}
+    />
+  ) : null;
+
+  const pipPromptContent = promptPipWindow ? (
+    <FloatingPromptWidget
+      isOpen={true}
+      onToggleOpen={() => { closePromptPip(); onTogglePrompt?.(true); }}
+      onStartDynamicGuide={(prompt) => {
+        onStartDynamicGuide?.(prompt);
+        closePromptPip();
+        onTogglePrompt?.(true);
+      }}
+      language={lang}
+    />
+  ) : null;
+
+  // Launcher icon content — just the floating button in a transparent PiP window
+  const pipLauncherContent = launcherPipWindow ? (
+    <FloatingPipLauncher
+      onClick={handleLauncherClick}
+      isOpen={!!promptPipWindow}
+    />
+  ) : null;
+
   if (!state || !state.isActive) {
     // ── Completion Screen ──
     if (state?.isCompleted) {
       return (
         <>
+          <PipOrchestrator
+            dashboardPipWindow={dashboardPipWindow}
+            promptPipWindow={promptPipWindow}
+            launcherPipWindow={launcherPipWindow}
+            dashboardContent={pipDashboardContent}
+            promptContent={pipPromptContent}
+            launcherContent={pipLauncherContent}
+          />
+
           {modalOverlays}
           <div
             className={`fixed inset-0 w-screen h-screen flex items-center justify-center z-[999999] pointer-events-none ${
@@ -155,6 +266,13 @@ export function TutorialOverlay({
     // ── Idle: FloatingAssistantButton is ALWAYS visible on page ──
     return (
       <>
+        <PipOrchestrator
+          dashboardPipWindow={dashboardPipWindow}
+          promptPipWindow={promptPipWindow}
+          dashboardContent={pipDashboardContent}
+          promptContent={pipPromptContent}
+        />
+
         {modalOverlays}
 
         {/* Floating single-line prompt widget (opened via left click) */}
@@ -162,6 +280,7 @@ export function TutorialOverlay({
           <FloatingPromptWidget
             isOpen={isPromptOpen}
             onToggleOpen={onTogglePrompt}
+            onPopOut={handlePromptPopOut}
             onStartDynamicGuide={onStartDynamicGuide}
             language={state?.language || 'km'}
           />
@@ -175,6 +294,7 @@ export function TutorialOverlay({
             if (onDismiss) onDismiss();
           }}
           onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
+          onPopOut={handleLauncherPopOut}
           isActive={true}
           isOpen={isPromptOpen}
           language={lang}
@@ -197,6 +317,13 @@ export function TutorialOverlay({
 
   return (
     <div className="guideme-root-overlay pointer-events-none">
+      <PipOrchestrator
+        dashboardPipWindow={dashboardPipWindow}
+        promptPipWindow={promptPipWindow}
+        dashboardContent={pipDashboardContent}
+        promptContent={pipPromptContent}
+      />
+
       {modalOverlays}
 
       {/* 1. Target Spotlight */}
@@ -236,6 +363,7 @@ export function TutorialOverlay({
         <FloatingPromptWidget
           isOpen={isPromptOpen}
           onToggleOpen={onTogglePrompt}
+          onPopOut={handlePromptPopOut}
           onStartDynamicGuide={onStartDynamicGuide}
           language={language || 'km'}
         />
@@ -246,6 +374,7 @@ export function TutorialOverlay({
         onClick={() => onTogglePrompt && onTogglePrompt(!isPromptOpen)}
         onDismiss={onDismiss || onClose}
         onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
+        onPopOut={handleLauncherPopOut}
         isActive={true}
         isOpen={isPromptOpen}
         language={lang}

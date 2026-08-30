@@ -6,6 +6,8 @@ declare module "wxt/browser" {
     | "/"
     | "/background.js"
     | "/content-scripts/content.js"
+    | "/dashboard.html"
+    | "/floating.html"
     | "/icon-128.png"
     | "/icon-16.png"
     | "/icon-32.png"
@@ -20,6 +22,7 @@ declare module "wxt/browser" {
     | "/icons/icon-48.png"
     | "/icons/icon-512.png"
     | "/logo.svg"
+    | "/pip.html"
     | "/popup.html"
     | "/test-demo.html"
   type HtmlPublicPath = Extract<PublicPath, `${string}.html`>
