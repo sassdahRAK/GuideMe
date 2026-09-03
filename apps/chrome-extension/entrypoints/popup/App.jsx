@@ -7,6 +7,8 @@ import {
   STORAGE_KEY_THEME,
   STORAGE_KEY_SPEAKER,
   STORAGE_KEY_HISTORY,
+  STORAGE_KEY_AUTH_TOKEN,
+  STORAGE_KEY_USER_PROFILE,
 } from './constants.js';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition.js';
 import { PopupHeader }     from './components/PopupHeader.jsx';
@@ -37,6 +39,8 @@ export default function App() {
   const [history,           setHistory]           = useState([]);
   const [showSettings,      setShowSettings]      = useState(false);
   const [isProcessing,      setIsProcessing]      = useState(false);
+  const [authToken,         setAuthToken]         = useState(null);
+  const [userProfile,       setUserProfile]       = useState(null);
 
   // ── Chat state ──────────────────────────────────────────────────────────────
   const [messages,      setMessages]      = useState(() => [
@@ -87,6 +91,8 @@ export default function App() {
           STORAGE_KEY_THEME,
           STORAGE_KEY_SPEAKER,
           STORAGE_KEY_HISTORY,
+          STORAGE_KEY_AUTH_TOKEN,
+          STORAGE_KEY_USER_PROFILE,
         ]);
 
         // First time open: Launch in-page onboarding overlay on active tab
@@ -118,6 +124,8 @@ export default function App() {
         }
         if (stored[STORAGE_KEY_SPEAKER]) setCurrentSpeaker(stored[STORAGE_KEY_SPEAKER]);
         if (stored[STORAGE_KEY_HISTORY]) setHistory(stored[STORAGE_KEY_HISTORY]);
+        if (stored[STORAGE_KEY_AUTH_TOKEN]) setAuthToken(stored[STORAGE_KEY_AUTH_TOKEN]);
+        if (stored[STORAGE_KEY_USER_PROFILE]) setUserProfile(stored[STORAGE_KEY_USER_PROFILE]);
 
         if (tab?.id && !tab.url?.startsWith('chrome://')) {
           chrome.tabs.sendMessage(tab.id, { action: ExtensionMessageAction.GET_TUTORIAL_STATUS }, (res) => {
@@ -139,6 +147,12 @@ export default function App() {
         }
         if (changes[STORAGE_KEY_LANG]) {
           setCurrentLanguage(changes[STORAGE_KEY_LANG].newValue);
+        }
+        if (changes[STORAGE_KEY_AUTH_TOKEN]) {
+          setAuthToken(changes[STORAGE_KEY_AUTH_TOKEN].newValue || null);
+        }
+        if (changes[STORAGE_KEY_USER_PROFILE]) {
+          setUserProfile(changes[STORAGE_KEY_USER_PROFILE].newValue || null);
         }
       }
     };
@@ -242,6 +256,22 @@ export default function App() {
     });
   };
 
+  // ── Auth Handlers ─────────────────────────────────────────────────────────────
+  const handleOpenLogin = () => {
+    const isDev = import.meta.env.DEV || process.env.NODE_ENV === 'development';
+    const defaultProdUrl = 'https://guideme-lac.vercel.app';
+    const baseUrl = import.meta.env.WXT_SITE_URL || (isDev ? 'http://localhost:3000' : defaultProdUrl);
+    const loginUrl = `${baseUrl}/login?source=extension`;
+    chrome.tabs.create({ url: loginUrl });
+  };
+
+  const handleLogout = () => {
+    chrome.storage.local.remove([STORAGE_KEY_AUTH_TOKEN, STORAGE_KEY_USER_PROFILE], () => {
+      setAuthToken(null);
+      setUserProfile(null);
+    });
+  };
+
   // ── Chat / Submit prompt ──────────────────────────────────────────────────────
   const handleSubmitPrompt = async (e) => {
     e?.preventDefault();
@@ -321,6 +351,10 @@ export default function App() {
         onClose={() => setShowSettings(false)}
         onExtractUI={handleExtractUI}
         isChromeInternalUrl={isChromeInternalUrl}
+        isAuthenticated={!!authToken}
+        userProfile={userProfile}
+        onOpenLogin={handleOpenLogin}
+        onLogout={handleLogout}
       />
 
       {/* Header */}
@@ -330,6 +364,9 @@ export default function App() {
         theme={theme}
         onThemeChange={handleThemeChange}
         onOpenSettings={() => setShowSettings(true)}
+        isAuthenticated={!!authToken}
+        userProfile={userProfile}
+        onOpenLogin={handleOpenLogin}
       />
 
       {/* Body — chat messages */}

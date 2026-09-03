@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiSettings, FiCheck, FiSun, FiMoon } from 'react-icons/fi';
+import { FiSettings, FiCheck, FiSun, FiMoon, FiLogIn, FiUser } from 'react-icons/fi';
 import { GuideMeLogo, getUIString } from '@guideme/tutorial-ui';
 
 /** All supported languages with flag emojis. */
@@ -34,6 +34,9 @@ export function PopupHeader({
   theme,
   onThemeChange,
   onOpenSettings,
+  isAuthenticated,
+  userProfile,
+  onOpenLogin,
 }) {
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   const langRef = useRef(null);
@@ -75,6 +78,33 @@ export function PopupHeader({
 
       {/* Right controls */}
       <div className="flex items-center gap-1.5">
+        {/* Auth status / Login button */}
+        {isAuthenticated ? (
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            title={userProfile?.name ? `${userProfile.name} (${userProfile.email})` : 'Account Profile'}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-50 dark:bg-[#252538] text-purple-600 dark:text-[#c084fc] hover:bg-purple-100 dark:hover:bg-[#2d2d44] transition-colors border border-purple-200/50 dark:border-purple-800/50 cursor-pointer"
+          >
+            <div className="w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center text-[9px] font-bold">
+              {(userProfile?.name?.[0] || userProfile?.email?.[0] || 'U').toUpperCase()}
+            </div>
+            <span className="text-[11px] font-semibold max-w-[60px] truncate hidden sm:inline">
+              {userProfile?.name?.split(' ')[0] || 'User'}
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onOpenLogin}
+            title={currentLanguage === 'km' ? 'ចូលគណនីតាមរយៈ Web' : 'Login with Web'}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-semibold shadow-xs transition-colors cursor-pointer border-0"
+          >
+            <FiLogIn size={12} />
+            <span>{currentLanguage === 'km' ? 'ចូល' : 'Login'}</span>
+          </button>
+        )}
+
         {/* Language dropdown */}
         <div ref={langRef} className="relative">
           <button

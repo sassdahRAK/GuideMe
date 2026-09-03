@@ -9,7 +9,9 @@
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
-    "compile": "wxt compile"
+    "compile": "wxt compile",
+    "types:sync": "openapi-typescript http://localhost:4000/api/swagger.json -o src/types/api-schema.d.ts",
+    "types:sync:prod": "openapi-typescript https://api.guideme.app/api/swagger.json -o src/types/api-schema.d.ts"
   },
   "dependencies": {
     "@guideme/adapter-interface": "workspace:*",
@@ -27,6 +29,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.5.4",
+    "openapi-typescript": "^7.13.0",
     "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",
     "wxt": "^0.19.28"

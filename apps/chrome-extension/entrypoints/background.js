@@ -1,8 +1,17 @@
 import { defineBackground } from 'wxt/sandbox';
 import { ExtensionMessageAction } from '@guideme/core-types';
+import { triggerQueueSync } from '../src/lib/progress-sync';
 
 export default defineBackground(() => {
   console.log('[GuideMe Background] Service Worker initialized');
+
+  // Sync any offline progress queued during previous sessions
+  triggerQueueSync();
+
+  // Try syncing pending actions when browser opens
+  chrome.runtime.onStartup?.addListener(() => {
+    triggerQueueSync();
+  });
 
   // Handle messages forwarded between popup and content scripts
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -83,6 +92,45 @@ export default defineBackground(() => {
       }
       sendResponse({ success: true });
       return false;
+    }
+
+    return false;
+  });
+
+  // ── Handle external messages from Next.js web application ──
+  chrome.runtime.onMessageExternal?.addListener((message, sender, sendResponse) => {
+    console.log('[GuideMe Background] Received external message:', message?.type, 'from:', sender?.url);
+
+    // Health check / ping from web app
+    if (message?.type === 'GUIDEME_PING') {
+      sendResponse({ status: 'PONG', version: chrome.runtime.getManifest()?.version });
+      return false;
+    }
+
+    // Auth success handoff from Next.js login/registration
+    if (message?.type === 'GUIDEME_AUTH_SUCCESS') {
+      const { token, user } = message.payload || {};
+
+      // 1. Persist auth credentials in chrome.storage.local for popup and content scripts
+      chrome.storage.local.set(
+        {
+          authToken: token || null,
+          userProfile: user || null,
+        },
+        () => {
+          sendResponse({ status: 'SUCCESS' });
+
+          // 2. Flush pending progress queue now that we are authenticated
+          triggerQueueSync();
+
+          // 3. Automatically close the login tab once linked
+          if (sender.tab?.id) {
+            chrome.tabs.remove(sender.tab.id).catch(() => {});
+          }
+        }
+      );
+
+      return true; // Keep message channel open for asynchronous sendResponse
     }
 
     return false;

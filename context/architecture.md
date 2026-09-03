@@ -1,19 +1,41 @@
 # Architecture Context — GuideMe
 
+## 0. Repository Topology
+
+GuideMe uses a **multi-repo** structure with a shared client-server API:
+
+```text
+Repo 1: GuideMe-Site (Web & API, full-stack repository / mini-monorepo)
+├── frontend/                         # Web client
+└── backend/                          # Shared API
+                                      ▲
+                                      │ API requests
+Repo 2: GuideMe (Clients)
+├── apps/chrome-extension/            # Browser extension client
+└── desktop/                          # Future desktop client
+```
+
+The web frontend and backend are kept together as a **full-stack repository** (also
+called a mini-monorepo). The browser extension and future desktop app are separate
+clients that consume the backend API, forming a **multi-client client-server
+architecture**. The extension's local tutorial engine remains usable offline; API
+access is reserved for shared services such as authentication, authoring, sync, AI,
+and audio/TTS integrations.
+
 ## 1. Stack
 
-| Layer | Technology | Role |
-| :--- | :--- | :--- |
-| **Monorepo Build** | PNPM Workspaces + Vite / WXT | Dependency orchestration and fast HMR bundling. |
-| **Browser Extension** | WXT (Web Extension Framework) | Manifest V3 build system for Chrome & Firefox. |
-| **UI Presentation** | React 18 + Tailwind CSS v4 | Declarative components (`packages/tutorial-ui`, popup, sidepanel). |
-| **Styling Isolation** | Shadow DOM (`createShadowRootUi`) | Complete encapsulation of CSS and DOM overlays. |
-| **Headless Engine** | Pure JavaScript (ES Modules) | Finite state machine, step resolution, action dispatcher (`packages/engine`). |
-| **Validation Engine** | Native DOM Events & Predicates | Interactive user action interceptor (`click`, `input`, `change`, `submit`, etc.). |
-| **DOM Adapter** | `@guideme/chrome-adapter` | Platform-specific DOM queries, MutationObserver element polling, URL listeners. |
-| **Schema Validation** | `@guideme/tutorial-schema` | Structural validation and normalization of declarative tutorial JSONs. |
-| **Audio & I18n** | Web Audio API / HTML5 Audio + I18nManager | Dual-language (`km` / `en`) resolution and pluggable TTS provider integration. |
-| **Testing** | Node.js Test Runner (`node:test`) | Fast, native unit test execution for engine and dynamic analyzer. |
+| Layer                      | Technology                                | Role                                                                              |
+| :------------------------- | :---------------------------------------- | :-------------------------------------------------------------------------------- |
+| **Client Workspace Build** | PNPM Workspaces + Vite / WXT              | Dependency orchestration and fast HMR bundling within the client repository.      |
+| **Browser Extension**      | WXT (Web Extension Framework)             | Manifest V3 build system for Chrome & Firefox.                                    |
+| **UI Presentation**        | React 18 + Tailwind CSS v4                | Declarative components (`packages/tutorial-ui`, popup, sidepanel).                |
+| **Styling Isolation**      | Shadow DOM (`createShadowRootUi`)         | Complete encapsulation of CSS and DOM overlays.                                   |
+| **Headless Engine**        | Pure JavaScript (ES Modules)              | Finite state machine, step resolution, action dispatcher (`packages/engine`).     |
+| **Validation Engine**      | Native DOM Events & Predicates            | Interactive user action interceptor (`click`, `input`, `change`, `submit`, etc.). |
+| **DOM Adapter**            | `@guideme/chrome-adapter`                 | Platform-specific DOM queries, MutationObserver element polling, URL listeners.   |
+| **Schema Validation**      | `@guideme/tutorial-schema`                | Structural validation and normalization of declarative tutorial JSONs.            |
+| **Audio & I18n**           | Web Audio API / HTML5 Audio + I18nManager | Dual-language (`km` / `en`) resolution and pluggable TTS provider integration.    |
+| **Testing**                | Node.js Test Runner (`node:test`)         | Fast, native unit test execution for engine and dynamic analyzer.                 |
 
 ---
 
@@ -73,11 +95,11 @@ graph TD
     App --> UI[packages/tutorial-ui]
     App --> Adapter[packages/chrome-adapter]
     App --> Types[packages/core-types]
-    
+
     UI --> Types
     Adapter --> Interface[packages/adapter-interface]
     Adapter --> Types
-    
+
     Engine --> Interface
     Engine --> Schema[packages/tutorial-schema]
     Engine --> Types
@@ -166,10 +188,10 @@ sequenceDiagram
 
 ## 10. Risk Register
 
-| # | Risk | Severity | Mitigation |
-|---|------|----------|------------|
-| 1 | **Host CSS / Z-Index Clashes** | 🟢 Low | Isolated Shadow DOM (`createShadowRootUi`) with ultra-high `z-index: 2147483647` on host boundary. |
-| 2 | **Dynamic SPA Element Hydration Delays** | 🟡 Medium | `DOMObserver` with MutationObserver retry polling (up to 5000ms) and ResizeObserver for viewport adjustments. |
-| 3 | **Complex Canvas / Shadow DOM Host Apps (e.g. Google Docs Canvas)** | 🟡 Medium | Multi-strategy target resolution combining aria-labels, toolbar IDs, and fallback manual navigation. |
-| 4 | **Extension Context Invalidation on Auto-Update** | 🟢 Low | Defensive `try/catch` wrapping around `chrome.runtime.sendMessage` and background worker keep-alives. |
-| 5 | **Bilingual Font Rendering Glitches** | 🟢 Low | Explicit font embedding of `@font-face` Kantumruy Pro and Inter directly inside Shadow DOM stylesheet. |
+| #   | Risk                                                                | Severity  | Mitigation                                                                                                    |
+| --- | ------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------- |
+| 1   | **Host CSS / Z-Index Clashes**                                      | 🟢 Low    | Isolated Shadow DOM (`createShadowRootUi`) with ultra-high `z-index: 2147483647` on host boundary.            |
+| 2   | **Dynamic SPA Element Hydration Delays**                            | 🟡 Medium | `DOMObserver` with MutationObserver retry polling (up to 5000ms) and ResizeObserver for viewport adjustments. |
+| 3   | **Complex Canvas / Shadow DOM Host Apps (e.g. Google Docs Canvas)** | 🟡 Medium | Multi-strategy target resolution combining aria-labels, toolbar IDs, and fallback manual navigation.          |
+| 4   | **Extension Context Invalidation on Auto-Update**                   | 🟢 Low    | Defensive `try/catch` wrapping around `chrome.runtime.sendMessage` and background worker keep-alives.         |
+| 5   | **Bilingual Font Rendering Glitches**                               | 🟢 Low    | Explicit font embedding of `@font-face` Kantumruy Pro and Inter directly inside Shadow DOM stylesheet.        |

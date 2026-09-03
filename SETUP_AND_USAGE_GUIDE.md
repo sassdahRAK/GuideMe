@@ -1,12 +1,14 @@
 # GuideMe — Universal Tutorial Engine
+
 ## Complete Setup & User Guide
 
-**GuideMe** is a monorepo-based universal tutorial and interactive walkthrough engine. It overlays non-intrusive step-by-step guidance, SVG spotlights, dynamic DOM interaction validation, and on-the-fly automated page guides directly on any web application via a Chrome/Firefox extension.
+**GuideMe** is the client repository in a multi-repo universal tutorial system. The companion `GuideMe-Site` repository is a full-stack repository containing the web frontend and shared backend API. The browser extension, and the future desktop app, are clients of that API. The extension overlays non-intrusive step-by-step guidance, SVG spotlights, dynamic DOM interaction validation, and on-the-fly automated page guides directly on any web application.
 
 ---
 
 ## Table of Contents
-1. [Architecture & Monorepo Overview](#1-architecture--monorepo-overview)
+
+1. [Architecture & Multi-Repo Overview](#1-architecture--multi-repo-overview)
 2. [Prerequisites](#2-prerequisites)
 3. [Setup & Installation](#3-setup--installation)
 4. [Development & Build Commands](#4-development--build-commands)
@@ -25,9 +27,19 @@
 
 ---
 
-## 1. Architecture & Monorepo Overview
+## 1. Architecture & Multi-Repo Overview
 
-GuideMe is built as a modular monorepo using **PNPM/NPM Workspaces**, **React 18**, and **WXT** (Web Extension Framework).
+The project uses two repositories. `GuideMe-Site` is the full-stack web/API repository, while this `GuideMe` repository is the client repository. Within the client repository, the extension is built as a modular PNPM workspace using **React 18** and **WXT** (Web Extension Framework).
+
+```text
+GuideMe-Site/                         # Repo 1: Web & API (full-stack repository)
+├── frontend/
+└── backend/  <----------------------------- shared API requests
+                                                ^
+GuideMe/                               # Repo 2: Clients
+├── apps/chrome-extension/
+└── desktop/                           # Future client
+```
 
 ```
 GuideMe/
@@ -57,6 +69,7 @@ GuideMe/
 ```
 
 ### Key Technical Features:
+
 - **Shadow DOM Isolation**: The UI overlay renders inside an isolated Shadow DOM (`guideme-tutorial-root`), ensuring extension CSS never conflicts with host site styles.
 - **Hybrid Tutorial Mode**: Supports both pre-authored JSON walkthroughs and dynamic AI/heuristics-based page auto-guided walkthroughs (`DynamicPageAnalyzer`).
 - **Real-Time Dynamic Target Resolution**: Multi-strategy DOM resolver supporting CSS selectors, `data-testid`, `aria-label`, and text matching with MutationObserver element polling.
@@ -84,6 +97,7 @@ Before installing GuideMe, ensure your system has the following installed:
 Dependencies across all 8 workspace packages are installed via `pnpm`.
 
 ### Running Commands Without Global `pnpm`:
+
 If `pnpm` is not installed globally on your machine, you can run all commands directly using `npx pnpm`:
 
 ```bash
@@ -101,6 +115,7 @@ npx pnpm test
 ```
 
 ### Installing `pnpm`:
+
 - **Windows (PowerShell)**:
   ```powershell
   iwr https://get.pnpm.io/install.ps1 -useb | iex
@@ -116,12 +131,14 @@ npx pnpm test
 
 All main commands can be run from the repository root:
 
-| Command | Action / Description |
-| :--- | :--- |
-| `npx pnpm dev` | Launches the WXT development server with Hot Module Reloading (HMR). |
-| `npx pnpm build` | Builds the production Manifest V3 extension inside `apps/chrome-extension/.output/chrome-mv3`. |
-| `npx pnpm --filter @guideme/chrome-extension dev:firefox` | Runs development server targeting Mozilla Firefox. |
+| Command                                                   | Action / Description                                                                           |
+| :-------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
+| `npx pnpm dev`                                            | Launches the WXT development server with Hot Module Reloading (HMR).                           |
+| `npx pnpm build`                                          | Builds the production Manifest V3 extension inside `apps/chrome-extension/.output/chrome-mv3`. |
+| `npx pnpm --filter @guideme/chrome-extension dev:firefox` | Runs development server targeting Mozilla Firefox.                                             |
+
 Ensure you have the following installed on your development machine:
+
 - **Node.js**: `v18.0.0` or later (tested on Node v20/v22).
 - **pnpm**: `v9.0.0` or later (recommended package manager).
 - **Google Chrome / Chromium-based Browser**: Chrome v102+ with Manifest V3 support.
@@ -182,6 +199,7 @@ pnpm build
 ```
 
 This compiles all packages and generates the unpacked Chrome extension into:
+
 ```
 apps/chrome-extension/.output/chrome-mv3/
 ```
@@ -239,6 +257,7 @@ GuideMe features an intelligent DOM analyzer (`DynamicPageAnalyzer`) for unscrip
 ### 6.4 Local Offline Testbed Page
 
 To test features without an active internet connection:
+
 1. Open the popup and click **🚀 Open Local Demo Testbed Page**.
 2. Or navigate directly to `chrome-extension://<EXTENSION_ID>/test-demo.html`.
 3. Test interactive spotlights, input validation, modal popups, and state progression in a controlled offline environment.
@@ -259,10 +278,7 @@ Every tutorial JSON file follows this top-level structure:
   "version": "1.0.0",
   "name": "Human Readable Title",
   "description": "Brief description of what this walkthrough teaches.",
-  "matchUrls": [
-    "https://example.com/dashboard/*",
-    "*://*/*test-demo.html*"
-  ],
+  "matchUrls": ["https://example.com/dashboard/*", "*://*/*test-demo.html*"],
   "steps": [
     {
       "id": "step_1",
@@ -291,12 +307,12 @@ Every tutorial JSON file follows this top-level structure:
 
 GuideMe uses fallback target resolution to ensure element detection even on dynamic web applications:
 
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `css` | `string` | Primary CSS selectors (comma-separated). E.g., `#submit-btn, button[type="submit"]`. |
-| `text` | `string` | Matches elements containing exact or partial text content. E.g., `"Share"`. |
-| `ariaLabel` | `string` | Matches elements with matching `aria-label` or `aria-description`. |
-| `testId` | `string` | Matches `data-testid` or `data-test-id` attributes. |
+| Property    | Type     | Description                                                                          |
+| :---------- | :------- | :----------------------------------------------------------------------------------- |
+| `css`       | `string` | Primary CSS selectors (comma-separated). E.g., `#submit-btn, button[type="submit"]`. |
+| `text`      | `string` | Matches elements containing exact or partial text content. E.g., `"Share"`.          |
+| `ariaLabel` | `string` | Matches elements with matching `aria-label` or `aria-description`.                   |
+| `testId`    | `string` | Matches `data-testid` or `data-test-id` attributes.                                  |
 
 ### 7.3 Validation Types
 
@@ -319,10 +335,7 @@ Below is a complete, working example tutorial definition (`tutorials/general/wel
   "version": "1.0.0",
   "name": "GuideMe Feature Walkthrough",
   "description": "An interactive tour highlighting toolbars, action buttons, and input validation.",
-  "matchUrls": [
-    "<all_urls>",
-    "*://*/*"
-  ],
+  "matchUrls": ["<all_urls>", "*://*/*"],
   "steps": [
     {
       "id": "welcome_step_1",
@@ -395,34 +408,42 @@ Below is a complete, working example tutorial definition (`tutorials/general/wel
 ## 8. Troubleshooting & FAQ
 
 #### Q1: Why does the popup say "Standby" or fail to start on `chrome://` pages?
+
 > **Answer**: Browser security restrictions prevent Chrome extension content scripts from running on internal pages such as `chrome://extensions` or `about:blank`. Test GuideMe on regular web pages (e.g. `https://google.com`), Google Docs, or the built-in testbed page (`test-demo.html`).
 
 #### Q2: How do I rebuild after modifying extension code?
+
 > **Answer**: Run `pnpm build` (or `npm run build`), then go to `chrome://extensions` and click the **Reload** icon on the GuideMe extension card. If running `pnpm dev`, changes automatically hot-reload.
 
 #### Q3: How do unit tests run?
+
 > **Answer**: Run `pnpm test` (or `npm test`). Node's built-in test runner executes `tests/engine.test.js` and `tests/dynamic-analyzer.test.js`.
 
 #### Q4: Windows PC Troubleshooting Guide
+
 > **Issue 1: PowerShell script execution error (`PSSecurityException`)**
+>
 > - **Cause**: Windows PowerShell blocks running scripts like `pnpm.ps1` or `npx.ps1` by default.
 > - **Fix**: Open PowerShell as Administrator and run:
 >   `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
 >   Or run your commands inside **Command Prompt (cmd.exe)** or **Git Bash**.
 
 > **Issue 2: PNPM Symlink / Permission Error (`EPERM: operation not permitted, symlink`)**
+>
 > - **Cause**: PNPM workspaces use symbolic links, which require Developer Mode or Admin rights on Windows.
 > - **Fix**: Enable **Developer Mode** in Windows (`Settings > Update & Security > For developers` -> toggle **Developer Mode** ON). Alternatively, run `npx pnpm install` in an Administrator terminal.
 
 > **Issue 3: Unix shell scripts or `rm -rf` error**
+>
 > - **Cause**: Commands like `curl ... | sh` or `rm -rf` are Linux/macOS commands and do not exist in Windows CMD.
 > - **Fix**: We updated `package.json` to use cross-platform Node.js commands (`npm run clean`). For PNPM installation on Windows PowerShell, use:
 >   `iwr https://get.pnpm.io/install.ps1 -useb | iex`
 >   Or simply use `npx pnpm <command>` or `npm install -g pnpm`.
 
 > **Issue 4: Loading extension path in Windows Chrome**
+>
 > - **Fix**: In Chrome (`chrome://extensions`), turn on **Developer Mode**, click **Load unpacked**, and select `apps\chrome-extension\.output\chrome-mv3`.
 
 ---
 
-*GuideMe: Universal Tutorial Engine Docs*
+_GuideMe: Universal Tutorial Engine Docs_

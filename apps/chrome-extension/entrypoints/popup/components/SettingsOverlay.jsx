@@ -10,6 +10,9 @@ import {
   FiFileText,
   FiTrash2,
   FiExternalLink,
+  FiUser,
+  FiLogIn,
+  FiLogOut,
 } from 'react-icons/fi';
 import { getUIString } from '@guideme/tutorial-ui';
 import { SPEAKER_OPTIONS } from '../constants.js';
@@ -156,6 +159,10 @@ export function SettingsOverlay({
   onClose,
   onExtractUI,
   isChromeInternalUrl,
+  isAuthenticated,
+  userProfile,
+  onOpenLogin,
+  onLogout,
 }) {
   const isKhmer = currentLanguage === 'km';
   // Exclusive accordion: only one section open at a time
@@ -202,6 +209,63 @@ export function SettingsOverlay({
 
       {/* Scrollable accordion body with full height and comfortable padding */}
       <div className="flex-1 overflow-y-auto p-3 pb-8 flex flex-col gap-2 bg-white dark:bg-[#101018] overscroll-contain">
+
+        {/* ── 0. Account ── */}
+        <AccordionSection
+          icon={<FiUser size={15} />}
+          label={isKhmer ? 'គណនី' : 'Account'}
+          isOpen={openSection === 'Account'}
+          onToggle={() => toggle('Account')}
+        >
+          {isAuthenticated && userProfile ? (
+            <div className="p-3.5 flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 flex items-center justify-center font-bold text-sm shrink-0 border border-purple-200 dark:border-purple-800 overflow-hidden">
+                  {userProfile.avatar ? (
+                    <img src={userProfile.avatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    (userProfile.name?.[0] || userProfile.email?.[0] || 'U').toUpperCase()
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-semibold text-gray-900 dark:text-white truncate">
+                    {userProfile.name || 'GuideMe User'}
+                  </div>
+                  <div className="text-[11px] text-gray-500 dark:text-zinc-400 truncate">
+                    {userProfile.email}
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300 uppercase tracking-wider">
+                  {userProfile.plan || 'Free'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="w-full mt-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors border border-red-200/60 dark:border-red-900/40 cursor-pointer"
+              >
+                <FiLogOut size={13} />
+                <span>{isKhmer ? 'ចាកចេញ' : 'Log Out'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="p-3.5 flex flex-col gap-2.5">
+              <p className="text-xs text-gray-500 dark:text-zinc-400 leading-relaxed m-0">
+                {isKhmer
+                  ? 'ចូលគណនីដើម្បីធ្វើសមកាលកម្មមេរៀន និងទទួលបានមុខងារ AI កម្រិតខ្ពស់។'
+                  : 'Sign in to sync your personalized guides and access full AI capabilities.'}
+              </p>
+              <button
+                type="button"
+                onClick={onOpenLogin}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-sm transition-all cursor-pointer border-0"
+              >
+                <FiLogIn size={14} />
+                <span>{isKhmer ? 'ចូលគណនីតាមរយៈ Web' : 'Login with Web'}</span>
+              </button>
+            </div>
+          )}
+        </AccordionSection>
 
         {/* ── 1. Language ── */}
         <AccordionSection

@@ -5,6 +5,8 @@ export const STORAGE_KEY_LANG = 'guideme_language';
 export const STORAGE_KEY_THEME = 'guideme_theme';
 export const STORAGE_KEY_SPEAKER = 'guideme_speaker';
 export const STORAGE_KEY_HISTORY = 'guideme_history';
+export const STORAGE_KEY_AUTH_TOKEN = 'authToken';
+export const STORAGE_KEY_USER_PROFILE = 'userProfile';
 
 /**
  * Supported speech synthesis voice presets.

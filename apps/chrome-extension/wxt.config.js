@@ -13,6 +13,13 @@ export default defineConfig({
       48: 'icons/icon-48.png',
       128: 'icons/icon-128.png',
     },
+    key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0fD4PCZqtDcEPwznZy5ZCG9K95GmJBrXWccfdo9gk7v2fk5vo/82JIfvqKhdYgsR3YGXcyMMnhg+fet2DGQZKjhaMMsJC+Ce84GmOm81pI6obJThwqxfgmFKvJbqzbUqrOCIQ9o2ELOaGzzVVOp3F8BX+ifnbPTb4hGCEff4YNLcQmawCiFMxQqS9OBB0tPXrKwadzlJ9h/nrZhSATB2vIySQqro1IsmzSOK75yOEDR+9IyYVvB1xHJYOCapUFeQLH0giNtIWRpsdqta9jgrVgQ0nxwCZSETXeJMyXZn/8QXXcsgIrfE/jRdtDK+F0H2UCkmd7lFNryN2ZMStmpFtQIDAQAB',
+    externally_connectable: {
+      matches: [
+        'http://localhost:3000/*',
+        'https://guideme-lac.vercel.app/*',
+      ],
+    },
     permissions: [
       'storage',
       'tabs',
