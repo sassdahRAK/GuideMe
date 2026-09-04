@@ -1,7 +1,9 @@
 // chrome-extension/src/lib/api.ts
+const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+
 const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.WXT_API_URL ||
+  env?.VITE_API_URL ||
+  env?.WXT_API_URL ||
   "http://localhost:4000/api";
 
 export interface FetchOptions extends RequestInit {
