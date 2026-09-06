@@ -46,6 +46,11 @@ export default defineContentScript({
       append: 'last',
       zIndex: 2147483647,
       onMount(uiContainer) {
+        // Prevent all GuideMe keystrokes from leaking into host page global shortcuts (e.g. GitHub 's' search)
+        uiContainer.addEventListener('keydown', (e) => e.stopPropagation());
+        uiContainer.addEventListener('keyup', (e) => e.stopPropagation());
+        uiContainer.addEventListener('keypress', (e) => e.stopPropagation());
+
         const root = ReactDOM.createRoot(uiContainer);
 
         function TutorialApp() {
@@ -198,19 +203,26 @@ export default defineContentScript({
                 }
 
                 case ExtensionMessageAction.START_DYNAMIC_GUIDE: {
-                  try {
-                    const prompt = message.payload?.prompt || message.payload?.userPrompt || '';
-                    const dynamicTutorial = DynamicPageAnalyzer.generateDynamicTutorial(document, window.location.href, prompt);
-                    setIsDismissed(false);
-                    setIsPromptOpen(false);
-                    setIsFullPopupOpen(false);
-                    engine.start(dynamicTutorial, 0);
-                    sendResponse({ success: true, tutorialId: dynamicTutorial.id, dynamic: true });
-                  } catch (err) {
-                    console.error('[GuideMe] Dynamic guide generation failed:', err);
-                    sendResponse({ success: false, error: err.message });
-                  }
-                  break;
+                  (async () => {
+                    try {
+                      const prompt = message.payload?.prompt || message.payload?.userPrompt || '';
+                      const dynamicTutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
+                        document,
+                        window.location.href,
+                        prompt,
+                        { env: import.meta.env }
+                      );
+                      setIsDismissed(false);
+                      setIsPromptOpen(false);
+                      setIsFullPopupOpen(false);
+                      engine.start(dynamicTutorial, 0);
+                      sendResponse({ success: true, tutorialId: dynamicTutorial.id, dynamic: true });
+                    } catch (err) {
+                      console.error('[GuideMe] Dynamic guide generation failed:', err);
+                      sendResponse({ success: false, error: err.message });
+                    }
+                  })();
+                  return true;
                 }
 
                 case ExtensionMessageAction.STOP_TUTORIAL:
@@ -332,6 +344,7 @@ export default defineContentScript({
                 onStartTutorial={handleStartTutorial}
                 onLanguageChange={(newLang) => engineRef.current?.setLanguage(newLang)}
                 onReplayAudio={() => engineRef.current?.getAudioEngine()?.replay()}
+                onRetryLocateTarget={() => engineRef.current?.retryLocateTarget()}
                 onNext={() => engineRef.current?.nextStep()}
                 onPrev={() => engineRef.current?.prevStep()}
                 onSkip={() => engineRef.current?.skipStep()}

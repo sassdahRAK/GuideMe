@@ -1,4 +1,4 @@
-import { EngineStatus, EngineEvent, Language } from '@guideme/core-types';
+import { EngineStatus, EngineEvent, Language, AlertState } from '@guideme/core-types';
 import { StateMachine } from './state-machine/state-machine.js';
 import { TutorialParser } from './parser/parser.js';
 import { StepResolver } from './resolver/step-resolver.js';
@@ -38,6 +38,9 @@ export class TutorialEngine {
     this.currentStep = null;
     this.currentStepIndex = 0;
     this.targetBoundingBox = null;
+    this.targetMissing = false;
+    this.alertState = AlertState.NORMAL;
+    this._alertResetTimer = null;
 
     this._activeValidationCleanup = null;
     this._activePositionCleanup = null;
@@ -244,6 +247,7 @@ export class TutorialEngine {
     this.currentStep = null;
     this.currentStepIndex = 0;
     this.targetBoundingBox = null;
+    this.targetMissing = false;
 
     this.stateMachine.reset();
     this.events.emit(EngineEvent.TUTORIAL_STOP);
@@ -298,6 +302,8 @@ export class TutorialEngine {
       totalSteps,
       isFirstStep: this.currentStep?.isFirst ?? false,
       isLastStep: this.currentStep?.isLast ?? false,
+      alertState: this.alertState,
+      targetMissing: this.targetMissing,
       boundingBox: this.targetBoundingBox,
       actionPayload: ActionEngine.getActionUiPayload(this.currentStep, this.targetBoundingBox, this.i18n),
       variables: this.variables.toObject(),
@@ -331,14 +337,17 @@ export class TutorialEngine {
     if (step.target && this.adapter) {
       const { boundingBox } = await this.stepResolver.resolveTarget(step, 1500);
       this.targetBoundingBox = boundingBox;
+      this.targetMissing = !boundingBox || (boundingBox.width === 0 && boundingBox.height === 0);
 
       // Start continuous position tracking
       this._activePositionCleanup = this.adapter.observeTargetPosition(step.target, (newBox) => {
         this.targetBoundingBox = newBox;
+        this.targetMissing = !newBox || (newBox.width === 0 && newBox.height === 0);
         this._notifyState();
       });
     } else {
       this.targetBoundingBox = null;
+      this.targetMissing = false;
     }
 
     this.stateMachine.transition(EngineStatus.STEP_ACTIVE, { step });
@@ -349,15 +358,27 @@ export class TutorialEngine {
       this.playVoicePrompt(step);
     }
 
-    // Bind validation listeners
+    // Bind validation listeners and rescue monitors
     this._activeValidationCleanup = ValidationEngine.bindValidation(
       step,
       this.adapter,
       async (result) => {
         if (result.valid) {
+          this._clearAlertState();
           this.events.emit(EngineEvent.STEP_SUCCESS, { step, eventData: result.eventData });
           await this.nextStep();
         }
+      },
+      {
+        targetBoundingBox: this.targetBoundingBox,
+        getTargetBoundingBox: () => this.targetBoundingBox,
+        hesitationTimeoutMs: step.hesitationTimeoutMs || 15000,
+        onHesitation: () => {
+          this._handleHesitation(step);
+        },
+        onMisclick: (data) => {
+          this._handleMisclick(step, data);
+        },
       }
     );
 
@@ -369,6 +390,7 @@ export class TutorialEngine {
    * @private
    */
   _cleanupStepSubscriptions() {
+    this._clearAlertState();
     if (typeof this._activeValidationCleanup === 'function') {
       this._activeValidationCleanup();
       this._activeValidationCleanup = null;
@@ -377,6 +399,76 @@ export class TutorialEngine {
       this._activePositionCleanup();
       this._activePositionCleanup = null;
     }
+  }
+
+  /**
+   * Handle learner inactivity hesitation.
+   * @private
+   * @param {Object} step
+   */
+  _handleHesitation(step) {
+    this.alertState = AlertState.HESITATION;
+    this.events.emit(EngineEvent.HESITATION_DETECTED, { step });
+    this._notifyState();
+
+    const currentLang = this.i18n.getLanguage();
+    const hintText =
+      currentLang === Language.KM
+        ? 'សូមចុចលើប្រអប់ដែលបានសម្គាល់ដើម្បីបន្ត'
+        : 'Please click the highlighted box to continue';
+    this.audio.play(null, currentLang, hintText);
+  }
+
+  /**
+   * Handle learner misclick outside target area.
+   * @private
+   * @param {Object} step
+   * @param {Object} data
+   */
+  _handleMisclick(step, data) {
+    this.alertState = AlertState.MISCLICK;
+    this.events.emit(EngineEvent.MISCLICK_DETECTED, { step, ...data });
+    this._notifyState();
+
+    const currentLang = this.i18n.getLanguage();
+    const warningText =
+      currentLang === Language.KM
+        ? 'អ្នកបានចុចខុសកន្លែង សូមចុចលើប្រអប់ដែលបានសម្គាល់'
+        : 'Clicked outside. Please click the highlighted box';
+    this.audio.play(null, currentLang, warningText);
+
+    if (this._alertResetTimer) {
+      clearTimeout(this._alertResetTimer);
+    }
+    this._alertResetTimer = setTimeout(() => {
+      if (this.alertState === AlertState.MISCLICK) {
+        this.alertState = AlertState.NORMAL;
+        this._notifyState();
+      }
+    }, 1500);
+  }
+
+  /**
+   * Retry locating target element for current step.
+   */
+  async retryLocateTarget() {
+    if (!this.currentStep || !this.currentStep.target || !this.adapter) return;
+    const { boundingBox } = await this.stepResolver.resolveTarget(this.currentStep, 2000);
+    this.targetBoundingBox = boundingBox;
+    this.targetMissing = !boundingBox || (boundingBox.width === 0 && boundingBox.height === 0);
+    this._notifyState();
+  }
+
+  /**
+   * Clear active alert state and pending timers.
+   * @private
+   */
+  _clearAlertState() {
+    if (this._alertResetTimer) {
+      clearTimeout(this._alertResetTimer);
+      this._alertResetTimer = null;
+    }
+    this.alertState = AlertState.NORMAL;
   }
 
   /**

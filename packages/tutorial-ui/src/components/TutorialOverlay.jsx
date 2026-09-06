@@ -16,6 +16,7 @@ export function TutorialOverlay({
   onClose,
   onLanguageChange,
   onReplayAudio,
+  onRetryLocateTarget,
   onToggleLauncher,
   onStartDynamicGuide,
   onStartTutorial,
@@ -193,6 +194,8 @@ export function TutorialOverlay({
     language,
     stepBadgeText,
     isPlayingAudio,
+    alertState,
+    targetMissing,
   } = state;
 
   return (
@@ -202,8 +205,13 @@ export function TutorialOverlay({
       {/* 1. Target Spotlight */}
       <Spotlight
         targetBoundingBox={boundingBox}
-        actionText={actionPayload?.actionText || (isKhmer ? 'ចុចទីនេះ' : 'CLICK HERE')}
+        actionText={
+          alertState === 'misclick'
+            ? (isKhmer ? 'ចុចត្រង់នេះ!' : 'CLICK HERE!')
+            : actionPayload?.actionText || (isKhmer ? 'ចុចទីនេះ' : 'CLICK HERE')
+        }
         showPointer={actionPayload?.type !== 'modal' && Boolean(boundingBox)}
+        alertState={alertState || 'normal'}
       />
 
       {/* 2. Floating StepCard */}
@@ -223,6 +231,8 @@ export function TutorialOverlay({
         isLastStep={isLastStep}
         canSkip={actionPayload?.canSkip ?? true}
         isPlayingAudio={isPlayingAudio}
+        targetMissing={targetMissing}
+        onRetry={onRetryLocateTarget}
         onLanguageChange={onLanguageChange}
         onNext={onNext}
         onPrev={onPrev}

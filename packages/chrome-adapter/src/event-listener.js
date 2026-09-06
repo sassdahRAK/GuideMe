@@ -17,28 +17,24 @@ export class DomEventListener {
     let targetElement = DomObserver.findElement(selector);
 
     const handler = (event) => {
-      // Direct element match or event delegated from child
-      if (targetElement && (event.target === targetElement || targetElement.contains(event.target))) {
+      // Re-query if target element was not found or has been detached from document
+      if (!targetElement || (typeof targetElement.isConnected === 'boolean' && !targetElement.isConnected)) {
+        targetElement = DomObserver.findElement(selector);
+      }
+
+      const isDirectMatch = targetElement && (event.target === targetElement || targetElement.contains(event.target));
+      const isCssMatch = Boolean(selector?.css && event.target?.matches?.(selector.css));
+      const isClosestMatch = Boolean(selector?.css && targetElement && event.target?.closest?.(selector.css) === targetElement);
+
+      if (isDirectMatch || isCssMatch || isClosestMatch) {
         const payload = {
           type: eventType,
-          targetValue: event.target?.value ?? '',
-          targetChecked: event.target?.checked ?? false,
+          targetValue: event.target?.value ?? targetElement?.value ?? '',
+          targetChecked: event.target?.checked ?? targetElement?.checked ?? false,
           key: event.key,
           originalEvent: event,
         };
         callback(payload);
-      } else if (!targetElement) {
-        // Retry finding element if rendered late
-        targetElement = DomObserver.findElement(selector);
-        if (targetElement && (event.target === targetElement || targetElement.contains(event.target))) {
-          callback({
-            type: eventType,
-            targetValue: event.target?.value ?? '',
-            targetChecked: event.target?.checked ?? false,
-            key: event.key,
-            originalEvent: event,
-          });
-        }
       }
     };
 

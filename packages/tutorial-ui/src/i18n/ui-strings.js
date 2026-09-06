@@ -227,6 +227,28 @@ export const UI_STRINGS = {
     en: 'CLICK HERE',
   },
 
+  // Learner Rescue & Coaching
+  hesitationHint: {
+    km: 'សូមចុចលើប្រអប់ដែលបានសម្គាល់ដើម្បីបន្ត',
+    en: 'Please click the highlighted box to continue',
+  },
+  misclickWarning: {
+    km: 'អ្នកបានចុចខុសកន្លែង សូមចុចលើប្រអប់ដែលបានសម្គាល់',
+    en: 'Clicked outside. Please click the highlighted box',
+  },
+  misclickPill: {
+    km: 'ចុចត្រង់នេះ!',
+    en: 'CLICK HERE!',
+  },
+  cannotLocateTarget: {
+    km: 'មិនអាចកំណត់ទីតាំងប៊ូតុងបានទេ សូមរមូរទំព័រ ឬចុចសាកល្បងម្ដងទៀត',
+    en: 'Cannot locate target element. Please scroll into view or try again.',
+  },
+  retryLocate: {
+    km: 'សាកល្បងម្ដងទៀត',
+    en: 'Try Again',
+  },
+
   // Completion Screen & Feedback Modal
   walkthroughComplete: {
     km: 'មេរៀនត្រូវបានបញ្ចប់!',

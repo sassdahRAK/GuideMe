@@ -61,8 +61,12 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
       return this._playAudioUrl(audioUrl, rate, onStart, onEnd, onError);
     }
 
-    // 2. If endpoint or text is missing, fall back to browser synthesis
-    if (!this.endpoint || !text) {
+    // 2. If endpoint or text is missing, or required API key is empty, fall back cleanly
+    const requiresKey =
+      Object.values(this.headers || {}).some((h) => String(h).includes('{{API_KEY}}')) ||
+      (this.endpoint && (this.endpoint.includes('{{API_KEY}}') || this.endpoint.includes('api.openai.com') || this.endpoint.includes('api.elevenlabs.io')));
+
+    if (!this.endpoint || !text || (requiresKey && !this.apiKey)) {
       return this.fallbackProvider.speak({ text, lang, audioUrl, rate, onStart, onEnd, onError });
     }
 
@@ -98,8 +102,7 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
         if (onEnd) onEnd();
       }
     } catch (err) {
-      console.warn('[GuideMe GenericHttpTtsProvider] API synthesis failed, activating fallback:', err);
-      if (onError) onError(err);
+      console.warn('[GuideMe GenericHttpTtsProvider] API synthesis failed, activating fallback:', err?.message || err);
       return this.fallbackProvider.speak({ text, lang, audioUrl, rate, onStart: null, onEnd, onError });
     }
   }

@@ -132,6 +132,9 @@ export function FloatingPromptWidget({
   return (
     <div
       ref={widgetRef}
+      onKeyDown={(e) => e.stopPropagation()}
+      onKeyUp={(e) => e.stopPropagation()}
+      onKeyPress={(e) => e.stopPropagation()}
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
@@ -190,6 +193,15 @@ export function FloatingPromptWidget({
               type="text"
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmitPrompt(e);
+                }
+              }}
+              onKeyUp={(e) => e.stopPropagation()}
+              onKeyPress={(e) => e.stopPropagation()}
               placeholder={getUIString('askAnything', language)}
               className="flex-1 bg-transparent border-0 outline-none text-[13px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-500 font-normal min-w-0"
               style={{ border: 'none', outline: 'none' }}

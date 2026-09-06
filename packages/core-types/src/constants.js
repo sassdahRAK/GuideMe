@@ -69,6 +69,12 @@ export const AudioPlaybackStatus = Object.freeze({
   ERROR: 'error',
 });
 
+export const AlertState = Object.freeze({
+  NORMAL: 'normal',
+  HESITATION: 'hesitation',
+  MISCLICK: 'misclick',
+});
+
 /**
  * Engine Event Names
  */
@@ -81,6 +87,8 @@ export const EngineEvent = Object.freeze({
   TUTORIAL_COMPLETE: 'engine:tutorial_complete',
   TUTORIAL_STOP: 'engine:tutorial_stop',
   LANGUAGE_CHANGE: 'engine:language_change',
+  HESITATION_DETECTED: 'engine:hesitation_detected',
+  MISCLICK_DETECTED: 'engine:misclick_detected',
 });
 
 /**

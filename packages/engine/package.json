@@ -8,8 +8,9 @@
     ".": "./src/index.js"
   },
   "dependencies": {
-    "@guideme/core-types": "workspace:*",
     "@guideme/adapter-interface": "workspace:*",
-    "@guideme/tutorial-schema": "workspace:*"
+    "@guideme/core-types": "workspace:*",
+    "@guideme/tutorial-schema": "workspace:*",
+    "fuse.js": "^7.5.0"
   }
 }

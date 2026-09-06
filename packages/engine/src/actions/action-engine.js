@@ -41,7 +41,11 @@ export class ActionEngine {
     const title = resolve(action.title || step.title);
     const content = resolve(action.content || action.instruction || step.instruction || step.description || '');
     const subtitle = resolve(action.subtitle || action.description || '');
-    const actionText = resolve(action.actionText) || (lang === Language.KM ? 'ចុចទីនេះ' : 'CLICK HERE');
+    const isInput = step.validation?.type === 'input' || step.validation?.type === 'change' || action.category === 'input';
+    const defaultActionText = isInput
+      ? (lang === Language.KM ? 'វាយបញ្ចូល' : 'TYPE HERE')
+      : (lang === Language.KM ? 'ចុចទីនេះ' : 'CLICK HERE');
+    const actionText = resolve(action.actionText) || defaultActionText;
     const coachTitle = resolve(action.coachTitle) || (lang === Language.KM ? 'GuideMe - ការណែនាំផ្ទាល់' : 'GuideMe - AI Live Coach');
 
     // Resolve audio narration status text

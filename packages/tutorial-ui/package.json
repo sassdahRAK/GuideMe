@@ -12,6 +12,7 @@
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.8.0",
     "@guideme/core-types": "workspace:*",
     "react-icons": "^5.7.0"
   }

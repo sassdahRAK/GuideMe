@@ -23,5 +23,8 @@
     "walkthrough"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@floating-ui/dom": "^1.8.0"
+  }
 }

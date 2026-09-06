@@ -7,6 +7,8 @@ import {
   FiX,
   FiInfo,
   FiRotateCcw,
+  FiAlertTriangle,
+  FiRefreshCw,
 } from 'react-icons/fi';
 import { getUIString, toKhmerNumber } from '../i18n/ui-strings.js';
 
@@ -29,6 +31,8 @@ export function StepCard({
   canSkip = true,
   isPlayingAudio = false,
   isDragging = false,
+  targetMissing = false,
+  onRetry,
   onLanguageChange,
   onNext,
   onPrev,
@@ -36,8 +40,6 @@ export function StepCard({
   onClose,
   onReplayAudio,
   onDragStart,
-  onDragMove,
-  onDragEnd,
 }) {
   const [showDetails, setShowDetails] = useState(false);
 
@@ -57,7 +59,9 @@ export function StepCard({
 
   return (
     <div
+      onPointerDown={onDragStart}
       style={{
+        touchAction: 'none',
         boxShadow: isDragging
           ? '0 30px 80px rgba(0, 0, 0, 0.38), 0 12px 28px rgba(0, 0, 0, 0.20), 0 0 0 1px rgba(0, 0, 0, 0.08)'
           : '0 20px 60px -8px rgba(0, 0, 0, 0.24), 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06)',
@@ -69,9 +73,7 @@ export function StepCard({
       {/* ── Top Header Row ── */}
       <div
         onPointerDown={onDragStart}
-        onPointerMove={onDragMove}
-        onPointerUp={onDragEnd}
-        onPointerCancel={onDragEnd}
+        style={{ touchAction: 'none' }}
         className="flex items-center justify-between gap-2 pb-2.5 border-b border-gray-100 dark:border-white/10 cursor-grab active:cursor-grabbing"
       >
         {/* Left: Speaker icon + Sound wave animation */}
@@ -98,6 +100,14 @@ export function StepCard({
             ))}
           </div>
         </button>
+
+        {/* Center: Subtle Drag Grip Handle */}
+        <div
+          title="Drag to move card"
+          className="flex-1 flex items-center justify-center py-1 cursor-grab active:cursor-grabbing"
+        >
+          <div className="w-10 h-1 bg-gray-300 dark:bg-white/20 rounded-full transition-colors hover:bg-[#8b5cf6]/60 dark:hover:bg-white/40" />
+        </div>
 
         {/* Right controls: Step Badge + Language Toggle + Close Button */}
         <div className="flex items-center gap-2 shrink-0">
@@ -144,6 +154,26 @@ export function StepCard({
         <p className="text-[14px] leading-relaxed text-gray-900 dark:text-white font-normal m-0 tracking-normal">
           {cleanContent}
         </p>
+
+        {/* Target Missing Warning Banner */}
+        {targetMissing && (
+          <div className="mt-2.5 p-2.5 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 dark:border-amber-500/40 rounded-xl flex items-center justify-between gap-2.5 text-amber-800 dark:text-amber-200 animate-[guideme-card-pop_0.2s_ease-out]">
+            <div className="flex items-center gap-2 text-[12px] font-medium leading-tight">
+              <FiAlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>{getUIString('cannotLocateTarget', lang)}</span>
+            </div>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white px-2.5 py-1 rounded-lg border-0 cursor-pointer shadow-sm transition-all hover:scale-105 active:scale-95"
+              >
+                <FiRefreshCw className="w-3 h-3" />
+                <span>{getUIString('retryLocate', lang)}</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* "Explain detail" Pill Button */}
         <div className="mt-2.5 flex items-center gap-2">

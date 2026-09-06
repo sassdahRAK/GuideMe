@@ -13,3 +13,4 @@ export * from './audio/audio-engine.js';
 export * from './audio/ai-tts-provider.js';
 export * from './audio/generic-http-tts-provider.js';
 export * from './audio/tts-registry.js';
+export * from './intent/index.js';

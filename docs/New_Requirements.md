@@ -76,6 +76,31 @@ The unified vision combines two powerful guiding models:
   - Configure `<all_urls>` host permissions in `manifest.json` combined with `activeTab` and dynamic scripting injection so the extension can universally auto-guide any page when invoked by the user, while minimizing background resource consumption.
 - *Status:* **DECIDED (Universal Support via `<all_urls>` + Dynamic Injection Adopted)**
 
+### Architectural Decision 5: Autonomous Prompt Path Detection vs. Manual Educator Recording (RESOLVED)
+- **Choice A (Manual Educator Recording Mode):** An educator sits and clicks through pages to manually record walkthrough steps and save them to a database.
+- **Choice B (Autonomous In-Page Path Detection from User Prompt):** The engine dynamically parses the live DOM and calculates the next logical action/target directly from the learner's natural language goal ("Ask anything..." prompt), without requiring an educator to manually author tutorials.
+- **Adopted Decision: Autonomous Prompt Path Detection & Pure Learner Playback (NextGen Milestone)**
+  - Shelved/deferred manual educator recording mode for the current 1-week **NextGen Milestone**. Digital literacy learners need on-demand assistance for whatever they want to accomplish directly from their prompt.
+  - The engine autonomously scans the live DOM, resolves intent from the user prompt, and synthesizes interactive walkthrough steps on the fly.
+  - **Future Roadmap Note:** Manual educator recording mode is **not discarded permanently**. It will be reintroduced in subsequent phases so GuideMe becomes a complete, comprehensive authoring and delivery ecosystem.
+- *Status:* **DECIDED (Autonomous Prompt Detection for NextGen Milestone, Manual Recording Deferred to Future Roadmap)**
+
+### Architectural Decision 6: Hybrid Two-Stage Intent Resolution (Fuse.js Filter + LLM Re-Ranker) (RESOLVED)
+- **Choice A (External Cloud LLM API on raw DOM):** High API costs, 3-5s latency, offline failure, and token exhaustion.
+- **Choice B (In-Browser Offline Fuzzy Search via Fuse.js Alone):** Zero cost and instant, but blind to synonyms (e.g. "invite" vs. "share").
+- **Adopted Decision: Two-Stage Hybrid Retrieval**
+  - **Stage 1 (Candidate Filtering):** In-page scanner uses `fuse.js` to extract and rank the top 10–15 candidate interactive elements in <5ms.
+  - **Stage 2 (Semantic Re-ranking):** Lightweight prompt sent to LLM to resolve synonyms and choose the optimal step action.
+  - **Offline Fallback:** If offline or unconfigured, falls back immediately to pure Fuse.js fuzzy matching.
+- *Status:* **DECIDED (Hybrid Two-Stage Retrieval Adopted)**
+
+### Architectural Decision 7: Tooltip Positioning & Viewport Collision Avoidance (RESOLVED)
+- **Choice A (Manual Coordinate Math & Fixed Estimates):** Hardcoded pixel calculations (e.g. `cardEstimatedHeight = 240`) leading to tooltip clipping off-screen and obscuring target elements during Khmer text wrapping.
+- **Choice B (Floating UI `@floating-ui/dom`):** Industry-standard anchor positioning engine with virtual element support, dynamic height measurement, `flip()`, `shift()`, and `offset()`.
+- **Adopted Decision: Floating UI Integration**
+  - Refactored `Tooltip.jsx` to dynamically position floating step cards relative to target bounding boxes with zero layout clipping.
+- *Status:* **DECIDED (@floating-ui/dom Adopted)**
+
 ---
 
 ## 3. User Personas

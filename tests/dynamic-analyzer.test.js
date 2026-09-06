@@ -8,20 +8,45 @@ function createMockDoc({
   forms = [],
   inputs = [],
   buttons = [],
+  links = [],
   navs = [],
+  canvases = [],
+  svgs = [],
+  iframes = [],
+  shadowHosts = [],
 }) {
   const enhancedForms = forms.map((f) => ({ ...f, tagName: 'FORM', getAttribute: (attr) => f[attr] || null, querySelectorAll: () => [] }));
   const enhancedInputs = inputs.map((i) => ({ ...i, tagName: 'INPUT', getAttribute: (attr) => i[attr] || null }));
   const enhancedButtons = buttons.map((b) => ({ ...b, tagName: 'BUTTON', getAttribute: (attr) => b[attr] || null }));
+  const enhancedLinks = links.map((l) => ({ ...l, tagName: 'A', getAttribute: (attr) => l[attr] || null }));
   const enhancedNavs = navs.map((n) => ({ ...n, tagName: 'NAV', getAttribute: (attr) => n[attr] || null }));
+  const enhancedCanvases = canvases.map((c) => ({ ...c, tagName: 'CANVAS', getAttribute: (attr) => c[attr] || null }));
+  const enhancedSvgs = svgs.map((s) => ({ ...s, tagName: 'SVG', getAttribute: (attr) => s[attr] || null }));
+  const enhancedIframes = iframes.map((ifr) => ({ ...ifr, tagName: 'IFRAME', getAttribute: (attr) => ifr[attr] || null }));
+  const enhancedShadowHosts = shadowHosts.map((sh) => ({
+    tagName: sh.tagName || 'CUSTOM-ELEMENT',
+    getAttribute: (attr) => sh[attr] || null,
+    shadowRoot: {
+      querySelectorAll: (selector) => {
+        if (selector.startsWith('button') && sh.buttons) return sh.buttons.map((b) => ({ ...b, tagName: 'BUTTON', getAttribute: (a) => b[a] || null }));
+        if (selector.startsWith('input') && sh.inputs) return sh.inputs.map((i) => ({ ...i, tagName: 'INPUT', getAttribute: (a) => i[a] || null }));
+        return [];
+      },
+    },
+  }));
 
   return {
     title,
     querySelectorAll: (selector) => {
+      if (selector === '*') return enhancedShadowHosts;
       if (selector.startsWith('form')) return enhancedForms;
       if (selector.startsWith('button')) return enhancedButtons;
       if (selector.startsWith('nav')) return enhancedNavs;
       if (selector.startsWith('input')) return enhancedInputs;
+      if (selector.startsWith('a') || selector.includes('[role="tab"]')) return enhancedLinks;
+      if (selector.startsWith('canvas')) return enhancedCanvases;
+      if (selector.startsWith('svg')) return enhancedSvgs;
+      if (selector.startsWith('iframe')) return enhancedIframes;
       return [];
     },
   };
@@ -144,4 +169,85 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     assert.strictEqual(tutorial.name, 'Custom JSON Walkthrough');
     assert.strictEqual(tutorial.steps.length, 1);
   });
+
+  test('Accurately matches and ranks GitHub-style navigation tabs (e.g. Repositories over Overview)', () => {
+    const mockDoc = createMockDoc({
+      title: 'thangsaoly (Thang Saoly)',
+      links: [
+        { textContent: 'Overview', href: '/thangsaoly', role: 'tab', className: 'UnderlineNav-item' },
+        { textContent: 'Repositories 31', href: '/thangsaoly?tab=repositories', role: 'tab', className: 'UnderlineNav-item', 'aria-label': 'Repositories' },
+        { textContent: 'Projects', href: '/thangsaoly?tab=projects', role: 'tab', className: 'UnderlineNav-item' },
+        { textContent: 'Stars 19', href: '/thangsaoly?tab=stars', role: 'tab', className: 'UnderlineNav-item' },
+      ],
+    });
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://github.com/thangsaoly', 'View Repositories');
+    assert.ok(tutorial.steps.length >= 1);
+    
+    // First step MUST target the Repositories tab, not Overview!
+    const firstStep = tutorial.steps[0];
+    assert.ok(firstStep.title.includes('Repositories'));
+    assert.ok(firstStep.target.css.includes('tab=repositories') || firstStep.target.text.includes('Repositories'));
+  });
+
+  test('Accurately detects and targets Canvas elements', () => {
+    const mockDoc = createMockDoc({
+      title: 'Analytics Dashboard',
+      canvases: [
+        { id: 'revenue-chart', 'aria-label': 'Monthly Revenue Chart', role: 'img' },
+      ],
+    });
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/analytics', 'examine revenue chart');
+    assert.ok(tutorial.steps.length >= 1);
+    assert.ok(tutorial.steps[0].title.includes('Revenue Chart'));
+    assert.ok(tutorial.steps[0].target.css.includes('revenue-chart'));
+  });
+
+  test('Accurately detects and targets SVG elements with title/aria-label', () => {
+    const mockDoc = createMockDoc({
+      title: 'Settings Area',
+      svgs: [
+        { 'aria-label': 'Security settings icon', role: 'img', className: 'octicon-lock' },
+      ],
+    });
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/settings', 'open security settings');
+    assert.ok(tutorial.steps.length >= 1);
+    assert.ok(tutorial.steps[0].title.includes('Security settings'));
+    assert.strictEqual(tutorial.steps[0].validation.type, 'click');
+  });
+
+  test('Accurately detects and targets Iframe elements', () => {
+    const mockDoc = createMockDoc({
+      title: 'Checkout Flow',
+      iframes: [
+        { title: 'ABA PayWay Gateway', name: 'payment-frame', src: 'https://payway.aba.com.kh/checkout' },
+      ],
+    });
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/checkout', 'complete aba payment frame');
+    assert.ok(tutorial.steps.length >= 1);
+    assert.ok(tutorial.steps[0].title.includes('ABA PayWay'));
+    assert.ok(tutorial.steps[0].target.css.includes('iframe[title="ABA PayWay Gateway"]'));
+  });
+
+  test('Accurately detects elements inside open Shadow DOM roots (web components)', () => {
+    const mockDoc = createMockDoc({
+      title: 'Web Component App',
+      shadowHosts: [
+        {
+          tagName: 'PROFILE-CARD',
+          buttons: [
+            { textContent: 'Edit Profile Avatar', id: 'shadow-edit-btn', role: 'button' },
+          ],
+        },
+      ],
+    });
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/profile', 'edit profile avatar');
+    assert.ok(tutorial.steps.length >= 1);
+    assert.ok(tutorial.steps[0].title.toLowerCase().includes('edit profile'));
+  });
 });
+

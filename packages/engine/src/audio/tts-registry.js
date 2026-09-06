@@ -132,8 +132,14 @@ export class TtsRegistry {
    */
   static fromEnv(env = {}) {
     const apiKey = env.WXT_TTS_API_KEY || env.VITE_TTS_API_KEY || env.TTS_API_KEY || '';
-    const preset = env.WXT_TTS_PRESET || env.WXT_TTS_PROVIDER || env.TTS_PRESET || 'openai';
     const endpoint = env.WXT_TTS_ENDPOINT || env.WXT_TTS_API_URL || env.TTS_ENDPOINT || '';
+    const preset = env.WXT_TTS_PRESET || env.WXT_TTS_PROVIDER || env.TTS_PRESET || (apiKey ? 'openai' : '');
+
+    // If no external API key and no custom endpoint are configured, fall back to built-in speech provider
+    if (!apiKey && !endpoint) {
+      return new PlaceholderTtsProvider();
+    }
+
     const model = env.WXT_TTS_MODEL || env.TTS_MODEL || '';
     const voice = env.WXT_TTS_VOICE || env.TTS_VOICE || '';
     const responseType = env.WXT_TTS_RESPONSE_TYPE || env.TTS_RESPONSE_TYPE || '';
