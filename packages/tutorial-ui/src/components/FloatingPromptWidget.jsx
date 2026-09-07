@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import { GuideMeLogo } from './GuideMeLogo.jsx';
 import { getUIString } from '../i18n/ui-strings.js';
+import { classifyPrompt } from '@guideme/engine';
 
 /* ─────────────────────────────────────────────────────────────────
    Circular Progress Spinner — shown during dynamic guide generation.
@@ -68,12 +69,14 @@ export function FloatingPromptWidget({
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [responseMessage, setResponseMessage] = useState('');
 
   const hasText = promptText.trim().length > 0;
 
   const dragRef = useRef({ startX: 0, startY: 0, initialLeft: 0, initialTop: 0 });
   const widgetRef = useRef(null);
   const inputRef = useRef(null);
+  const responseTimerRef = useRef(null);
 
   // Auto focus input when opened
   useEffect(() => {
@@ -81,6 +84,13 @@ export function FloatingPromptWidget({
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // Clear response timer on unmount
+  useEffect(() => {
+    return () => {
+      if (responseTimerRef.current) clearTimeout(responseTimerRef.current);
+    };
+  }, []);
 
   const handleHeaderPointerDown = (e) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
@@ -120,12 +130,31 @@ export function FloatingPromptWidget({
   const handleSubmitPrompt = (e) => {
     e?.preventDefault();
     if (!promptText.trim()) return;
+
+    // Classify the prompt before acting
+    const classification = classifyPrompt(promptText);
+
+    if (classification.type === 'greeting' || classification.type === 'unclear') {
+      // Show conversational response instead of generating a guide
+      const reply = classification.responses[language] || classification.responses.en;
+      setResponseMessage(reply);
+      setPromptText('');
+
+      // Auto-clear the response after 8 seconds
+      if (responseTimerRef.current) clearTimeout(responseTimerRef.current);
+      responseTimerRef.current = setTimeout(() => setResponseMessage(''), 8000);
+      return;
+    }
+
+    // Actionable prompt → proceed with guide generation
+    setResponseMessage('');
     setIsProcessing(true);
     if (onStartDynamicGuide) {
       onStartDynamicGuide(promptText);
       setIsProcessing(false);
     }
   };
+
 
   if (!isOpen) return null;
 
@@ -175,6 +204,20 @@ export function FloatingPromptWidget({
           <FiX className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {/* ── Response Message (greeting / clarification) ── */}
+      {responseMessage && (
+        <div className="px-3.5 pt-2.5 pb-0 animate-[guideme-card-pop_0.2s_ease-out]">
+          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-purple-50/80 dark:bg-[#1e1e36] border border-purple-100 dark:border-[#2d2d4a]">
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-[9px] text-white font-bold">AI</span>
+            </div>
+            <p className="text-[12px] leading-relaxed text-gray-700 dark:text-zinc-300 m-0">
+              {responseMessage}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Body — Prompt Input ── */}
       <div className="px-3.5 py-3">

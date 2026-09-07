@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ExtensionMessageAction } from '@guideme/core-types';
 import { getUIString } from '@guideme/tutorial-ui';
+import { classifyPrompt } from '@guideme/engine';
 
 import {
   STORAGE_KEY_LANG,
@@ -288,30 +289,46 @@ export default function App() {
     setMessages((prev) => [...prev, userMsg]);
     setCustomPrompt('');
 
-    // AI dynamic reply
+    // Classify the prompt to determine response type
+    const classification = classifyPrompt(prompt);
+
     setIsProcessing(true);
     setTimeout(() => {
       setIsProcessing(false);
-      const contextualReplies = {
-        km: [
-          "ខ្ញុំអាចជួយអ្នកបាន! ចុច 'បំបែក UI ចេញពីផ្ទាំងនេះ' ដើម្បីចាប់ផ្ដើមការណែនាំជាជំហានៗលើទំព័រនេះ។",
-          "សំណួរល្អណាស់! ខ្ញុំកំពុងវិភាគទំព័រវេបសាយនេះដើម្បីផ្ដល់ការណែនាំដ៏ល្អបំផុតសម្រាប់អ្នក។",
-          "យល់ហើយ! អ្នកអាចចាប់ផ្ដើមមេរៀន ឬសួរខ្ញុំឱ្យពន្យល់ពីប៊ូតុង ឬទម្រង់ណាមួយលើអេក្រង់នេះ។",
-        ],
-        en: [
-          "I can help you with that! Click 'Extract Separate UI' to start interactive step-by-step guidance on this page.",
-          "Great question! I'm analyzing this webpage to provide the best walkthrough for you.",
-          "Got it! You can start a tutorial or ask me to explain any specific button or form on this screen.",
-        ],
-      };
-      const list = contextualReplies[currentLanguage] || contextualReplies.km;
-      const reply = list[Math.floor(Math.random() * list.length)];
+
+      let reply;
+
+      if (classification.type === 'greeting') {
+        // Greetings → greet back warmly
+        reply = classification.responses[currentLanguage] || classification.responses.en;
+      } else if (classification.type === 'unclear') {
+        // Unclear → ask for clarification
+        reply = classification.responses[currentLanguage] || classification.responses.en;
+      } else {
+        // Actionable → original guiding replies
+        const contextualReplies = {
+          km: [
+            "ខ្ញុំអាចជួយអ្នកបាន! ចុច 'បំបែក UI ចេញពីផ្ទាំងនេះ' ដើម្បីចាប់ផ្ដើមការណែនាំជាជំហានៗលើទំព័រនេះ។",
+            "សំណួរល្អណាស់! ខ្ញុំកំពុងវិភាគទំព័រវេបសាយនេះដើម្បីផ្ដល់ការណែនាំដ៏ល្អបំផុតសម្រាប់អ្នក។",
+            "យល់ហើយ! អ្នកអាចចាប់ផ្ដើមមេរៀន ឬសួរខ្ញុំឱ្យពន្យល់ពីប៊ូតុង ឬទម្រង់ណាមួយលើអេក្រង់នេះ។",
+          ],
+          en: [
+            "I can help you with that! Click 'Extract Separate UI' to start interactive step-by-step guidance on this page.",
+            "Great question! I'm analyzing this webpage to provide the best walkthrough for you.",
+            "Got it! You can start a tutorial or ask me to explain any specific button or form on this screen.",
+          ],
+        };
+        const list = contextualReplies[currentLanguage] || contextualReplies.km;
+        reply = list[Math.floor(Math.random() * list.length)];
+      }
+
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: reply, time: nowTime(currentLanguage) },
       ]);
     }, 600);
   };
+
 
   // ── Speech recognition ────────────────────────────────────────────────────────
   const { isListening, supported: speechSupported, start: startSpeech, stop: stopSpeech } =
