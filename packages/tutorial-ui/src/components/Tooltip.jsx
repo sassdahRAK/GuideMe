@@ -52,7 +52,6 @@ export function Tooltip({
 
   const [customPosition, setCustomPosition] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ startX: 0, startY: 0, initialLeft: 0, initialTop: 0 });
   const containerRef = useRef(null);
 
   // Measure the rendered card instead of assuming a fixed height. Khmer copy,
@@ -125,57 +124,102 @@ export function Tooltip({
     };
   }, [targetBoundingBox, placement, cardSize]);
 
+  const dragStartRef = useRef({
+    active: false,
+    startX: 0,
+    startY: 0,
+    initialLeft: 0,
+    initialTop: 0,
+    pointerId: null,
+    target: null,
+  });
+
+  // Reset custom manual position when moving to a different step
+  useEffect(() => {
+    setCustomPosition(null);
+  }, [currentStepIndex]);
+
   const handlePointerDown = (e) => {
     // Only primary mouse button or touch/pen
     if (e.button !== 0 && e.pointerType === 'mouse') return;
-    if (e.target.closest('button, input, select, textarea, a, [role="radio"], [role="radiogroup"]')) return;
+    if (dragStartRef.current.active) return;
+    if (e.target.closest('button, input, select, textarea, a, [role="radio"], [role="radiogroup"], [data-no-drag]')) return;
 
     const el = containerRef.current;
     if (!el) return;
 
+    e.preventDefault();
+
     const rect = el.getBoundingClientRect();
     dragStartRef.current = {
+      active: true,
       startX: e.clientX,
       startY: e.clientY,
       initialLeft: rect.left,
       initialTop: rect.top,
+      pointerId: e.pointerId,
+      target: e.currentTarget,
     };
 
     setIsDragging(true);
+
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
-      // ignore
+      // Fallback to window listeners if pointer capture not supported
     }
   };
 
   const handlePointerMove = (e) => {
-    if (!isDragging) return;
+    if (!dragStartRef.current.active) return;
+
     const { startX, startY, initialLeft, initialTop } = dragStartRef.current;
     const deltaX = e.clientX - startX;
     const deltaY = e.clientY - startY;
 
     const cardEl = containerRef.current;
-    const w = cardEl?.offsetWidth || cardSize.width;
-    const h = cardEl?.offsetHeight || cardSize.height;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const w = cardEl?.offsetWidth || cardSize.width || 410;
+    const h = cardEl?.offsetHeight || cardSize.height || 240;
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
 
-    const newLeft = Math.max(12, Math.min(initialLeft + deltaX, vw - w - 12));
-    const newTop = Math.max(12, Math.min(initialTop + deltaY, vh - h - 12));
+    const newLeft = Math.round(Math.max(12, Math.min(initialLeft + deltaX, vw - w - 12)));
+    const newTop = Math.round(Math.max(12, Math.min(initialTop + deltaY, vh - h - 12)));
 
     setCustomPosition({ top: newTop, left: newLeft });
   };
 
   const handlePointerUp = (e) => {
-    if (!isDragging) return;
+    if (!dragStartRef.current.active) return;
+    dragStartRef.current.active = false;
     setIsDragging(false);
+
     try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
+      if (dragStartRef.current.target && dragStartRef.current.pointerId != null) {
+        dragStartRef.current.target.releasePointerCapture(dragStartRef.current.pointerId);
+      }
     } catch {
       // ignore
     }
   };
+
+  // Safety net: Window listeners during drag ensure smooth movement across iframes / fast gestures
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const onWindowMove = (e) => handlePointerMove(e);
+    const onWindowUp = (e) => handlePointerUp(e);
+
+    window.addEventListener('pointermove', onWindowMove, true);
+    window.addEventListener('pointerup', onWindowUp, true);
+    window.addEventListener('pointercancel', onWindowUp, true);
+
+    return () => {
+      window.removeEventListener('pointermove', onWindowMove, true);
+      window.removeEventListener('pointerup', onWindowUp, true);
+      window.removeEventListener('pointercancel', onWindowUp, true);
+    };
+  }, [isDragging]);
 
   const handleResetPosition = () => {
     setCustomPosition(null);

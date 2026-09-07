@@ -28,6 +28,14 @@ export const UI_STRINGS = {
     km: 'សូមចូលទៅកាន់ទំព័រវេបសាយណាមួយដើម្បីប្រើមុខងារនេះ',
     en: 'Navigate to a webpage to use this feature',
   },
+  popoutLauncher: {
+    km: 'បង្អួចអណ្ដែតលើអេក្រង់',
+    en: 'Floating Mini Launcher',
+  },
+  popoutLauncherTooltip: {
+    km: 'បើកផ្ទាំងស្វែងរកអណ្ដែតលើអេក្រង់គ្រប់ផ្ទាំង',
+    en: 'Open an always-on-top floating launcher across all tabs',
+  },
   close: {
     km: 'បិទ',
     en: 'Close',

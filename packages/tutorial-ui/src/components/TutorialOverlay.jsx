@@ -156,6 +156,19 @@ export function TutorialOverlay({
               </button>
             </div>
           </div>
+
+          {/* Floating Assistant Button — always persistent */}
+          <FloatingAssistantButton
+            onClick={() => onTogglePrompt && onTogglePrompt(!isPromptOpen)}
+            onDismiss={() => {
+              if (isPromptOpen && onTogglePrompt) onTogglePrompt(false);
+              if (onDismiss) onDismiss();
+            }}
+            onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
+            isActive={true}
+            isOpen={isPromptOpen}
+            language={lang}
+          />
         </>
       );
     }

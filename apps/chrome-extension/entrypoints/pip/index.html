@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="km">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/icons/icon-32.png" />
+    <title>GuideMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="guideme-pip-root" class="pip-container">
+      <!-- ── Active Walkthrough Controller HUD ─────────────────── -->
+      <div id="pip-active-guide" class="pip-active-guide-container" style="display: none;">
+        <div class="active-guide-card">
+          <div class="active-guide-info">
+            <div class="active-guide-badge">
+              <span class="active-guide-pulse"></span>
+              <span id="pip-guide-title" class="active-guide-name">GuideMe Walkthrough</span>
+            </div>
+            <div id="pip-guide-step-title" class="active-guide-step">Step 1: Click Search</div>
+          </div>
+          <div class="active-guide-controls">
+            <button type="button" class="guide-ctrl-btn" id="pip-guide-prev" title="Previous step">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span id="pip-guide-step-count" class="guide-step-pill">1/3</span>
+            <button type="button" class="guide-ctrl-btn" id="pip-guide-next" title="Next step">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <button type="button" class="guide-ctrl-btn" id="pip-guide-replay" title="Replay audio">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            </button>
+            <button type="button" class="guide-ctrl-btn stop" id="pip-guide-stop" title="End walkthrough">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── AI Conversational Response Message Bubble ─────── -->
+      <div id="pip-response" class="pip-response-container" style="display: none;">
+        <div class="pip-response-card">
+          <div class="ai-avatar-badge">AI</div>
+          <div id="pip-response-text" class="pip-response-text"></div>
+        </div>
+      </div>
+
+      <!-- ── Prompt Capsule Form ────────────────────────────── -->
+      <form class="floating-form" id="pip-form">
+        <div class="floating-input-wrapper" id="pip-wrapper">
+          <!-- Leading AI Sparkle Badge / Processing Spinner -->
+          <div class="capsule-badge" id="capsule-badge" title="GuideMe AI">
+            <svg id="badge-icon-plus" class="floating-plus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <div id="badge-spinner" class="badge-spinner" style="display: none;">
+              <svg width="24" height="24" viewBox="0 0 28 28" class="spinner-svg">
+                <circle cx="14" cy="14" r="10" fill="none" stroke="#e5e7eb" stroke-width="3" />
+                <circle cx="14" cy="14" r="10" fill="none" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round" stroke-dasharray="62.83" stroke-dashoffset="20.73" class="spinner-circle" />
+              </svg>
+              <span class="spinner-text">67%</span>
+            </div>
+          </div>
+
+          <textarea
+            class="floating-input"
+            id="pip-input"
+            rows="1"
+            placeholder="សួរអ្វីមួយ..."
+            autocomplete="off"
+            spellcheck="false"
+          ></textarea>
+
+          <!-- Action Buttons (Capture Step, Mic, Send) -->
+          <div class="actions-cluster">
+            <!-- Capture Step Button -->
+            <button type="button" class="floating-action-btn" id="pip-capture" title="ជ្រើសរើសធាតុសម្រាប់ជំហាន (Capture step target)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="22" y1="12" x2="18" y2="12"></line>
+                <line x1="6" y1="12" x2="2" y2="12"></line>
+                <line x1="12" y1="6" x2="12" y2="2"></line>
+                <line x1="12" y1="22" x2="12" y2="18"></line>
+              </svg>
+            </button>
+
+            <!-- Mic Button with Real Web Speech -->
+            <button type="button" class="floating-mic-btn" id="pip-mic" title="បញ្ចូលសំឡេង (Voice input)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            </button>
+
+            <!-- Send Button -->
+            <button type="submit" class="floating-send-btn" id="pip-send" title="ផ្ញើ (Send)" style="display: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- ── Suggested Quick Actions Chips ───────────────────── -->
+      <div id="pip-suggestions" class="pip-suggestions-container" style="display: none;">
+        <div id="pip-suggestions-list" class="suggestions-list"></div>
+      </div>
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

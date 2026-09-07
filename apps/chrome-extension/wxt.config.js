@@ -42,7 +42,7 @@ export default defineConfig({
     },
     web_accessible_resources: [
       {
-        resources: ['popup.html', 'logo.svg', 'icons/*', 'chunks/*', 'assets/*'],
+        resources: ['popup.html', 'pip.html', 'logo.svg', 'icons/*', 'chunks/*', 'assets/*'],
         matches: ['<all_urls>'],
       },
     ],

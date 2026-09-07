@@ -43,16 +43,16 @@ function MicIcon({ className = "w-4 h-4" }) {
  * PromptInput — Precision styled input row with sharp dark mode support.
  */
 export function PromptInput({
-  customPrompt,
+  customPrompt = '',
   onPromptChange,
   onSubmit,
-  isProcessing,
-  isListening,
-  speechSupported,
+  isProcessing = false,
+  isListening = false,
+  speechSupported = false,
   onMicToggle,
-  currentLanguage,
+  currentLanguage = 'km',
 }) {
-  const hasText = customPrompt.trim().length > 0;
+  const hasText = (customPrompt || '').trim().length > 0;
 
   return (
     <div className="flex flex-col">

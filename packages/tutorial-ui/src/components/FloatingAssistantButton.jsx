@@ -86,6 +86,24 @@ export function FloatingAssistantButton({
   const buttonRef = useRef(null);
   const menuRef = useRef(null);
 
+  /* Restore custom position from localStorage */
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('guideme_fab_position');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed?.top === 'number' && typeof parsed?.left === 'number') {
+          const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+          const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
+          setCustomPosition({
+            top: Math.max(12, Math.min(parsed.top, vh - 68)),
+            left: Math.max(12, Math.min(parsed.left, vw - 68)),
+          });
+        }
+      }
+    } catch { }
+  }, []);
+
   /* Outside-click dismiss */
   const handleOutsideClick = useCallback((e) => {
     if (!menuRef.current) return;
@@ -142,10 +160,24 @@ export function FloatingAssistantButton({
   const handlePointerUp = (e) => {
     if (!isDragging) return;
     const hadMoved = dragRef.current.hasMoved;
+    const { startX, startY, initialLeft, initialTop } = dragRef.current;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
     setIsDragging(false);
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { }
 
-    if (!hadMoved && onClick) {
+    if (hadMoved) {
+      try {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const w = buttonRef.current?.offsetWidth || 56;
+        const h = buttonRef.current?.offsetHeight || 56;
+        localStorage.setItem('guideme_fab_position', JSON.stringify({
+          top: Math.max(12, Math.min(initialTop + dy, vh - h - 12)),
+          left: Math.max(12, Math.min(initialLeft + dx, vw - w - 12)),
+        }));
+      } catch { }
+    } else if (onClick) {
       onClick();
     }
   };

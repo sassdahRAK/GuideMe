@@ -211,28 +211,13 @@ export default function App() {
     chrome.storage.local.set({ [STORAGE_KEY_HISTORY]: [] });
   };
 
-  // ── Extract UI ───────────────────────────────────────────────────────────────
+  // ── Extract UI (PiP Launcher) ────────────────────────────────────────────────
   const handleExtractUI = () => {
-    if (!currentTab?.id || isChromeInternalUrl) return;
-    const payload = { action: ExtensionMessageAction.OPEN_FLOATING_PROMPT };
-    chrome.tabs.sendMessage(currentTab.id, payload, async (res) => {
-      if (chrome.runtime.lastError || !res?.success) {
-        try {
-          await chrome.scripting?.executeScript({
-            target: { tabId: currentTab.id },
-            files: ['content-scripts/content.js'],
-          });
-          setTimeout(() => chrome.tabs.sendMessage(currentTab.id, payload, () => window.close()), 300);
-          return;
-        } catch (err) {
-          console.error('[GuideMe Popup] Failed to inject content script:', err);
-        }
-      }
+    chrome.runtime.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }, () => {
       window.close();
     });
   };
 
-  // ── Open Dashboard ───────────────────────────────────────────────────────────
   const handleOpenDashboard = () => {
     if (!currentTab?.id || isChromeInternalUrl) {
       window.close();
@@ -392,17 +377,12 @@ export default function App() {
 
         {/* Bottom action bar */}
         <div className="popup-bottom">
-          {/* Extract Separate UI */}
+          {/* Extract Separate UI (PiP Launcher) */}
           <button
             type="button"
             id="extract-ui-btn"
             onClick={handleExtractUI}
-            disabled={isChromeInternalUrl}
-            title={
-              isChromeInternalUrl
-                ? getUIString('extractUIDisabledTooltip', currentLanguage)
-                : getUIString('extractUITooltip', currentLanguage)
-            }
+            title={getUIString('popoutLauncherTooltip', currentLanguage) || getUIString('extractUITooltip', currentLanguage)}
             className="btn-primary btn-extract"
           >
             {getUIString('extractUI', currentLanguage)}

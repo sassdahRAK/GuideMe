@@ -40,6 +40,8 @@ export function StepCard({
   onClose,
   onReplayAudio,
   onDragStart,
+  onDragMove,
+  onDragEnd,
 }) {
   const [showDetails, setShowDetails] = useState(false);
 
@@ -60,6 +62,9 @@ export function StepCard({
   return (
     <div
       onPointerDown={onDragStart}
+      onPointerMove={onDragMove}
+      onPointerUp={onDragEnd}
+      onPointerCancel={onDragEnd}
       style={{
         touchAction: 'none',
         boxShadow: isDragging
@@ -73,6 +78,9 @@ export function StepCard({
       {/* ── Top Header Row ── */}
       <div
         onPointerDown={onDragStart}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragEnd}
+        onPointerCancel={onDragEnd}
         style={{ touchAction: 'none' }}
         className="flex items-center justify-between gap-2 pb-2.5 border-b border-gray-100 dark:border-white/10 cursor-grab active:cursor-grabbing"
       >
@@ -103,6 +111,10 @@ export function StepCard({
 
         {/* Center: Subtle Drag Grip Handle */}
         <div
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
           title="Drag to move card"
           className="flex-1 flex items-center justify-center py-1 cursor-grab active:cursor-grabbing"
         >
