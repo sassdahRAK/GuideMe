@@ -44,6 +44,7 @@ export class TutorialEngine {
 
     this._activeValidationCleanup = null;
     this._activePositionCleanup = null;
+    this._startGeneration = 0;
 
     // Synchronize language change with engine subscribers & trigger audio update
     this.i18n.onLanguageChange((newLang) => {
@@ -161,7 +162,14 @@ export class TutorialEngine {
    * @param {number} [startStepIndex]
    */
   async start(tutorialDefinition, startStepIndex) {
+    const startGeneration = ++this._startGeneration;
     this._cleanupStepSubscriptions();
+
+    // Starting a new guide replaces the current one. Reset first so a guide
+    // started from a popup/capture reload cannot request STEP_ACTIVE -> LOADING.
+    if (this.stateMachine.getState() !== EngineStatus.IDLE) {
+      this.stateMachine.reset();
+    }
 
     if (!this.loadTutorial(tutorialDefinition)) {
       return false;
@@ -171,7 +179,8 @@ export class TutorialEngine {
     this.events.emit(EngineEvent.TUTORIAL_START, { tutorial: this.activeTutorial });
 
     const stepIndex = await this.session.startSession(this.activeTutorial.id, startStepIndex);
-    await this._activateStep(stepIndex);
+    if (startGeneration !== this._startGeneration) return false;
+    await this._activateStep(stepIndex, startGeneration);
     return true;
   }
 
@@ -317,7 +326,7 @@ export class TutorialEngine {
    * @private
    * @param {number} stepIndex
    */
-  async _activateStep(stepIndex) {
+  async _activateStep(stepIndex, startGeneration = null) {
     this._cleanupStepSubscriptions();
 
     const step = this.stepResolver.getStepByIndex(stepIndex);
@@ -332,10 +341,12 @@ export class TutorialEngine {
 
     // Execute pre-step actions (e.g. scroll into view)
     await ActionEngine.executeStepActions(step, this.adapter);
+    if (startGeneration !== null && startGeneration !== this._startGeneration) return;
 
     // Resolve target coordinates
     if (step.target && this.adapter) {
       const { boundingBox } = await this.stepResolver.resolveTarget(step, 1500);
+      if (startGeneration !== null && startGeneration !== this._startGeneration) return;
       this.targetBoundingBox = boundingBox;
       this.targetMissing = !boundingBox || (boundingBox.width === 0 && boundingBox.height === 0);
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FiClock,
   FiMic,
@@ -13,6 +13,7 @@ import {
   FiUser,
   FiLogIn,
   FiLogOut,
+  FiCpu,
 } from 'react-icons/fi';
 import { getUIString } from '@guideme/tutorial-ui';
 import { SPEAKER_OPTIONS } from '../constants.js';
@@ -167,6 +168,27 @@ export function SettingsOverlay({
   const isKhmer = currentLanguage === 'km';
   // Exclusive accordion: only one section open at a time
   const [openSection, setOpenSection] = useState(null);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [isKeySaved, setIsKeySaved] = useState(false);
+
+  useEffect(() => {
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      chrome.storage.local.get('guideme_gemini_api_key', (res) => {
+        if (res?.guideme_gemini_api_key) {
+          setApiKeyInput(res.guideme_gemini_api_key);
+        }
+      });
+    }
+  }, []);
+
+  const handleSaveApiKey = () => {
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      chrome.storage.local.set({ guideme_gemini_api_key: apiKeyInput.trim() }, () => {
+        setIsKeySaved(true);
+        setTimeout(() => setIsKeySaved(false), 2500);
+      });
+    }
+  };
 
   const toggle = (sectionKey) => {
     setOpenSection((prev) => (prev === sectionKey ? null : sectionKey));
@@ -284,6 +306,60 @@ export function SettingsOverlay({
               onClick={() => onLanguageChange(lang.code)}
             />
           ))}
+        </AccordionSection>
+
+        {/* ── 2. AI & DOM Intelligence ── */}
+        <AccordionSection
+          icon={<FiCpu size={15} />}
+          label={getUIString('aiDomSettings', currentLanguage)}
+          isOpen={openSection === 'AiDom'}
+          onToggle={() => toggle('AiDom')}
+        >
+          <div className="p-3.5 flex flex-col gap-3 text-xs">
+            <p className="text-gray-500 dark:text-zinc-400 leading-relaxed m-0">
+              {getUIString('aiDomDescription', currentLanguage)}
+            </p>
+
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40">
+              <span className="font-medium text-gray-700 dark:text-zinc-300">
+                {isKhmer ? 'មុខងារសកម្ម' : 'Active Mode'}:
+              </span>
+              <span className="font-semibold text-purple-700 dark:text-purple-300">
+                {apiKeyInput.trim() ? getUIString('aiActive', currentLanguage) : getUIString('aiLocal', currentLanguage)}
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-gray-800 dark:text-zinc-200">
+                {getUIString('geminiApiKey', currentLanguage)}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  placeholder={getUIString('geminiApiKeyPlaceholder', currentLanguage)}
+                  className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#38384f] bg-white dark:bg-[#101018] text-gray-900 dark:text-white outline-none focus:border-purple-500 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveApiKey}
+                  className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors border-0 cursor-pointer text-xs shrink-0"
+                >
+                  {isKeySaved ? getUIString('keySaved', currentLanguage) : getUIString('saveKey', currentLanguage)}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-[#12121e] border border-gray-100 dark:border-[#2d2d44] text-[11px] text-gray-600 dark:text-zinc-400 flex flex-col gap-1">
+              <div className="font-bold text-gray-800 dark:text-zinc-200">
+                {isKhmer ? '💡 របៀបកំណត់ DOM targets តាមចិត្ត:' : '💡 How to define DOM targets:'}
+              </div>
+              <div>• <code>#id</code> / <code>.class</code> (ឧ. <code>#search-box</code>, <code>.btn-buy</code>)</div>
+              <div>• {isKhmer ? 'លំដាប់ជំហាន:' : 'Chained steps:'} <code>#email, #password, #login-btn</code></div>
+              <div>• {isKhmer ? 'ពាក្យបញ្ជា:' : 'Directives:'} <code>click #submit</code>, <code>type test in #input</code></div>
+            </div>
+          </div>
         </AccordionSection>
 
         {/* ── 2. Theme ── */}

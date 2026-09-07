@@ -4,6 +4,7 @@ import {
   FiMic,
   FiSend,
   FiPlus,
+  FiCrosshair,
 } from 'react-icons/fi';
 import { GuideMeLogo } from './GuideMeLogo.jsx';
 import { getUIString } from '../i18n/ui-strings.js';
@@ -56,6 +57,7 @@ export function FloatingPromptWidget({
   isOpen = false,
   onToggleOpen,
   onStartDynamicGuide,
+  onStartCapture,
   language = 'km',
   initialPosition = null,
 }) {
@@ -275,6 +277,14 @@ export function FloatingPromptWidget({
             )}
           </div>
         </form>
+        <button
+          type="button"
+          onClick={onStartCapture}
+          className="mt-2 w-full flex items-center justify-center gap-2 rounded-lg border border-purple-200 dark:border-purple-500/40 bg-purple-50 dark:bg-purple-950/30 px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-200 hover:bg-purple-100 dark:hover:bg-purple-950/50 cursor-pointer transition-colors"
+        >
+          <FiCrosshair className="w-3.5 h-3.5" />
+          {getUIString('captureStep', language)}
+        </button>
       </div>
     </div>
   );

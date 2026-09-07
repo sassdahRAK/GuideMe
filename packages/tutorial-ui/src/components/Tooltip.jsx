@@ -1,12 +1,30 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { computePosition, flip, shift, offset } from '@floating-ui/dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StepCard } from './StepCard.jsx';
 
-/**
- * Tooltip — Collision-aware, auto-flipping step guidance overlay.
- * Uses @floating-ui/dom virtual reference positioning to guarantee tooltips
- * never clip the viewport or obscure the target element, even with multi-line Khmer text.
- */
+const VIEWPORT_MARGIN = 16;
+const DEFAULT_CARD_SIZE = Object.freeze({ width: 430, height: 240 });
+
+function getPlacementPosition(placement, target, card, gap) {
+  switch (placement) {
+    case 'top':
+      return { top: target.top - card.height - gap, left: target.left + target.width / 2 - card.width / 2 };
+    case 'left':
+      return { top: target.top + target.height / 2 - card.height / 2, left: target.left - card.width - gap };
+    case 'right':
+      return { top: target.top + target.height / 2 - card.height / 2, left: target.right + gap };
+    case 'bottom':
+    default:
+      return { top: target.bottom + gap, left: target.left + target.width / 2 - card.width / 2 };
+  }
+}
+
+function getOverflow(position, card, viewport) {
+  return Math.max(0, VIEWPORT_MARGIN - position.left)
+    + Math.max(0, position.left + card.width - (viewport.width - VIEWPORT_MARGIN))
+    + Math.max(0, VIEWPORT_MARGIN - position.top)
+    + Math.max(0, position.top + card.height - (viewport.height - VIEWPORT_MARGIN));
+}
+
 export function Tooltip({
   targetBoundingBox,
   placement = 'bottom',
@@ -23,8 +41,6 @@ export function Tooltip({
   isLastStep,
   canSkip,
   isPlayingAudio,
-  targetMissing = false,
-  onRetry,
   onLanguageChange,
   onNext,
   onPrev,
@@ -32,169 +48,146 @@ export function Tooltip({
   onClose,
   onReplayAudio,
 }) {
-  const [coords, setCoords] = useState(null);
+  const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
+
   const [customPosition, setCustomPosition] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-
   const dragStartRef = useRef({ startX: 0, startY: 0, initialLeft: 0, initialTop: 0 });
   const containerRef = useRef(null);
 
-  // Reset any manual drag position whenever navigating to a new step
+  // Measure the rendered card instead of assuming a fixed height. Khmer copy,
+  // browser zoom, and narrow viewports can all change its size.
   useEffect(() => {
-    setCustomPosition(null);
-  }, [currentStepIndex]);
+    const card = containerRef.current;
+    if (!card || typeof ResizeObserver === 'undefined') return undefined;
 
-  // Compute collision-free floating coordinates via Floating UI
-  const hasValidBox =
-    targetBoundingBox &&
-    (targetBoundingBox.width > 0 || targetBoundingBox.height > 0) &&
-    !(targetBoundingBox.left === 0 && targetBoundingBox.top === 0 && targetBoundingBox.width <= 1);
+    const updateSize = () => {
+      const { width, height } = card.getBoundingClientRect();
+      if (width > 0 && height > 0) {
+        setCardSize((previous) => (
+          previous.width === width && previous.height === height ? previous : { width, height }
+        ));
+      }
+    };
 
-  const updatePosition = useCallback(() => {
-    if (!hasValidBox || placement === 'center' || typeof window === 'undefined' || !containerRef.current) {
-      return;
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, []);
+
+  const defaultPositionStyle = useMemo(() => {
+    // Unanchored Center Modal Fallback or explicit center placement
+    if (!targetBoundingBox || placement === 'center' || typeof window === 'undefined') {
+      return {
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+      };
     }
 
-    const virtualReference = {
-      getBoundingClientRect() {
-        return {
-          x: targetBoundingBox.left,
-          y: targetBoundingBox.top,
-          top: targetBoundingBox.top,
-          left: targetBoundingBox.left,
-          bottom: targetBoundingBox.bottom,
-          right: targetBoundingBox.right,
-          width: targetBoundingBox.width,
-          height: targetBoundingBox.height,
-        };
-      },
-    };
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+    const { top, left, bottom, right, width, height } = targetBoundingBox;
+    const target = { top, left, bottom, right, width, height };
 
-    const requestedPlacement = placement === 'auto' ? 'bottom' : placement;
+    // Keep the card clear of the spotlight's connector and label while still
+    // anchoring it to the target's real viewport rect.
+    const targetGap = 61;
+    const isOffscreen = bottom < 0 || top > viewport.height || right < 0 || left > viewport.width;
+    if (isOffscreen) {
+      return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+    }
 
-    computePosition(virtualReference, containerRef.current, {
-      placement: requestedPlacement,
-      middleware: [
-        offset(({ placement: p }) => {
-          // If placed below target, provide extra clearance for the spotlight pointer and callout pill
-          return p.startsWith('bottom') ? 48 : 16;
-        }),
-        flip({
-          fallbackPlacements: ['top', 'bottom', 'right', 'left'],
-          padding: 16,
-        }),
-        shift({
-          padding: 16,
-        }),
-      ],
-    })
-      .then(({ x, y }) => {
-        setCoords({ x, y });
+    const preferred = placement === 'auto' ? 'bottom' : placement;
+    const candidates = [...new Set([preferred, 'bottom', 'top', 'right', 'left'])];
+    const best = candidates
+      .map((candidate) => {
+        const position = getPlacementPosition(candidate, target, cardSize, targetGap);
+        return { position, overflow: getOverflow(position, cardSize, viewport) };
       })
-      .catch(() => {
-        // Suppress errors if element unmounted during async calculation
-      });
-  }, [targetBoundingBox, placement]);
+      .sort((a, b) => a.overflow - b.overflow)[0];
 
-  // Trigger position computation on target change, content change, and viewport resize/scroll
-  useEffect(() => {
-    updatePosition();
+    // Clamp only after choosing the side with the least collision. This avoids
+    // a card that is visible but no longer points near its highlighted target.
+    const calculatedLeft = Math.max(
+      VIEWPORT_MARGIN,
+      Math.min(best.position.left, viewport.width - cardSize.width - VIEWPORT_MARGIN)
+    );
+    const calculatedTop = Math.max(
+      VIEWPORT_MARGIN,
+      Math.min(best.position.top, viewport.height - cardSize.height - VIEWPORT_MARGIN)
+    );
 
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
+    return {
+      top: `${calculatedTop}px`,
+      left: `${calculatedLeft}px`,
+      transform: 'none',
     };
-  }, [updatePosition, title, content, language]);
+  }, [targetBoundingBox, placement, cardSize]);
 
-  // Pointer drag event handlers for user repositioning
   const handlePointerDown = (e) => {
+    // Only primary mouse button or touch/pen
     if (e.button !== 0 && e.pointerType === 'mouse') return;
-    if (e.target.closest('button, input, select, textarea, a, [role="radio"], [role="radiogroup"], [role="button"]')) return;
+    if (e.target.closest('button, input, select, textarea, a, [role="radio"], [role="radiogroup"]')) return;
 
     const el = containerRef.current;
     if (!el) return;
 
-    // Prevent default browser drag gestures or accidental text selection
-    e.preventDefault();
-
     const rect = el.getBoundingClientRect();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const initialLeft = rect.left;
-    const initialTop = rect.top;
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialLeft: rect.left,
+      initialTop: rect.top,
+    };
 
     setIsDragging(true);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+  };
 
-    const onPointerMove = (moveEvt) => {
-      const deltaX = moveEvt.clientX - startX;
-      const deltaY = moveEvt.clientY - startY;
+  const handlePointerMove = (e) => {
+    if (!isDragging) return;
+    const { startX, startY, initialLeft, initialTop } = dragStartRef.current;
+    const deltaX = e.clientX - startX;
+    const deltaY = e.clientY - startY;
 
-      const cardEl = containerRef.current;
-      const w = cardEl?.offsetWidth || 410;
-      const h = cardEl?.offsetHeight || 240;
-      const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
-      const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
+    const cardEl = containerRef.current;
+    const w = cardEl?.offsetWidth || cardSize.width;
+    const h = cardEl?.offsetHeight || cardSize.height;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
 
-      const newLeft = Math.max(12, Math.min(initialLeft + deltaX, vw - w - 12));
-      const newTop = Math.max(12, Math.min(initialTop + deltaY, vh - h - 12));
+    const newLeft = Math.max(12, Math.min(initialLeft + deltaX, vw - w - 12));
+    const newTop = Math.max(12, Math.min(initialTop + deltaY, vh - h - 12));
 
-      setCustomPosition({ top: newTop, left: newLeft });
-    };
+    setCustomPosition({ top: newTop, left: newLeft });
+  };
 
-    const onPointerUp = () => {
-      setIsDragging(false);
-      window.removeEventListener('pointermove', onPointerMove, true);
-      window.removeEventListener('pointerup', onPointerUp, true);
-      window.removeEventListener('pointercancel', onPointerUp, true);
-    };
-
-    window.addEventListener('pointermove', onPointerMove, true);
-    window.addEventListener('pointerup', onPointerUp, true);
-    window.addEventListener('pointercancel', onPointerUp, true);
+  const handlePointerUp = (e) => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
   };
 
   const handleResetPosition = () => {
     setCustomPosition(null);
-    updatePosition();
   };
 
-  // Determine active styling coordinates
-  const isCenter = !hasValidBox || placement === 'center' || typeof window === 'undefined';
-
-  let positionStyle;
-  // User manual drag takes absolute priority over automatic anchoring or centering
-  if (customPosition) {
-    positionStyle = {
-      top: `${customPosition.top}px`,
-      left: `${customPosition.left}px`,
-      transform: 'none',
-    };
-  } else if (isCenter) {
-    positionStyle = {
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-    };
-  } else if (coords) {
-    positionStyle = {
-      top: `${coords.y}px`,
-      left: `${coords.x}px`,
-      transform: 'none',
-    };
-  } else {
-    // Initial deterministic synchronous position before first Floating UI cycle completes
-    const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
-    const initialLeft = Math.max(16, Math.min(targetBoundingBox.left + targetBoundingBox.width / 2 - 205, vw - 426));
-    const initialTop = Math.max(16, targetBoundingBox.bottom + 48);
-    positionStyle = {
-      top: `${initialTop}px`,
-      left: `${initialLeft}px`,
-      transform: 'none',
-    };
-  }
+  const positionStyle = customPosition
+    ? {
+        top: `${customPosition.top}px`,
+        left: `${customPosition.left}px`,
+        transform: 'none',
+      }
+    : defaultPositionStyle;
 
   return (
     <div
@@ -222,11 +215,11 @@ export function Tooltip({
         isPlayingAudio={isPlayingAudio}
         isDragging={isDragging}
         isCustomPositioned={Boolean(customPosition)}
-        isGeneralStep={isCenter}
-        targetMissing={targetMissing}
-        onRetry={onRetry}
+        isGeneralStep={!targetBoundingBox || placement === 'center'}
         onResetPosition={handleResetPosition}
         onDragStart={handlePointerDown}
+        onDragMove={handlePointerMove}
+        onDragEnd={handlePointerUp}
         onLanguageChange={onLanguageChange}
         onNext={onNext}
         onPrev={onPrev}

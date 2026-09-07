@@ -78,6 +78,18 @@ export const UI_STRINGS = {
     km: 'ផ្ញើសំណួរ',
     en: 'Send prompt',
   },
+  captureStep: {
+    km: 'ជ្រើសរើសធាតុសម្រាប់ជំហាន',
+    en: 'Capture a step target',
+  },
+  captureStepInstruction: {
+    km: 'ចលនាកណ្ដុរលើធាតុ ហើយចុចដើម្បីជ្រើសរើស',
+    en: 'Hover an element, then click to select it',
+  },
+  cancelCapture: {
+    km: 'បោះបង់ការជ្រើសរើស',
+    en: 'Cancel selection',
+  },
 
   // Navigation, Theme & Settings
   settings: {
@@ -291,6 +303,38 @@ export const UI_STRINGS = {
   noTargetNotice: {
     km: 'មិនមានប៊ូតុងតម្រូវឱ្យចុចទេ — សូមអានរួចចុចបន្ត',
     en: 'No specific element to click — read and continue',
+  },
+  aiDomSettings: {
+    km: 'បញ្ញាសិប្បនិម្មិត AI & ការចាប់ DOM',
+    en: 'AI & DOM Intelligence',
+  },
+  geminiApiKey: {
+    km: 'Gemini API Key',
+    en: 'Gemini API Key',
+  },
+  geminiApiKeyPlaceholder: {
+    km: 'បញ្ចូល API Key (ឧ. AIzaSy...)',
+    en: 'Enter API Key (e.g. AIzaSy...)',
+  },
+  aiDomDescription: {
+    km: 'កំណត់រចនាសម្ព័ន្ធ DOM targets តាមការចង់បានរបស់អ្នក។ គាំទ្រទាំង CSS selectors ផ្ទាល់ (#id, .class) និងការវិភាគឆ្លាតវៃតាមរយៈ Gemini API។',
+    en: 'Define DOM targets as you want. Supports direct CSS selectors (#id, .class) and intelligent DOM analysis via Gemini API.',
+  },
+  saveKey: {
+    km: 'រក្សាទុក Key',
+    en: 'Save Key',
+  },
+  keySaved: {
+    km: 'បានរក្សាទុកដោយជោគជ័យ!',
+    en: 'Saved successfully!',
+  },
+  aiActive: {
+    km: 'សកម្ម (Gemini AI)',
+    en: 'Active (Gemini AI)',
+  },
+  aiLocal: {
+    km: 'ផ្គូផ្គងតាម Selectors ផ្ទាល់',
+    en: 'Direct Selectors Mode',
   },
 };
 

@@ -3,12 +3,44 @@ import { createShadowRootUi } from 'wxt/client';
 import ReactDOM from 'react-dom/client';
 import React, { useEffect, useState, useRef } from 'react';
 import { TutorialEngine, DynamicPageAnalyzer, TtsRegistry } from '@guideme/engine';
-import { ChromeAdapter } from '@guideme/chrome-adapter';
+import { ChromeAdapter, DomObserver } from '@guideme/chrome-adapter';
 import { TutorialOverlay } from '@guideme/tutorial-ui';
 import { ExtensionMessageAction, Language } from '@guideme/core-types';
 import './style.css';
 
 import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../src/catalog.js';
+
+function getCapturedStepStorageKey(url) {
+  try {
+    return `guideme_captured_step_${new URL(url).hostname}`;
+  } catch {
+    return 'guideme_captured_step_current_page';
+  }
+}
+
+function createCapturedTutorial(target) {
+  const label = target.ariaLabel || target.text || target.testId || target.css;
+  return {
+    id: `captured-guide-${Date.now()}`,
+    version: '1.0.0',
+    name: { km: 'ជំហានដែលបានជ្រើសរើស', en: 'Captured step' },
+    description: { km: 'ធាតុដែលអ្នកបានជ្រើសរើស', en: 'The element you selected' },
+    matchUrls: ['<all_urls>'],
+    steps: [{
+      id: 'captured-step-1',
+      title: { km: `ចុច ${label}`, en: `Click ${label}` },
+      description: { km: `ធាតុដែលបានជ្រើសរើស៖ ${label}`, en: `Selected element: ${label}` },
+      target,
+      action: {
+        type: 'spotlight',
+        title: { km: 'ធាតុដែលបានជ្រើសរើស', en: 'Selected element' },
+        content: { km: `នេះគឺជា ${label}`, en: `This is ${label}` },
+        placement: 'bottom',
+      },
+      validation: { type: 'click' },
+    }],
+  };
+}
 
 export default defineContentScript({
   matches: ['*://*/*', '<all_urls>'],
@@ -46,11 +78,6 @@ export default defineContentScript({
       append: 'last',
       zIndex: 2147483647,
       onMount(uiContainer) {
-        // Prevent all GuideMe keystrokes from leaking into host page global shortcuts (e.g. GitHub 's' search)
-        uiContainer.addEventListener('keydown', (e) => e.stopPropagation());
-        uiContainer.addEventListener('keyup', (e) => e.stopPropagation());
-        uiContainer.addEventListener('keypress', (e) => e.stopPropagation());
-
         const root = ReactDOM.createRoot(uiContainer);
 
         function TutorialApp() {
@@ -63,6 +90,8 @@ export default defineContentScript({
           const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
           const [isDashboardOpen, setIsDashboardOpen] = useState(false);
           const [isFullPopupOpen, setIsFullPopupOpen] = useState(false);
+          const [isCaptureMode, setIsCaptureMode] = useState(false);
+          const [captureTargetBoundingBox, setCaptureTargetBoundingBox] = useState(null);
           const [isDismissed, setIsDismissed] = useState(false); // hidden via context menu "Close"
           const [theme, setTheme] = useState('light');
           const [availableTutorials, setAvailableTutorials] = useState(() =>
@@ -102,6 +131,60 @@ export default defineContentScript({
               // Ignore if storage unavailable
             }
           }, []);
+
+          useEffect(() => {
+            if (!isCaptureMode) return undefined;
+
+            const getCandidate = (event) => {
+              const rawTarget = event.target;
+              if (!(rawTarget instanceof Element)) return null;
+              if (rawTarget.closest('guideme-tutorial-root, #guideme-tutorial-root')) return null;
+              return rawTarget.closest('button, a, input, select, textarea, [role="button"], [role="link"], [role="menuitem"], [role="tab"]') || rawTarget;
+            };
+            const updatePreview = (event) => {
+              const element = getCandidate(event);
+              setCaptureTargetBoundingBox(element ? DomObserver.getBoundingBox(element) : null);
+            };
+            const selectTarget = async (event) => {
+              const element = getCandidate(event);
+              if (!element) return;
+              event.preventDefault();
+              event.stopPropagation();
+              event.stopImmediatePropagation?.();
+
+              const target = DomObserver.createTargetSelector(element);
+              const tutorial = createCapturedTutorial(target);
+              try {
+                chrome.storage?.local?.set({
+                  [getCapturedStepStorageKey(window.location.href)]: { target, capturedAt: Date.now() },
+                });
+              } catch {
+                // Capture still works for the current page if storage is unavailable.
+              }
+              setIsCaptureMode(false);
+              setCaptureTargetBoundingBox(null);
+              // The selecting click is the learner's confirmed action. Count
+              // it immediately so capture mode never requires a second click
+              // on the same host-page control to advance the guide.
+              const started = await engineRef.current?.start(tutorial, 0);
+              if (started) await engineRef.current?.nextStep();
+            };
+            const cancelOnEscape = (event) => {
+              if (event.key === 'Escape') {
+                setIsCaptureMode(false);
+                setCaptureTargetBoundingBox(null);
+              }
+            };
+
+            document.addEventListener('pointermove', updatePreview, true);
+            document.addEventListener('click', selectTarget, true);
+            document.addEventListener('keydown', cancelOnEscape, true);
+            return () => {
+              document.removeEventListener('pointermove', updatePreview, true);
+              document.removeEventListener('click', selectTarget, true);
+              document.removeEventListener('keydown', cancelOnEscape, true);
+            };
+          }, [isCaptureMode]);
 
           useEffect(() => {
             const adapter = new ChromeAdapter();
@@ -206,11 +289,18 @@ export default defineContentScript({
                   (async () => {
                     try {
                       const prompt = message.payload?.prompt || message.payload?.userPrompt || '';
+                      let geminiKey = import.meta.env?.WXT_GEMINI_API_KEY || import.meta.env?.VITE_GEMINI_API_KEY || '';
+                      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                        const stored = await chrome.storage.local.get('guideme_gemini_api_key');
+                        if (stored?.guideme_gemini_api_key) {
+                          geminiKey = stored.guideme_gemini_api_key;
+                        }
+                      }
                       const dynamicTutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
                         document,
                         window.location.href,
                         prompt,
-                        { env: import.meta.env }
+                        { geminiApiKey: geminiKey, language: engine.getLanguage() }
                       );
                       setIsDismissed(false);
                       setIsPromptOpen(false);
@@ -282,19 +372,42 @@ export default defineContentScript({
             chrome.runtime.onMessage.addListener(messageHandler);
             engine.init();
 
+            // Re-resolve the most recently captured target for this domain on
+            // every page load. The adapter gracefully falls back if the page
+            // has changed and the element is no longer present.
+            let isMounted = true;
+            try {
+              const captureKey = getCapturedStepStorageKey(window.location.href);
+              chrome.storage?.local?.get(captureKey, (stored) => {
+                const target = stored?.[captureKey]?.target;
+                if (isMounted && target) engine.start(createCapturedTutorial(target), 0);
+              });
+            } catch {
+              // Storage is optional; live capture remains available.
+            }
+
             return () => {
+              isMounted = false;
               unsubscribe();
               chrome.runtime.onMessage.removeListener(messageHandler);
               engine.destroy();
             };
           }, []);
 
-          const handleStartDynamicGuide = (prompt) => {
+          const handleStartDynamicGuide = async (prompt) => {
             try {
-              const dynamicTutorial = DynamicPageAnalyzer.generateDynamicTutorial(
+              let geminiKey = import.meta.env?.WXT_GEMINI_API_KEY || import.meta.env?.VITE_GEMINI_API_KEY || '';
+              if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                const stored = await chrome.storage.local.get('guideme_gemini_api_key');
+                if (stored?.guideme_gemini_api_key) {
+                  geminiKey = stored.guideme_gemini_api_key;
+                }
+              }
+              const dynamicTutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
                 document,
                 window.location.href,
-                prompt
+                prompt,
+                { geminiApiKey: geminiKey, language: engineRef.current?.getLanguage() || 'km' }
               );
               setIsPromptOpen(false);
               setIsFullPopupOpen(false);
@@ -332,6 +445,18 @@ export default defineContentScript({
                 onToggleDashboard={(isOpen) => setIsDashboardOpen(isOpen)}
                 isFullPopupOpen={isFullPopupOpen}
                 onToggleFullPopup={(isOpen) => setIsFullPopupOpen(isOpen)}
+                isCaptureMode={isCaptureMode}
+                captureTargetBoundingBox={captureTargetBoundingBox}
+                onStartCapture={() => {
+                  engineRef.current?.stop();
+                  setIsPromptOpen(false);
+                  setIsDashboardOpen(false);
+                  setIsCaptureMode(true);
+                }}
+                onCancelCapture={() => {
+                  setIsCaptureMode(false);
+                  setCaptureTargetBoundingBox(null);
+                }}
                 onDismiss={() => {
                   setIsPromptOpen(false);
                   setIsOnboardingOpen(false);
@@ -344,7 +469,6 @@ export default defineContentScript({
                 onStartTutorial={handleStartTutorial}
                 onLanguageChange={(newLang) => engineRef.current?.setLanguage(newLang)}
                 onReplayAudio={() => engineRef.current?.getAudioEngine()?.replay()}
-                onRetryLocateTarget={() => engineRef.current?.retryLocateTarget()}
                 onNext={() => engineRef.current?.nextStep()}
                 onPrev={() => engineRef.current?.prevStep()}
                 onSkip={() => engineRef.current?.skipStep()}

@@ -4,6 +4,7 @@ import { Spotlight } from './Spotlight.jsx';
 import { Tooltip } from './Tooltip.jsx';
 import { FloatingAssistantButton } from './FloatingAssistantButton.jsx';
 import { FloatingPromptWidget } from './FloatingPromptWidget.jsx';
+import { CaptureOverlay } from './CaptureOverlay.jsx';
 import { DashboardOverlay } from './DashboardOverlay.jsx';
 import { OnboardingOverlay } from './OnboardingOverlay.jsx';
 import { getUIString } from '../i18n/ui-strings.js';
@@ -31,6 +32,10 @@ export function TutorialOverlay({
   onThemeChange,
   onDismiss,
   availableTutorials = [],
+  isCaptureMode = false,
+  captureTargetBoundingBox,
+  onStartCapture,
+  onCancelCapture,
 }) {
   const [rating, setRating] = useState(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
@@ -66,6 +71,7 @@ export function TutorialOverlay({
       />
     </>
   );
+  const captureOverlay = <CaptureOverlay isActive={isCaptureMode} targetBoundingBox={captureTargetBoundingBox} language={lang} onCancel={onCancelCapture} />;
 
   if (!state || !state.isActive) {
     // ── Completion Screen ──
@@ -73,6 +79,7 @@ export function TutorialOverlay({
       return (
         <>
           {modalOverlays}
+          {captureOverlay}
           <div
             className={`fixed inset-0 w-screen h-screen flex items-center justify-center z-[999999] pointer-events-none ${
               isKhmer ? 'font-kantumruy' : 'font-sans'
@@ -157,6 +164,7 @@ export function TutorialOverlay({
     return (
       <>
         {modalOverlays}
+        {captureOverlay}
 
         {/* Floating single-line prompt widget (opened via left click) */}
         {isPromptOpen && (
@@ -164,6 +172,7 @@ export function TutorialOverlay({
             isOpen={isPromptOpen}
             onToggleOpen={onTogglePrompt}
             onStartDynamicGuide={onStartDynamicGuide}
+            onStartCapture={onStartCapture}
             language={state?.language || 'km'}
           />
         )}
@@ -201,6 +210,7 @@ export function TutorialOverlay({
   return (
     <div className="guideme-root-overlay pointer-events-none">
       {modalOverlays}
+      {captureOverlay}
 
       {/* 1. Target Spotlight */}
       <Spotlight
@@ -247,6 +257,7 @@ export function TutorialOverlay({
           isOpen={isPromptOpen}
           onToggleOpen={onTogglePrompt}
           onStartDynamicGuide={onStartDynamicGuide}
+          onStartCapture={onStartCapture}
           language={language || 'km'}
         />
       )}

@@ -6,7 +6,7 @@
 
 ## 1. Project Health & Test Status
 
-- **Automated Test Suite:** 14 / 14 tests passing (`tests/engine.test.js`, `tests/dynamic-analyzer.test.js`).
+- **Automated Test Suite:** 24 / 24 tests passing (`tests/engine.test.js`, `tests/dynamic-analyzer.test.js`, `tests/dom-observer.test.js`).
 - **Build Status:** Manifest V3 production bundle (`apps/chrome-extension/.output/chrome-mv3`) compiling cleanly via WXT + Vite.
 - **Specification Status:** Architecture and requirements unified across `docs/`, `context/`, and `AGENTS.md`.
 
@@ -40,6 +40,22 @@
 - [x] Full Khmer (`km`) translation across Popup, Settings drawer, Overlays, and dynamic AI assistant responses.
 - [x] Official high-res extension branding and logo icon integration across all Chrome toolbar sizes.
 - [x] Unified `AGENTS.md` operating protocol bound strictly to `context/`.
+
+### Phase 4.1: Prompt-Driven DOM Targeting & Gemini DOM Intelligence
+- [x] Enabled prompt-driven CSS selector matching (`#id`, `.class`, `[attr]`) and chained multi-target sequences.
+- [x] Implemented action directive parsing (`click`, `type`, `select`, `submit`) with multi-strategy resolution (`css`, `testId`, `ariaLabel`, `text`, `xpath`).
+- [x] Built `GeminiDomAnalyzer` headless AI service with compact DOM extraction and Google Gemini JSON schema generation.
+- [x] Integrated Gemini API key settings drawer and live status mode in extension popup.
+
+### Phase 4.2: Accurate Tooltip Target Anchoring
+- [x] Updated the floating tooltip to measure its rendered size and choose the least-colliding placement around the live target rectangle, including offscreen fallback centering.
+- [x] Ensured broad CSS selectors resolve the intended visible button using exact text and accessible-name metadata before rendering the spotlight.
+- [x] Added in-page capture mode for selecting a live element and generating an exact one-step spotlight target.
+- [x] Persisted the most recently captured target per domain and re-resolve it after each page reload.
+- [x] Prevented captured broad selectors from falling back to an unrelated visible control before their exact target is rendered.
+- [x] Restricted captured target matching to exact label and accessible-name matches, avoiding partial-label false positives.
+- [x] Prevented unauthenticated TTS requests and reset active tutorial state before a replacement guide starts.
+- [x] Made a confirmed capture selection count as its step action, avoiding a second click on the same element.
 
 ---
 
