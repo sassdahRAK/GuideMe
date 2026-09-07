@@ -145,6 +145,12 @@ export class TtsRegistry {
     const responseType = env.WXT_TTS_RESPONSE_TYPE || env.TTS_RESPONSE_TYPE || '';
     const jsonField = env.WXT_TTS_JSON_FIELD || env.TTS_JSON_FIELD || '';
 
+    // Do not create a network-backed preset without credentials. The browser
+    // speech fallback remains fully usable and avoids an avoidable HTTP 401.
+    if (!apiKey && !(endpoint && preset === 'custom')) {
+      return new PlaceholderTtsProvider();
+    }
+
     // Custom headers from env (if provided as JSON string)
     let customHeaders = {};
     if (env.WXT_TTS_HEADERS || env.TTS_HEADERS) {

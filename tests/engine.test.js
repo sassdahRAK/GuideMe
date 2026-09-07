@@ -10,6 +10,7 @@ import {
   I18nManager,
   AudioEngine,
   BaseTtsProvider,
+  PlaceholderTtsProvider,
   AiTtsProvider,
   GenericHttpTtsProvider,
   TtsRegistry,
@@ -322,6 +323,9 @@ describe('GuideMe Tutorial Engine & Bilingual / Audio Tests', () => {
   });
 
   test('TtsRegistry creates providers dynamically from environment variables', () => {
+    // No credentials means local browser speech fallback, never an unauthenticated request.
+    assert.ok(TtsRegistry.fromEnv({}) instanceof PlaceholderTtsProvider);
+
     // 1. OpenAI preset from env
     const openAiProvider = TtsRegistry.fromEnv({
       WXT_TTS_API_KEY: 'sk-sample-env-key',
@@ -391,6 +395,14 @@ describe('GuideMe Tutorial Engine & Bilingual / Audio Tests', () => {
 
     await engine.stop();
     assert.strictEqual(latestState.isActive, false);
+  });
+
+  test('Engine replaces an active tutorial without an invalid loading transition', async () => {
+    await engine.start(sampleBilingualTutorial, 0);
+    const restarted = await engine.start(sampleBilingualTutorial, 0);
+
+    assert.strictEqual(restarted, true);
+    assert.strictEqual(engine.getStateSnapshot().status, EngineStatus.STEP_ACTIVE);
   });
 
   test('Validates and indexes GuideMe Spreadsheet walkthrough schema', async () => {

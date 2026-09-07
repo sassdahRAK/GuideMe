@@ -3,29 +3,39 @@
  */
 export class DomObserver {
   /**
-   * Find an element immediately using fallback strategies.
-   * @param {Object} selector - { css, xpath, text, testId, ariaLabel }
-   * @returns {HTMLElement|null}
+   * Create a resilient selector from a user-picked live DOM element.
+   * The primary selector is stable where possible; secondary metadata keeps
+   * repeated controls (for example several "Save" buttons) unambiguous.
+   * @param {HTMLElement} element
+   * @returns {Object}
    */
-  /**
-   * Check if an element is currently visible and rendered in viewport layout.
-   * @param {HTMLElement} el
-   * @returns {boolean}
-   */
-  static isVisible(el) {
-    if (!el) return false;
-    if (typeof el.getClientRects === 'function' && el.getClientRects().length === 0) {
-      return false;
-    }
-    if (el.offsetParent === null && el.tagName !== 'BODY' && el.tagName !== 'HTML') {
-      const style = typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
-        ? window.getComputedStyle(el)
-        : null;
-      if (style && style.position !== 'fixed') {
-        return false;
-      }
-    }
-    return true;
+  static createTargetSelector(element) {
+    if (!element || typeof element !== 'object') return { css: 'body' };
+
+    const tag = (element.tagName || 'div').toLowerCase();
+    const getAttribute = element.getAttribute?.bind(element);
+    const testId = getAttribute?.('data-testid') || getAttribute?.('data-cy') || '';
+    const name = getAttribute?.('name') || element.name || '';
+    const ariaLabel = getAttribute?.('aria-label') || getAttribute?.('title') || '';
+    const text = (element.textContent || element.value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    const escape = (value) => String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const escapeId = (value) => typeof CSS !== 'undefined' && CSS.escape
+      ? CSS.escape(value)
+      : String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+
+    const target = {};
+    if (element.id) target.css = `#${escapeId(element.id)}`;
+    else if (testId) target.css = getAttribute?.('data-testid')
+      ? `[data-testid="${escape(testId)}"]`
+      : `[data-cy="${escape(testId)}"]`;
+    else if (name) target.css = `${tag}[name="${escape(name)}"]`;
+    else if (ariaLabel) target.css = `${tag}[aria-label="${escape(ariaLabel)}"]`;
+    else target.css = tag;
+
+    if (testId) target.testId = testId;
+    if (ariaLabel) target.ariaLabel = ariaLabel;
+    if (text) target.text = text;
+    return target;
   }
 
   /**
@@ -36,16 +46,44 @@ export class DomObserver {
   static findElement(selector) {
     if (!selector || typeof document === 'undefined') return null;
 
-    let firstCssFallback = null;
+    const targetText = selector.text ? selector.text.trim().toLowerCase() : '';
+    const targetAria = selector.ariaLabel ? selector.ariaLabel.trim().toLowerCase() : '';
 
-    // 1. Direct CSS Selector (prefer visible element if multiple exist)
+    // 1. Direct CSS Selector (with text/aria verification if available)
     if (selector.css) {
       try {
-        const matches = Array.from(document.querySelectorAll(selector.css) || []);
+        const matches = document.querySelectorAll(selector.css);
         if (matches.length > 0) {
-          const visible = matches.find((el) => this.isVisible(el));
-          if (visible) return visible;
-          firstCssFallback = matches[0];
+          // If no text or aria constraint, return the first match immediately
+          if (!targetText && !targetAria) {
+            return matches[0];
+          }
+
+          // A broad CSS selector such as `button` must still anchor to the
+          // requested control. Prefer exact accessible-name/text matches over
+          // a container whose descendant text happens to include the label.
+          for (const el of matches) {
+            const elText = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            const elAria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim().toLowerCase();
+            const elVal = (el.value || el.getAttribute?.('value') || '').trim().toLowerCase();
+            const exactText = targetText && (elText === targetText || elVal === targetText);
+            const exactAria = targetAria && elAria === targetAria;
+
+            if (exactText || exactAria) {
+              return el;
+            }
+
+          }
+
+          // Do not fall back to the first CSS match when the capture contains
+          // identifying metadata. A captured `{ css: 'button', text: 'Save' }`
+          // must wait for Save to render (for example inside a lazy dialog),
+          // rather than incorrectly highlighting the page's first button.
+          if (!targetText && !targetAria) {
+            // A selector without secondary identity metadata can only use its
+            // CSS match as the fallback.
+            return matches[0];
+          }
         }
       } catch (e) {
         // Invalid selector, ignore and continue to fallbacks
@@ -54,62 +92,44 @@ export class DomObserver {
 
     // 2. data-testid / data-cy attributes
     if (selector.testId) {
-      const matches = Array.from(
-        document.querySelectorAll(`[data-testid="${selector.testId}"], [data-cy="${selector.testId}"]`) || []
-      );
-      if (matches.length > 0) {
-        const visible = matches.find((el) => this.isVisible(el));
-        if (visible) return visible;
-      }
+      const el = document.querySelector(`[data-testid="${selector.testId}"], [data-cy="${selector.testId}"]`);
+      if (el) return el;
     }
 
-    // 3. aria-label matching
+    // 3. aria-label / title matching
     if (selector.ariaLabel) {
-      const matches = Array.from(
-        document.querySelectorAll(`[aria-label="${selector.ariaLabel}"], [aria-label*="${selector.ariaLabel}"]`) || []
-      );
-      if (matches.length > 0) {
-        const visible = matches.find((el) => this.isVisible(el));
-        if (visible) return visible;
-      }
+      const el = document.querySelector(`[aria-label="${selector.ariaLabel}"], [title="${selector.ariaLabel}"]`);
+      if (el) return el;
     }
 
-    // 4. Visible Text Content Matching
+    // 4. Visible Text Content Matching — Prioritize Button Elements & Ascend from Nested Spans
     if (selector.text) {
-      const candidates = document.querySelectorAll(
-        'button, a, [role="tab"], [role="button"], [role="menuitem"], [role="link"], span, div, p, label, input, svg, canvas, iframe, summary, [role="switch"]'
+      // 4a. Check interactive elements first (button, a, role=button, summary)
+      const buttonCandidates = document.querySelectorAll(
+        'button, [role="button"], a, input[type="submit"], input[type="button"], summary, [role="menuitem"], [role="tab"]'
       );
-      const targetText = selector.text.trim().toLowerCase();
+      for (const el of buttonCandidates) {
+        const text = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim().toLowerCase();
+        const val = (el.value || el.getAttribute?.('value') || '').trim().toLowerCase();
 
-      // Pass 1: Strict equality
-      for (const el of candidates) {
-        if (el.textContent && el.textContent.trim().toLowerCase() === targetText) {
-          if (this.isVisible(el)) {
+        if (text === targetText || aria === targetText || val === targetText) {
+          if (el.offsetParent !== null || el.getClientRects().length > 0) {
             return el;
           }
         }
       }
 
-      // Pass 2: Word boundary or prefix matching (e.g. "Repositories 31" matching "Repositories")
-      for (const el of candidates) {
-        if (el.textContent) {
-          const text = el.textContent.replace(/\s+/g, ' ').trim().toLowerCase();
-          const escaped = targetText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          if (text.startsWith(targetText) || new RegExp(`\\b${escaped}\\b`, 'i').test(text)) {
-            if (this.isVisible(el)) {
-              return el;
-            }
-          }
-        }
-      }
-
-      // Pass 3: Substring match on interactive elements (e.g. "thangsaoly/mytube" matching "mytube")
-      for (const el of candidates) {
-        if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.getAttribute?.('role') === 'link' || el.getAttribute?.('role') === 'button') {
-          if (el.textContent && el.textContent.toLowerCase().includes(targetText)) {
-            if (this.isVisible(el)) {
-              return el;
-            }
+      // 4b. Check other text elements and ascend to parent button if nested
+      const allTextNodes = document.querySelectorAll('span, div, p, label, b, strong, i');
+      for (const node of allTextNodes) {
+        const text = (node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        if (text === targetText) {
+          // If inside a button or clickable container, return the button itself!
+          const parentBtn = node.closest ? node.closest('button, [role="button"], a') : null;
+          const targetEl = parentBtn || node;
+          if (targetEl.offsetParent !== null || targetEl.getClientRects().length > 0) {
+            return targetEl;
           }
         }
       }
@@ -133,45 +153,7 @@ export class DomObserver {
       }
     }
 
-    // 6. Inspect accessible same-origin iframes
-    try {
-      const iframes = document.querySelectorAll('iframe, frame');
-      for (const iframe of iframes) {
-        try {
-          const subDoc = iframe.contentDocument || iframe.contentWindow?.document;
-          if (subDoc && selector.css) {
-            const subEl = subDoc.querySelector(selector.css);
-            if (subEl) return subEl;
-          }
-        } catch { }
-      }
-    } catch { }
-
-    // 7. Inspect open Shadow DOM roots
-    try {
-      const allElements = document.querySelectorAll('*');
-      for (const host of allElements) {
-        if (host.shadowRoot) {
-          try {
-            if (selector.css) {
-              const shadowEl = host.shadowRoot.querySelector(selector.css);
-              if (shadowEl) return shadowEl;
-            }
-            if (selector.text) {
-              const queryText = selector.text.toLowerCase();
-              const candidates = host.shadowRoot.querySelectorAll('button, a, [role="tab"], [role="button"], span, p, label');
-              for (const cand of candidates) {
-                if ((cand.textContent || '').trim().toLowerCase().includes(queryText)) {
-                  return cand;
-                }
-              }
-            }
-          } catch { }
-        }
-      }
-    } catch { }
-
-    return firstCssFallback || null;
+    return null;
   }
 
   /**
@@ -220,29 +202,16 @@ export class DomObserver {
   }
 
   /**
-   * Get element bounding box with zero-dimension and visibility validation.
-   * Returns null if element has no layout footprint or is collapsed at (0, 0).
+   * Get element bounding box with scroll offsets.
    * @param {HTMLElement} element
-   * @returns {Object|null}
+   * @returns {Object}
    */
   static getBoundingBox(element) {
     if (!element || typeof element.getBoundingClientRect !== 'function') {
       return null;
     }
 
-    let target = element;
-    // If target has zero client rects (e.g. inner SVG path or child span), climb up to layout container
-    if (typeof target.getClientRects === 'function' && target.getClientRects().length === 0 && target.parentElement) {
-      target = target.closest('svg, button, a, [role="button"], div, form') || target.parentElement;
-    }
-
-    const rect = target.getBoundingClientRect();
-
-    // Reject true zero-dimension bounding boxes at (0, 0) (unrendered or collapsed)
-    if (rect.width === 0 && rect.height === 0 && rect.top === 0 && rect.left === 0) {
-      return null;
-    }
-
+    const rect = element.getBoundingClientRect();
     return {
       x: rect.x,
       y: rect.y,

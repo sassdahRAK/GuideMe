@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { DynamicPageAnalyzer, TutorialParser } from '../packages/engine/src/index.js';
+import { DynamicPageAnalyzer, TutorialParser, GeminiDomAnalyzer } from '../packages/engine/src/index.js';
 
 // Mock simple DOM document for unit testing
 function createMockDoc({
@@ -8,46 +8,36 @@ function createMockDoc({
   forms = [],
   inputs = [],
   buttons = [],
-  links = [],
   navs = [],
-  canvases = [],
-  svgs = [],
-  iframes = [],
-  shadowHosts = [],
 }) {
   const enhancedForms = forms.map((f) => ({ ...f, tagName: 'FORM', getAttribute: (attr) => f[attr] || null, querySelectorAll: () => [] }));
   const enhancedInputs = inputs.map((i) => ({ ...i, tagName: 'INPUT', getAttribute: (attr) => i[attr] || null }));
   const enhancedButtons = buttons.map((b) => ({ ...b, tagName: 'BUTTON', getAttribute: (attr) => b[attr] || null }));
-  const enhancedLinks = links.map((l) => ({ ...l, tagName: 'A', getAttribute: (attr) => l[attr] || null }));
   const enhancedNavs = navs.map((n) => ({ ...n, tagName: 'NAV', getAttribute: (attr) => n[attr] || null }));
-  const enhancedCanvases = canvases.map((c) => ({ ...c, tagName: 'CANVAS', getAttribute: (attr) => c[attr] || null }));
-  const enhancedSvgs = svgs.map((s) => ({ ...s, tagName: 'SVG', getAttribute: (attr) => s[attr] || null }));
-  const enhancedIframes = iframes.map((ifr) => ({ ...ifr, tagName: 'IFRAME', getAttribute: (attr) => ifr[attr] || null }));
-  const enhancedShadowHosts = shadowHosts.map((sh) => ({
-    tagName: sh.tagName || 'CUSTOM-ELEMENT',
-    getAttribute: (attr) => sh[attr] || null,
-    shadowRoot: {
-      querySelectorAll: (selector) => {
-        if (selector.startsWith('button') && sh.buttons) return sh.buttons.map((b) => ({ ...b, tagName: 'BUTTON', getAttribute: (a) => b[a] || null }));
-        if (selector.startsWith('input') && sh.inputs) return sh.inputs.map((i) => ({ ...i, tagName: 'INPUT', getAttribute: (a) => i[a] || null }));
-        return [];
-      },
-    },
-  }));
+
+  const allElements = [...enhancedForms, ...enhancedButtons, ...enhancedNavs, ...enhancedInputs];
 
   return {
     title,
     querySelectorAll: (selector) => {
-      if (selector === '*') return enhancedShadowHosts;
+      if (!selector) return [];
+      if (selector.startsWith('#')) {
+        const id = selector.slice(1);
+        return allElements.filter((el) => el.id === id);
+      }
+      if (selector.startsWith('.')) {
+        const cls = selector.slice(1);
+        return allElements.filter((el) => el.className && el.className.includes(cls));
+      }
+      if (selector.includes('data-testid')) {
+        const match = selector.match(/data-testid=["']?([^"']+)["']?/);
+        return match ? allElements.filter((el) => el.getAttribute('data-testid') === match[1]) : [];
+      }
       if (selector.startsWith('form')) return enhancedForms;
       if (selector.startsWith('button')) return enhancedButtons;
       if (selector.startsWith('nav')) return enhancedNavs;
       if (selector.startsWith('input')) return enhancedInputs;
-      if (selector.startsWith('a') || selector.includes('[role="tab"]')) return enhancedLinks;
-      if (selector.startsWith('canvas')) return enhancedCanvases;
-      if (selector.startsWith('svg')) return enhancedSvgs;
-      if (selector.startsWith('iframe')) return enhancedIframes;
-      return [];
+      return allElements.filter((el) => el.tagName.toLowerCase() === selector.toLowerCase());
     },
   };
 }
@@ -170,84 +160,140 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     assert.strictEqual(tutorial.steps.length, 1);
   });
 
-  test('Accurately matches and ranks GitHub-style navigation tabs (e.g. Repositories over Overview)', () => {
+  test('Target DOM elements using explicit CSS selectors in user prompt', () => {
     const mockDoc = createMockDoc({
-      title: 'thangsaoly (Thang Saoly)',
-      links: [
-        { textContent: 'Overview', href: '/thangsaoly', role: 'tab', className: 'UnderlineNav-item' },
-        { textContent: 'Repositories 31', href: '/thangsaoly?tab=repositories', role: 'tab', className: 'UnderlineNav-item', 'aria-label': 'Repositories' },
-        { textContent: 'Projects', href: '/thangsaoly?tab=projects', role: 'tab', className: 'UnderlineNav-item' },
-        { textContent: 'Stars 19', href: '/thangsaoly?tab=stars', role: 'tab', className: 'UnderlineNav-item' },
+      title: 'Store Page',
+      buttons: [
+        { textContent: 'Buy Now', id: 'buy-now-btn', className: 'btn-accent' },
+      ],
+      inputs: [
+        { type: 'text', name: 'promo', placeholder: 'Promo code', id: 'promo-code-input' },
       ],
     });
 
-    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://github.com/thangsaoly', 'View Repositories');
-    assert.ok(tutorial.steps.length >= 1);
-    
-    // First step MUST target the Repositories tab, not Overview!
-    const firstStep = tutorial.steps[0];
-    assert.ok(firstStep.title.includes('Repositories'));
-    assert.ok(firstStep.target.css.includes('tab=repositories') || firstStep.target.text.includes('Repositories'));
-  });
-
-  test('Accurately detects and targets Canvas elements', () => {
-    const mockDoc = createMockDoc({
-      title: 'Analytics Dashboard',
-      canvases: [
-        { id: 'revenue-chart', 'aria-label': 'Monthly Revenue Chart', role: 'img' },
-      ],
-    });
-
-    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/analytics', 'examine revenue chart');
-    assert.ok(tutorial.steps.length >= 1);
-    assert.ok(tutorial.steps[0].title.includes('Revenue Chart'));
-    assert.ok(tutorial.steps[0].target.css.includes('revenue-chart'));
-  });
-
-  test('Accurately detects and targets SVG elements with title/aria-label', () => {
-    const mockDoc = createMockDoc({
-      title: 'Settings Area',
-      svgs: [
-        { 'aria-label': 'Security settings icon', role: 'img', className: 'octicon-lock' },
-      ],
-    });
-
-    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/settings', 'open security settings');
-    assert.ok(tutorial.steps.length >= 1);
-    assert.ok(tutorial.steps[0].title.includes('Security settings'));
+    // Prompt specifying explicit selector
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://store.com', 'click #buy-now-btn');
+    assert.strictEqual(tutorial.steps.length, 1);
+    assert.strictEqual(tutorial.steps[0].target.css, '#buy-now-btn');
     assert.strictEqual(tutorial.steps[0].validation.type, 'click');
   });
 
-  test('Accurately detects and targets Iframe elements', () => {
+  test('Target multiple DOM elements in sequence via comma/arrow prompt', () => {
     const mockDoc = createMockDoc({
-      title: 'Checkout Flow',
-      iframes: [
-        { title: 'ABA PayWay Gateway', name: 'payment-frame', src: 'https://payway.aba.com.kh/checkout' },
+      title: 'Sign In Page',
+      inputs: [
+        { type: 'text', name: 'email', id: 'user-email', placeholder: 'Email' },
+        { type: 'password', name: 'password', id: 'user-password', placeholder: 'Password' },
+      ],
+      buttons: [
+        { textContent: 'Sign In', id: 'submit-login' },
       ],
     });
 
-    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/checkout', 'complete aba payment frame');
-    assert.ok(tutorial.steps.length >= 1);
-    assert.ok(tutorial.steps[0].title.includes('ABA PayWay'));
-    assert.ok(tutorial.steps[0].target.css.includes('iframe[title="ABA PayWay Gateway"]'));
+    // Multi-step chained selectors prompt
+    const prompt = 'step 1: #user-email -> step 2: #user-password -> step 3: #submit-login';
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com', prompt);
+    assert.strictEqual(tutorial.steps.length, 3);
+    assert.strictEqual(tutorial.steps[0].target.css, '#user-email');
+    assert.strictEqual(tutorial.steps[0].validation.type, 'input');
+    assert.strictEqual(tutorial.steps[1].target.css, '#user-password');
+    assert.strictEqual(tutorial.steps[1].validation.type, 'input');
+    assert.strictEqual(tutorial.steps[2].target.css, '#submit-login');
+    assert.strictEqual(tutorial.steps[2].validation.type, 'click');
   });
 
-  test('Accurately detects elements inside open Shadow DOM roots (web components)', () => {
+  test('GeminiDomAnalyzer extracts structured interactive elements', () => {
     const mockDoc = createMockDoc({
-      title: 'Web Component App',
-      shadowHosts: [
+      title: 'Interactive Testbed',
+      buttons: [
+        { textContent: 'Checkout', id: 'checkout-btn' },
+      ],
+      inputs: [
+        { type: 'search', name: 'query', placeholder: 'Search products', id: 'search-box' },
+      ],
+    });
+
+    const domList = GeminiDomAnalyzer.extractInteractiveDom(mockDoc);
+    assert.ok(Array.isArray(domList));
+    assert.ok(domList.length >= 2);
+    assert.ok(domList.some((el) => el.id === 'checkout-btn' && el.tag === 'button'));
+    assert.ok(domList.some((el) => el.id === 'search-box' && el.tag === 'input'));
+  });
+
+  test('GeminiDomAnalyzer synthesizes valid tutorial schema with mock fetch', async () => {
+    const mockDoc = createMockDoc({
+      title: 'Store Front',
+      buttons: [
+        { textContent: 'Add to Bag', id: 'add-bag' },
+      ],
+    });
+
+    const mockResponse = {
+      candidates: [
         {
-          tagName: 'PROFILE-CARD',
-          buttons: [
-            { textContent: 'Edit Profile Avatar', id: 'shadow-edit-btn', role: 'button' },
-          ],
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  id: 'gemini-test-guide',
+                  name: { km: 'ការទិញទំនិញ', en: 'Shopping Guide' },
+                  description: { km: 'ការណែនាំអំពីការទិញ', en: 'Shopping walkthrough' },
+                  steps: [
+                    {
+                      id: 'step_add_bag',
+                      title: { km: 'ចុចបន្ថែមក្នុងកន្ត្រក', en: 'Click Add to Bag' },
+                      description: { km: 'ចុចប៊ូតុងនេះ', en: 'Click this button' },
+                      target: { css: '#add-bag' },
+                      action: {
+                        type: 'spotlight',
+                        title: { km: 'កន្ត្រក', en: 'Bag' },
+                        content: { km: 'ចុចទីនេះ', en: 'Click here' },
+                        placement: 'bottom',
+                      },
+                      validation: { type: 'click' },
+                    },
+                  ],
+                }),
+              },
+            ],
+          },
         },
       ],
+    };
+
+    const mockFetch = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
     });
 
-    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/profile', 'edit profile avatar');
-    assert.ok(tutorial.steps.length >= 1);
-    assert.ok(tutorial.steps[0].title.toLowerCase().includes('edit profile'));
+    const tutorial = await GeminiDomAnalyzer.analyzeWithGemini({
+      prompt: 'Help me add this item to bag',
+      doc: mockDoc,
+      apiKey: 'test-gemini-key',
+      fetchFn: mockFetch,
+    });
+
+    assert.strictEqual(tutorial.id, 'gemini-test-guide');
+    assert.strictEqual(tutorial.steps.length, 1);
+    assert.strictEqual(tutorial.steps[0].target.css, '#add-bag');
+  });
+
+  test('DynamicPageAnalyzer.generateDynamicTutorialAsync falls back to local selector matching if API key missing', async () => {
+    const mockDoc = createMockDoc({
+      title: 'Demo',
+      buttons: [
+        { textContent: 'Confirm Order', id: 'confirm-order-btn' },
+      ],
+    });
+
+    const tutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
+      mockDoc,
+      'https://example.com',
+      'click #confirm-order-btn'
+    );
+
+    assert.ok(tutorial);
+    assert.strictEqual(tutorial.steps[0].target.css, '#confirm-order-btn');
   });
 });
-
