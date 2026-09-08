@@ -210,35 +210,44 @@ export default defineBackground(() => {
       try {
         const pipUrl = chrome.runtime.getURL('pip.html');
 
-        // Track caller tab & window so PiP messages route directly to the active webpage
-        if (sender.tab?.id) {
-          chrome.storage?.local?.set({
-            guideme_target_tab_id: sender.tab.id,
-            guideme_target_window_id: sender.tab.windowId,
-          });
-        } else {
-          chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([activeTab]) => {
-            if (activeTab?.id) {
-              chrome.storage?.local?.set({
-                guideme_target_tab_id: activeTab.id,
-                guideme_target_window_id: activeTab.windowId,
+        const storeAndLaunch = (tabId, windowId) => {
+          const openPip = () => {
+            if (activePipWindowId) {
+              chrome.windows.get(activePipWindowId, (existing) => {
+                if (existing && !chrome.runtime.lastError) {
+                  chrome.windows.update(activePipWindowId, { focused: true });
+                  sendResponse({ success: true, windowId: activePipWindowId });
+                } else {
+                  createPipWindow(pipUrl, sendResponse);
+                }
               });
-            }
-          });
-        }
-
-        // If window already exists, focus it
-        if (activePipWindowId) {
-          chrome.windows.get(activePipWindowId, (existing) => {
-            if (existing && !chrome.runtime.lastError) {
-              chrome.windows.update(activePipWindowId, { focused: true });
-              sendResponse({ success: true, windowId: activePipWindowId });
             } else {
               createPipWindow(pipUrl, sendResponse);
             }
-          });
+          };
+
+          if (tabId) {
+            chrome.storage?.local?.set(
+              { guideme_target_tab_id: tabId, guideme_target_window_id: windowId },
+              () => openPip()
+            );
+          } else {
+            openPip();
+          }
+        };
+
+        // Track caller tab & window so PiP messages route directly to the active webpage
+        if (sender.tab?.id) {
+          storeAndLaunch(sender.tab.id, sender.tab.windowId);
         } else {
-          createPipWindow(pipUrl, sendResponse);
+          // Popup has no sender.tab — query the active webpage tab first
+          chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+            // Filter out chrome:// and extension pages so we get the real webpage
+            const webTab = (tabs || []).find(
+              (t) => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://')
+            );
+            storeAndLaunch(webTab?.id, webTab?.windowId);
+          });
         }
       } catch (err) {
         console.error('[GuideMe Background] GUIDEME_POPOUT_LAUNCHER error:', err);
@@ -260,7 +269,7 @@ export default defineBackground(() => {
         url: pipUrl,
         type: 'popup',
         width: 550,
-        height: 120,
+        height: 160,
         left: Math.max(10, pipLeft),
         top: Math.max(10, pipTop),
         focused: true,

@@ -6,6 +6,41 @@ import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../../src/catalog.js';
 import { getCapturedStepStorageKey, createCapturedTutorial } from './useCaptureMode.js';
 
 /**
+ * Resolves AI provider credentials and options dynamically from storage or environment variables.
+ */
+async function resolveAiOptions(engineInstance) {
+  let provider = import.meta.env?.WXT_AI_PROVIDER || 'nvidia';
+  let nvidiaApiKey = import.meta.env?.WXT_NVIDIA_API_KEY || '';
+  let nvidiaModel = import.meta.env?.WXT_NVIDIA_MODEL || 'moonshotai/kimi-k3';
+  let geminiKey = import.meta.env?.WXT_GEMINI_API_KEY || import.meta.env?.VITE_GEMINI_API_KEY || '';
+  let backendUrl = import.meta.env?.WXT_API_URL || 'http://localhost:4000';
+
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    const stored = await chrome.storage.local.get([
+      'guideme_ai_provider',
+      'guideme_nvidia_api_key',
+      'guideme_nvidia_model',
+      'guideme_gemini_api_key',
+      'guideme_backend_url',
+    ]);
+    if (stored?.guideme_ai_provider) provider = stored.guideme_ai_provider;
+    if (stored?.guideme_nvidia_api_key) nvidiaApiKey = stored.guideme_nvidia_api_key;
+    if (stored?.guideme_nvidia_model) nvidiaModel = stored.guideme_nvidia_model;
+    if (stored?.guideme_gemini_api_key) geminiKey = stored.guideme_gemini_api_key;
+    if (stored?.guideme_backend_url) backendUrl = stored.guideme_backend_url;
+  }
+
+  return {
+    provider,
+    nvidiaApiKey,
+    nvidiaModel,
+    geminiApiKey: geminiKey,
+    backendUrl,
+    language: engineInstance?.getLanguage ? engineInstance.getLanguage() : 'km',
+  };
+}
+
+/**
  * Custom hook orchestrating TutorialEngine lifecycle,
  * runtime messaging with popup/background/PiP, and session persistence.
  */
@@ -156,18 +191,12 @@ export function useContentBridge({
           (async () => {
             try {
               const prompt = message.payload?.prompt || message.payload?.userPrompt || '';
-              let geminiKey = import.meta.env?.WXT_GEMINI_API_KEY || import.meta.env?.VITE_GEMINI_API_KEY || '';
-              if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-                const stored = await chrome.storage.local.get('guideme_gemini_api_key');
-                if (stored?.guideme_gemini_api_key) {
-                  geminiKey = stored.guideme_gemini_api_key;
-                }
-              }
+              const aiOptions = await resolveAiOptions(engine);
               const dynamicTutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
                 document,
                 window.location.href,
                 prompt,
-                { geminiApiKey: geminiKey, language: engine.getLanguage() }
+                aiOptions
               );
               setIsDismissed(false);
               setIsPromptOpen(false);
@@ -298,18 +327,12 @@ export function useContentBridge({
 
   const handleStartDynamicGuide = async (prompt) => {
     try {
-      let geminiKey = import.meta.env?.WXT_GEMINI_API_KEY || import.meta.env?.VITE_GEMINI_API_KEY || '';
-      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-        const stored = await chrome.storage.local.get('guideme_gemini_api_key');
-        if (stored?.guideme_gemini_api_key) {
-          geminiKey = stored.guideme_gemini_api_key;
-        }
-      }
+      const aiOptions = await resolveAiOptions(engineRef.current);
       const dynamicTutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
         document,
         window.location.href,
         prompt,
-        { geminiApiKey: geminiKey, language: engineRef.current?.getLanguage() || 'km' }
+        aiOptions
       );
       setIsPromptOpen(false);
       setIsFullPopupOpen(false);

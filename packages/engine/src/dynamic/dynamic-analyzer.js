@@ -1,4 +1,5 @@
 import { GeminiDomAnalyzer } from './gemini-dom-analyzer.js';
+import { NvidiaDomAnalyzer } from './nvidia-dom-analyzer.js';
 
 /**
  * Dynamic Page Analyzer & Universal Step Generator (Hybrid Engine Mode 2).
@@ -183,24 +184,56 @@ export class DynamicPageAnalyzer {
    * @returns {Promise<Object>}
    */
   static async generateDynamicTutorialAsync(doc, url = '', userPrompt = '', options = {}) {
-    const apiKey = options.geminiApiKey || options.apiKey || '';
-    if (apiKey && typeof userPrompt === 'string' && userPrompt.trim() && !userPrompt.trim().startsWith('{')) {
-      try {
-        const aiTutorial = await GeminiDomAnalyzer.analyzeWithGemini({
-          prompt: userPrompt,
-          doc,
-          url,
-          apiKey,
-          model: options.model || 'gemini-2.5-flash',
-          language: options.language || 'km',
-          fetchFn: options.fetchFn,
-        });
-        if (aiTutorial && Array.isArray(aiTutorial.steps) && aiTutorial.steps.length > 0) {
-          return aiTutorial;
+    const isJsonPrompt = typeof userPrompt === 'string' && userPrompt.trim().startsWith('{');
+    if (typeof userPrompt === 'string' && userPrompt.trim() && !isJsonPrompt) {
+      const provider = (options.provider || 'auto').toLowerCase();
+      const nvidiaKey = options.nvidiaApiKey || (provider === 'nvidia' ? options.apiKey : '');
+      const geminiKey = options.geminiApiKey || (provider === 'gemini' ? options.apiKey : '');
+      const backendUrl = options.backendUrl || '';
+
+      // 1. Try NVIDIA AI NIM (Direct Key or Backend Proxy)
+      if (nvidiaKey || (backendUrl && provider !== 'gemini') || provider === 'nvidia') {
+        try {
+          const aiTutorial = await NvidiaDomAnalyzer.analyzeWithNvidia({
+            prompt: userPrompt,
+            doc,
+            url,
+            apiKey: nvidiaKey,
+            model: options.nvidiaModel || options.model || 'moonshotai/kimi-k3',
+            endpoint: options.nvidiaEndpoint || options.endpoint || 'https://integrate.api.nvidia.com/v1/chat/completions',
+            backendUrl,
+            language: options.language || 'km',
+            fetchFn: options.fetchFn,
+          });
+          if (aiTutorial && Array.isArray(aiTutorial.steps) && aiTutorial.steps.length > 0) {
+            return aiTutorial;
+          }
+        } catch (err) {
+          if (typeof console !== 'undefined' && console.warn) {
+            console.warn('[DynamicPageAnalyzer] NVIDIA NIM analysis fallback:', err.message);
+          }
         }
-      } catch (err) {
-        if (typeof console !== 'undefined' && console.warn) {
-          console.warn('[DynamicPageAnalyzer] Gemini DOM analysis fallback:', err.message);
+      }
+
+      // 2. Try Gemini API if configured
+      if (geminiKey || provider === 'gemini' || (options.apiKey && !nvidiaKey)) {
+        try {
+          const aiTutorial = await GeminiDomAnalyzer.analyzeWithGemini({
+            prompt: userPrompt,
+            doc,
+            url,
+            apiKey: geminiKey || options.apiKey,
+            model: options.model || 'gemini-2.5-flash',
+            language: options.language || 'km',
+            fetchFn: options.fetchFn,
+          });
+          if (aiTutorial && Array.isArray(aiTutorial.steps) && aiTutorial.steps.length > 0) {
+            return aiTutorial;
+          }
+        } catch (err) {
+          if (typeof console !== 'undefined' && console.warn) {
+            console.warn('[DynamicPageAnalyzer] Gemini DOM analysis fallback:', err.message);
+          }
         }
       }
     }
@@ -267,83 +300,166 @@ export class DynamicPageAnalyzer {
       }
     }
 
-    // 2. Keyword & Semantic DOM Matching across inputs, buttons, links, landmarks
-    const keywords = promptText ? promptText.toLowerCase().split(/[\s,._-]+/).filter(w => w.length >= 2) : [];
-    if (keywords.length > 0) {
-      const matchedSteps = [];
+    // 2. Universal Intent & Precision Semantic DOM Intelligence (Scored, Action-Aligned, Localized, Max 1-4 Steps)
+    const STOP_WORDS = new Set([
+      'ok', 'okay', 'help', 'me', 'the', 'a', 'an', 'to', 'my', 'your', 'his', 'her', 'their', 'friend', 'so',
+      'he', 'she', 'it', 'too', 'also', 'please', 'i', 'want', 'need', 'this', 'that', 'these', 'those', 'show',
+      'how', 'on', 'in', 'at', 'for', 'with', 'and', 'or', 'is', 'are', 'am', 'be', 'do', 'does', 'did', 'can',
+      'could', 'would', 'should', 'of', 'from', 'by', 'about', 'as', 'into', 'like', 'through', 'after', 'before',
+      'what', 'why', 'who', 'where', 'when', 'will', 'ask', 'tell', 'guide', 'doc', 'document', 'page', 'site',
+      'click', 'open', 'go', 'navigate', 'press', 'tap', 'button', 'input', 'field', 'screen',
+      // Khmer stop words
+      'ជួយ', 'ខ្ញុំ', 'សូម', 'ទៅ', 'លើ', 'ក្នុង', 'នៅ', 'សម្រាប់', 'ជាមួយ', 'និង', 'ឬ', 'ជា', 'មាន', 'ធ្វើ', 'អាច',
+      'នេះ', 'នោះ', 'ឯកសារ', 'ទំព័រ', 'ប៊ូតុង'
+    ]);
+
+    const activeLang = options.language || 'km';
+    const rawTokens = promptText ? promptText.toLowerCase().split(/[\s,._\-\/]+/).filter(w => w.length >= 2) : [];
+    const meaningfulKeywords = rawTokens.filter(w => !STOP_WORDS.has(w));
+    const searchKeywords = meaningfulKeywords.length > 0 ? meaningfulKeywords : rawTokens.filter(w => w.length >= 3);
+
+    // Universal Action Intent Matrix (Multi-lingual: English + Khmer)
+    const INTENTS = [
+      { id: 'share', regex: /\b(share|collaborat|invite|distribut|broadcast|publish|ចែករំលែក|អញ្ជើញ|ផ្សព្វផ្សាយ)\b/i, weight: 320, keywords: ['share', 'invite', 'collaborate', 'ចែករំលែក', 'send'] },
+      { id: 'login', regex: /\b(login|log\s*in|sign\s*in|signin|register|signup|sign\s*up|auth|sso|ចូល|ចុះឈ្មោះ|ចូលប្រើ)\b/i, weight: 300, keywords: ['login', 'signin', 'sign in', 'log in', 'register', 'auth', 'ចូល'] },
+      { id: 'logout', regex: /\b(logout|log\s*out|sign\s*out|signout|exit|ចាកចេញ)\b/i, weight: 280, keywords: ['logout', 'signout', 'exit', 'ចាកចេញ'] },
+      { id: 'search', regex: /\b(search|find|lookup|query|explore|browse|filter|sort|ស្វែងរក|រក|ច្រោះ|ជ្រើស)\b/i, weight: 290, keywords: ['search', 'find', 'query', 'filter', 'sort', 'ស្វែងរក', 'រក'], preferInput: true },
+      { id: 'cart', regex: /\b(cart|basket|bag|buy|purchase|checkout|order|pay|payment|bill|subscribe|កន្ត្រក|ទិញ|កុម្ម៉ង់|បង់ប្រាក់)\b/i, weight: 300, keywords: ['cart', 'buy', 'checkout', 'order', 'pay', 'purchase', 'ទិញ', 'កន្ត្រក'] },
+      { id: 'settings', regex: /\b(settings|setting|config|prefer|preference|option|profile|account|custom|ការកំណត់|គណនី|ប្រវត្តិរូប)\b/i, weight: 260, keywords: ['setting', 'config', 'profile', 'account', 'preference', 'ការកំណត់', 'គណនី'] },
+      { id: 'export', regex: /\b(export|download|save|print|backup|dump|sync|ទាញយក|រក្សាទុក|បោះពុម្ព)\b/i, weight: 280, keywords: ['export', 'download', 'save', 'print', 'ទាញយក', 'រក្សាទុក'] },
+      { id: 'new', regex: /\b(new|create|add|plus|make|compose|upload|post|insert|បង្កើត|បន្ថែម|សរសេរ|បង្ហោះ)\b/i, weight: 270, keywords: ['new', 'create', 'add', '+', 'compose', 'upload', 'post', 'បង្កើត', 'បន្ថែម'] },
+      { id: 'edit', regex: /\b(edit|rename|modify|change|update|revise|draft|កែសម្រួល|ប្តូរឈ្មោះ|ផ្លាស់ប្តូរ|ធ្វើបច្ចុប្បន្នភាព)\b/i, weight: 250, keywords: ['edit', 'rename', 'modify', 'update', 'កែសម្រួល', 'ប្តូរឈ្មោះ'] },
+      { id: 'delete', regex: /\b(delete|remove|clear|trash|destroy|discard|cancel|dismiss|លុប|ដកចេញ|បោះបង់)\b/i, weight: 280, keywords: ['delete', 'remove', 'trash', 'cancel', 'clear', 'លុប', 'បោះបង់'] },
+      { id: 'navigation', regex: /\b(home|menu|nav|navigation|dashboard|tab|feed|overview|ទំព័រដើម|ម៉ឺនុយ|ផ្ទាំងគ្រប់គ្រង)\b/i, weight: 240, keywords: ['home', 'menu', 'dashboard', 'overview', 'feed', 'ទំព័រដើម', 'ម៉ឺនុយ'] },
+      { id: 'help', regex: /\b(help|support|docs|faq|guide|tutorial|feedback|assist|ជំនួយ|ឯកសារ|មតិកែលម្អ)\b/i, weight: 240, keywords: ['help', 'support', 'docs', 'faq', 'guide', 'ជំនួយ'] },
+      { id: 'notifications', regex: /\b(notif|alert|bell|inbox|message|chat|ការជូនដំណឹង|សារ)\b/i, weight: 260, keywords: ['notification', 'alert', 'inbox', 'message', 'bell', 'ការជូនដំណឹង', 'សារ'] },
+    ];
+
+    const matchedIntents = INTENTS.filter(intent => intent.regex.test(promptText));
+    const isTypingAction = /\b(type|fill|enter|input|write|search|វាយ|បំពេញ|សរសេរ)\b/i.test(promptText);
+    const isClickAction = /\b(click|press|open|tap|select|choose|go\s*to|ចុច|បើក|ជ្រើសរើស)\b/i.test(promptText);
+
+    if (searchKeywords.length > 0 || matchedIntents.length > 0) {
+      const candidates = [];
       const seenElements = new Set();
 
-      // Find inputs matching keywords
-      analysis.allInputs.forEach((input, idx) => {
-        const textToMatch = `${input.placeholder || ''} ${input.name || ''} ${input.id || ''} ${input.type || ''} ${input.getAttribute?.('aria-label') || ''}`.toLowerCase();
-        const matchesKeyword = keywords.some(kw => textToMatch.includes(kw));
-        if (matchesKeyword && !seenElements.has(input)) {
-          seenElements.add(input);
-          const label = input.placeholder || input.name || input.id || `Input field`;
-          matchedSteps.push({
-            id: `prompt_step_input_${idx}`,
-            title: `Enter ${label}`,
-            description: `Type information into the ${label} field.`,
-            target: this._buildTargetSelector(input, 'input'),
-            action: {
-              type: 'spotlight',
-              title: `Fill ${label}`,
-              content: `Type text into this field for "${promptText}".`,
-              placement: 'bottom',
-            },
-            validation: { type: 'input' },
+      const scoreAndAdd = (el, type) => {
+        if (!el || seenElements.has(el)) return;
+
+        // Ensure element is genuinely visible and not a hidden metadata node
+        const ariaHidden = el.getAttribute?.('aria-hidden');
+        if (ariaHidden === 'true') return;
+
+        const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
+        const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim();
+        const id = (el.id || '').trim();
+        const testId = (el.getAttribute?.('data-testid') || el.getAttribute?.('data-cy') || el.getAttribute?.('data-tooltip') || '').trim();
+        const placeholder = (el.placeholder || el.name || '').trim();
+        const role = (el.getAttribute?.('role') || '').trim().toLowerCase();
+
+        const fullStr = `${text} ${aria} ${id} ${testId} ${placeholder} ${role}`.toLowerCase();
+        let score = 0;
+
+        // 1. Universal Intent Match
+        for (const intent of matchedIntents) {
+          for (const kw of intent.keywords) {
+            const kwLower = kw.toLowerCase();
+            if (text.toLowerCase() === kwLower || aria.toLowerCase() === kwLower) {
+              score += intent.weight;
+            } else if (text.toLowerCase().startsWith(kwLower) || aria.toLowerCase().startsWith(kwLower)) {
+              score += intent.weight * 0.8;
+            } else if (fullStr.includes(kwLower)) {
+              score += intent.weight * 0.55;
+            }
+          }
+          if (intent.preferInput && type === 'input') {
+            score += 50;
+          }
+        }
+
+        // 2. Specific Keyword Overlap Match
+        for (const kw of searchKeywords) {
+          const kwLower = kw.toLowerCase();
+          if (text.toLowerCase() === kwLower || aria.toLowerCase() === kwLower) {
+            score += 150;
+          } else if (text.toLowerCase().includes(kwLower) || aria.toLowerCase().includes(kwLower)) {
+            score += 80;
+          } else if (id.toLowerCase().includes(kwLower) || placeholder.toLowerCase().includes(kwLower) || testId.toLowerCase().includes(kwLower)) {
+            score += 45;
+          }
+        }
+
+        // 3. Action Verb & Control Affinity
+        if (isTypingAction && type === 'input') score += 60;
+        if (isClickAction && type === 'button') score += 40;
+
+        // Actionable control bonuses
+        if (type === 'button' && (text || aria || testId)) score += 30;
+        if (type === 'input' && (placeholder || aria || id || testId)) score += 20;
+
+        // 4. Large text walls and body container penalties
+        if (text.length > 50) score -= 45;
+        if (text.length > 120) score -= 90;
+
+        if (score >= 40) {
+          seenElements.add(el);
+          const rawLabel = aria.substring(0, 30) || text.substring(0, 30) || placeholder || testId || id || (type === 'button' ? 'Action' : 'Input');
+          const cleanLabel = rawLabel.replace(/\s+/g, ' ').trim();
+          candidates.push({
+            el,
+            type,
+            score,
+            label: cleanLabel,
           });
         }
-      });
+      };
 
-      // Find buttons matching keywords
-      analysis.buttons.forEach((btn, idx) => {
-        const textToMatch = `${btn.textContent || ''} ${btn.id || ''} ${btn.className || ''} ${btn.getAttribute?.('aria-label') || ''}`.toLowerCase();
-        const matchesKeyword = keywords.some(kw => textToMatch.includes(kw));
-        if (matchesKeyword && !seenElements.has(btn)) {
-          seenElements.add(btn);
-          const label = (btn.textContent || '').trim().substring(0, 30) || `Action button`;
-          matchedSteps.push({
-            id: `prompt_step_btn_${idx}`,
-            title: `Click "${label}"`,
-            description: `Click this button to execute the action.`,
-            target: this._buildTargetSelector(btn, 'button'),
+      // Scan all interactive controls on the page (Universal for all frameworks)
+      analysis.buttons.forEach((btn) => scoreAndAdd(btn, 'button'));
+      analysis.allInputs.forEach((input) => scoreAndAdd(input, 'input'));
+      const linksAndActionables = this._safeQueryAll(doc, 'a[href], [role="button"], [role="tab"], [role="menuitem"], [role="link"], summary');
+      linksAndActionables.forEach((link) => scoreAndAdd(link, 'button'));
+
+      // Sort candidates by score descending
+      candidates.sort((a, b) => b.score - a.score);
+
+      // Take only top 1 to 3 relevant candidates! (Prevents multi-step bloat on large web apps)
+      const topCandidates = candidates.slice(0, 3);
+
+      if (topCandidates.length > 0) {
+        const isKm = activeLang === 'km';
+        const matchedSteps = topCandidates.map((cand, idx) => {
+          const isBtn = cand.type === 'button';
+          let stepTitle;
+          let stepContent;
+
+          if (isKm) {
+            stepTitle = isBtn ? `ចុច "${cand.label}"` : `បញ្ចូល ${cand.label}`;
+            stepContent = isBtn
+              ? `សូមចុចលើ "${cand.label}" ដែលបានសម្គាល់លើអេក្រង់ដើម្បីបន្ត។`
+              : `សូមបំពេញព័ត៌មានក្នុងប្រអប់ ${cand.label}។`;
+          } else {
+            stepTitle = isBtn ? `Click "${cand.label}"` : `Enter ${cand.label}`;
+            stepContent = isBtn
+              ? `Click on the highlighted "${cand.label}" button to proceed.`
+              : `Fill in the ${cand.label} field.`;
+          }
+
+          return {
+            id: `prompt_step_${cand.type}_${idx + 1}`,
+            title: stepTitle,
+            description: `Step ${idx + 1}: ${stepTitle}`,
+            target: this._buildTargetSelector(cand.el, isBtn ? 'button, [role="button"], a' : 'input, textarea'),
             action: {
               type: 'spotlight',
-              title: label,
-              content: `Click here as part of "${promptText}".`,
-              placement: 'top',
+              title: stepTitle,
+              content: stepContent,
+              placement: isBtn ? 'top' : 'bottom',
             },
-            validation: { type: 'click' },
-          });
-        }
-      });
+            validation: { type: isBtn ? 'click' : 'input' },
+          };
+        });
 
-      // Find links matching keywords
-      const links = this._safeQueryAll(doc, 'a[href], [role="link"]');
-      links.forEach((link, idx) => {
-        const textToMatch = `${link.textContent || ''} ${link.id || ''} ${link.getAttribute?.('aria-label') || ''} ${link.getAttribute?.('href') || ''}`.toLowerCase();
-        const matchesKeyword = keywords.some(kw => textToMatch.includes(kw));
-        if (matchesKeyword && !seenElements.has(link)) {
-          seenElements.add(link);
-          const label = (link.textContent || '').trim().substring(0, 30) || `Link`;
-          matchedSteps.push({
-            id: `prompt_step_link_${idx}`,
-            title: `Navigate to "${label}"`,
-            description: `Follow this link for "${promptText}".`,
-            target: this._buildTargetSelector(link, 'a'),
-            action: {
-              type: 'spotlight',
-              title: label,
-              content: `Click this link to navigate.`,
-              placement: 'bottom',
-            },
-            validation: { type: 'click' },
-          });
-        }
-      });
-
-      if (matchedSteps.length > 0) {
         return {
           id: tutorialId,
           version: '1.0.0',

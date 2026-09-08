@@ -8,9 +8,20 @@ import { getUIString } from '../i18n/ui-strings.js';
      1. Open Dashboard — purple primary button
      2. Capture a step — manual target selection
      3. Go to Extension— secondary button
-     4. Close          — subtle red text button
+     4. Reset Position — optional button if user dragged the button
+     5. Dismiss Active Guide — subtle text button to clear active guides
 ───────────────────────────────────────────────────────────────── */
-function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, onStartCapture, onGoToExtension }) {
+function ContextMenu({
+  menuRef,
+  position,
+  language,
+  hasCustomPosition,
+  onResetPosition,
+  onDismiss,
+  onOpenDashboard,
+  onStartCapture,
+  onGoToExtension,
+}) {
   return (
     <div
       ref={menuRef}
@@ -18,7 +29,7 @@ function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, 
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-      className="fixed z-[1000001] pointer-events-auto bg-white/98 dark:bg-[#181826]/98 backdrop-blur-md rounded-2xl p-2 min-w-[175px] border border-gray-200/90 dark:border-[#2d2d44] animate-[guideme-card-pop_0.15s_ease-out] flex flex-col gap-1.5"
+      className="fixed z-[1000001] pointer-events-auto bg-white/98 dark:bg-[#181826]/98 backdrop-blur-md rounded-2xl p-2 min-w-[185px] border border-gray-200/90 dark:border-[#2d2d44] animate-[guideme-card-pop_0.15s_ease-out] flex flex-col gap-1.5"
       style={{
         top: `${position.y}px`,
         left: `${position.x}px`,
@@ -61,7 +72,21 @@ function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, 
         {getUIString('goToExtension', language)}
       </button>
 
-      {/* ── Close ── */}
+      {/* ── Reset Position (if moved) ── */}
+      {hasCustomPosition && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onResetPosition?.();
+          }}
+          className="w-full text-center py-1.5 px-3 text-[12.5px] font-medium text-purple-600 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30 rounded-xl transition-colors cursor-pointer border-0 bg-transparent"
+        >
+          {getUIString('resetPosition', language)}
+        </button>
+      )}
+
+      {/* ── Dismiss active guide ── */}
       <button
         type="button"
         onClick={(e) => {
@@ -81,7 +106,9 @@ function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, 
    - Compact rounded card with pulsing green active dot
    - Smooth hover expansion showing "Ask GuideMe"
    - Left-click  → toggle floating prompt widget
-   - Right-click → context menu (Open Dashboard, Go to Extension, Close)
+   - Right-click → context menu (Open Dashboard, Go to Extension, Reset Position)
+   - Double-click → resets position to default bottom-right
+   - Stays mounted and persistent 100% of the time across all pages
 ───────────────────────────────────────────────────────────────── */
 export function FloatingAssistantButton({
   onClick,
@@ -232,6 +259,15 @@ export function FloatingAssistantButton({
     } catch { }
   };
 
+  /* ── Reset Position Handler ── */
+  const handleResetPosition = () => {
+    setCustomPosition(null);
+    setContextMenu(null);
+    try {
+      localStorage.removeItem('guideme_fab_position');
+    } catch { }
+  };
+
   const positionStyle = customPosition
     ? { top: `${customPosition.top}px`, left: `${customPosition.left}px`, bottom: 'auto', right: 'auto' }
     : { bottom: '24px', right: '24px' };
@@ -244,6 +280,7 @@ export function FloatingAssistantButton({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onDoubleClick={handleResetPosition}
         onContextMenu={handleContextMenu}
         style={positionStyle}
         className={`fixed z-[999998] pointer-events-auto select-none group ${
@@ -256,7 +293,7 @@ export function FloatingAssistantButton({
           role="button"
           tabIndex={0}
           aria-label="Ask GuideMe"
-          title="Left-click to open · Right-click for options"
+          title="Left-click to open · Right-click for options · Double-click to reset position"
           className={`flex items-center bg-white dark:bg-[#181826] border p-1.5 rounded-[18px] shadow-[0_8px_28px_rgba(0,0,0,0.12),0_2px_8px_rgba(139,92,246,0.15)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.6)] transition-all duration-300 ease-out overflow-hidden group-hover:pr-3.5 hover:scale-105 ${
             isOpen
               ? 'border-[#8b5cf6] dark:border-[#a855f7] ring-2 ring-purple-500/20'
@@ -288,6 +325,8 @@ export function FloatingAssistantButton({
           menuRef={menuRef}
           position={contextMenu}
           language={language}
+          hasCustomPosition={Boolean(customPosition)}
+          onResetPosition={handleResetPosition}
           onDismiss={handleDismiss}
           onOpenDashboard={handleOpenDashboard}
           onStartCapture={handleStartCapture}

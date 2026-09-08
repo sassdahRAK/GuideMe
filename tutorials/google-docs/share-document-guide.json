@@ -14,14 +14,14 @@
       "title": "Open Sharing Settings",
       "description": "Click the blue 'Share' button in the top-right corner to open document permissions.",
       "target": {
-        "css": "#docs-share-button, div[aria-label*='Share with others'], [data-tooltip*='Share'], #demo-share-btn",
-        "ariaLabel": "Share with others",
+        "css": "#docs-action-bar-share, #docs-share-button, [aria-label*='Share' i], [data-tooltip*='Share' i], div[role='button'][aria-label*='Share' i], #demo-share-btn",
+        "ariaLabel": "Share",
         "text": "Share"
       },
       "action": {
         "type": "spotlight",
         "title": "Share Document",
-        "content": "Click here to manage collaborators and share links.",
+        "content": "Click the highlighted 'Share' button to open document permissions.",
         "placement": "bottom"
       },
       "validation": {
@@ -33,8 +33,9 @@
       "title": "Add Collaborators",
       "description": "Enter the email addresses of teammates you'd like to collaborate with.",
       "target": {
-        "css": "input[aria-label*='Add people'], input[aria-autocomplete='list'], input[type='email'], input#demo-email-input",
-        "ariaLabel": "Add people"
+        "css": "input[aria-label*='Add' i], input[aria-autocomplete='list'], input[type='email'], input[placeholder*='people' i], input[placeholder*='email' i], [role='combobox'], input#demo-email-input",
+        "ariaLabel": "Add people",
+        "text": "Add people"
       },
       "action": {
         "type": "spotlight",
@@ -51,7 +52,8 @@
       "title": "Copy Document Link",
       "description": "Click 'Copy link' to quickly get a direct sharing URL on your clipboard.",
       "target": {
-        "css": "button[aria-label*='Copy link'], div[aria-label*='Copy link'], #demo-copy-link-btn",
+        "css": "[aria-label*='Copy link' i], [aria-label*='Copy' i], button[aria-label*='Copy' i], [data-tooltip*='Copy' i], #demo-copy-link-btn",
+        "ariaLabel": "Copy link",
         "text": "Copy link"
       },
       "action": {

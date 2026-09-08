@@ -1,13 +1,14 @@
 # GuideMe: Universal Tutorial Engine
 
+GuideMe is a Chrome extension that provides step-by-step guidance to users while they navigate a web application. It uses SVG spotlights to highlight the current step and dynamic DOM auto-guidance to automatically scroll to the next step.
+
 GuideMe is organized as a multi-repo project:
 
-- **`GuideMe-Site`** is the full-stack web and API repository, containing `frontend/` and `backend/`.
+- **`GuideMe-Web`** is the landing page web repository containing `frontend/`.
+- **`GuideMe-Backend`** is the API repository containing `backend/` (Express.js, TypeScript, Prisma).
 - **`GuideMe`** is the client repository, currently containing the browser extension and shared client packages; a desktop client is planned for the future.
 
-Both clients use the shared backend API. The extension's core tutorial engine can also run locally without a server.
-
-> Interactive step-by-step guidance overlays, SVG spotlights, and dynamic DOM auto-guidance for web applications.
+**`GuideMe-Web`** and **`GuideMe`** use the shared backend API from **`GuideMe-Backend`**.
 
 ---
 

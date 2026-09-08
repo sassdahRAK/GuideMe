@@ -59,46 +59,37 @@ export class DomObserver {
     const isGenericCss = /^(button|div|a|input|span|select|p)$/i.test((selector.css || '').trim());
     const allowPartialText = Boolean(selector.css && !isGenericCss);
 
-    // 1. Direct CSS Selector (with text/aria verification if available)
+    // 1. Direct CSS Selector Strategy
     if (selector.css) {
       try {
         const matches = document.querySelectorAll(selector.css);
         if (matches.length > 0) {
-          // If no text or aria constraint, return the first match immediately
+          // If no text or aria constraint, return the first visible match immediately
           if (!targetText && !targetAria) {
-            return matches[0];
+            const firstVisible = Array.from(matches).find((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+            return firstVisible || matches[0];
           }
 
-          // A broad CSS selector such as `button` must still anchor to the
-          // requested control. Prefer exact accessible-name/text matches over
-          // a container whose descendant text happens to include the label.
+          // Prioritize exact or substring accessible-name/text matches
           for (const el of matches) {
             const elText = this.normalizeText(el.textContent);
-            const elAria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim().toLowerCase();
+            const elAria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || el.getAttribute?.('data-tooltip') || '').trim().toLowerCase();
             const elVal = this.normalizeText(el.value || el.getAttribute?.('value') || '');
+
             const exactText = targetText && (elText === targetText || elVal === targetText);
             const exactAria = targetAria && (elAria === targetAria || elAria.includes(targetAria));
+            const partialText = allowPartialText && targetText && (elText.includes(targetText) || elVal.includes(targetText));
+            const partialAria = targetAria && elAria.includes(targetAria);
 
-            if (exactText || exactAria) {
+            if (exactText || exactAria || partialText || partialAria) {
               return el;
             }
-
-            // A button may contain an icon and nested label text. Match the
-            // requested property inside it, but return the clickable button.
-            if (targetText && allowPartialText && elText.includes(targetText)) {
-              return el;
-            }
-
           }
 
-          // Do not fall back to the first CSS match when the capture contains
-          // identifying metadata. A captured `{ css: 'button', text: 'Save' }`
-          // must wait for Save to render (for example inside a lazy dialog),
-          // rather than incorrectly highlighting the page's first button.
-          if (!targetText && !targetAria) {
-            // A selector without secondary identity metadata can only use its
-            // CSS match as the fallback.
-            return matches[0];
+          // If CSS was specific (not a bare generic tag), return first visible match
+          if (!isGenericCss && !targetText && !targetAria) {
+            const visibleMatch = Array.from(matches).find((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+            if (visibleMatch) return visibleMatch;
           }
         }
       } catch (e) {
@@ -108,28 +99,52 @@ export class DomObserver {
 
     // 2. data-testid / data-cy attributes
     if (selector.testId) {
-      const el = document.querySelector(`[data-testid="${selector.testId}"], [data-cy="${selector.testId}"]`);
-      if (el) return el;
+      try {
+        const el = document.querySelector(`[data-testid="${selector.testId}"], [data-cy="${selector.testId}"]`);
+        if (el) return el;
+      } catch { }
     }
 
-    // 3. aria-label / title matching
-    if (selector.ariaLabel) {
-      const el = document.querySelector(`[aria-label="${selector.ariaLabel}"], [title="${selector.ariaLabel}"]`);
-      if (el) return el;
+    // 3. aria-label / title / tooltip matching (Exact + Substring Case-Insensitive)
+    if (selector.ariaLabel || targetAria) {
+      const ariaQuery = (selector.ariaLabel || targetAria).replace(/["'\\]/g, '');
+      try {
+        const el = document.querySelector(
+          `[aria-label*="${ariaQuery}" i], [title*="${ariaQuery}" i], [data-tooltip*="${ariaQuery}" i]`
+        );
+        if (el) return el;
+      } catch { }
+
+      // Manual scan if selector contains complex characters
+      const ariaCandidates = document.querySelectorAll('[aria-label], [title], [data-tooltip]');
+      for (const el of ariaCandidates) {
+        const aria = (el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('data-tooltip') || '').toLowerCase();
+        if (aria.includes(targetAria || ariaQuery.toLowerCase())) {
+          if (el.offsetParent !== null || el.getClientRects().length > 0) {
+            return el;
+          }
+        }
+      }
     }
 
-    // 4. Visible Text Content Matching — Prioritize Button Elements & Ascend from Nested Spans
-    if (selector.text) {
-      // 4a. Check interactive elements first (button, a, role=button, summary)
+    // 4. Visible Text Content Matching — Prioritize Interactive Elements
+    if (selector.text || targetText) {
+      const searchTxt = targetText || this.normalizeText(selector.text);
+
+      // 4a. Check interactive elements first (button, a, role=button, summary, inputs)
       const buttonCandidates = document.querySelectorAll(
-        'button, [role="button"], a, input[type="submit"], input[type="button"], summary, [role="menuitem"], [role="tab"]'
+        'button, [role="button"], a, input[type="submit"], input[type="button"], summary, [role="menuitem"], [role="tab"], div[id*="share" i], div[class*="share" i]'
       );
       for (const el of buttonCandidates) {
         const text = this.normalizeText(el.textContent);
-        const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim().toLowerCase();
+        const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || el.getAttribute?.('data-tooltip') || '').trim().toLowerCase();
         const val = this.normalizeText(el.value || el.getAttribute?.('value') || '');
 
-        if (text === targetText || (allowPartialText && text.includes(targetText)) || aria === targetText || aria.includes(targetText) || val === targetText) {
+        const isMatch = isGenericCss
+          ? (text === searchTxt || val === searchTxt || aria === searchTxt)
+          : (text === searchTxt || (allowPartialText && text.includes(searchTxt)) || aria.includes(searchTxt) || val === searchTxt);
+
+        if (isMatch) {
           if (el.offsetParent !== null || el.getClientRects().length > 0) {
             return el;
           }
@@ -137,15 +152,16 @@ export class DomObserver {
       }
 
       // 4b. Check other text elements and ascend to parent button if nested
-      const allTextNodes = document.querySelectorAll('span, div, p, label, b, strong, i');
-      for (const node of allTextNodes) {
-        const text = this.normalizeText(node.textContent);
-        if (text === targetText || (allowPartialText && text.includes(targetText))) {
-          // If inside a button or clickable container, return the button itself!
-          const parentBtn = node.closest ? node.closest('button, [role="button"], a') : null;
-          const targetEl = parentBtn || node;
-          if (targetEl.offsetParent !== null || targetEl.getClientRects().length > 0) {
-            return targetEl;
+      if (!isGenericCss || allowPartialText) {
+        const allTextNodes = document.querySelectorAll('span, div, p, label, b, strong, i');
+        for (const node of allTextNodes) {
+          const text = this.normalizeText(node.textContent);
+          if (text === searchTxt || (allowPartialText && text.includes(searchTxt))) {
+            const parentBtn = node.closest ? node.closest('button, [role="button"], a') : null;
+            const targetEl = parentBtn || node;
+            if (targetEl.offsetParent !== null || targetEl.getClientRects().length > 0) {
+              return targetEl;
+            }
           }
         }
       }

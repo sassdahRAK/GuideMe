@@ -40,7 +40,7 @@ export class BackendIntentApiClient extends BaseIntentReranker {
    */
   constructor(config = {}) {
     super();
-    this.backendUrl = config.backendUrl || 'http://localhost:5000';
+    this.backendUrl = config.backendUrl || 'http://localhost:4000';
     this.authToken = config.authToken || '';
     this.timeoutMs = config.timeoutMs ?? 2500;
     this.fetchFn = config.fetchFn || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null);
@@ -71,7 +71,7 @@ export class BackendIntentApiClient extends BaseIntentReranker {
     const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
-      const endpoint = `${this.backendUrl.replace(/\/$/, '')}/api/v1/ai/intent-rerank`;
+      const endpoint = `${this.backendUrl.replace(/\/$/, '')}/api/ai/intent-rerank`;
       const headers = {
         'Content-Type': 'application/json',
       };
@@ -128,7 +128,16 @@ export class LlmReranker extends BaseIntentReranker {
     this.endpoint = config.endpoint || '';
     this.apiKey = config.apiKey || '';
     this.provider = (config.provider || 'openai').toLowerCase();
-    this.model = config.model || (this.provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini');
+    if (this.provider === 'nvidia') {
+      this.endpoint = config.endpoint || 'https://integrate.api.nvidia.com/v1/chat/completions';
+      this.model = config.model || 'moonshotai/kimi-k3';
+    } else if (this.provider === 'gemini') {
+      this.endpoint = config.endpoint || '';
+      this.model = config.model || 'gemini-1.5-flash';
+    } else {
+      this.endpoint = config.endpoint || '';
+      this.model = config.model || 'gpt-4o-mini';
+    }
     this.headers = config.headers || {};
     this.timeoutMs = config.timeoutMs ?? 2500;
     this.fetchFn = config.fetchFn || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null);
@@ -274,8 +283,10 @@ export class LlmReranker extends BaseIntentReranker {
    */
   _parseStepIds(rawText) {
     if (!rawText) return [];
+    // Strip reasoning tokens (<think>...</think>) from reasoning models
+    const cleaned = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
     try {
-      const parsed = JSON.parse(rawText.trim());
+      const parsed = JSON.parse(cleaned);
       if (Array.isArray(parsed.stepIds)) {
         return parsed.stepIds;
       }
@@ -284,7 +295,7 @@ export class LlmReranker extends BaseIntentReranker {
       }
     } catch {
       // Regex fallback if LLM output wrapped with markdown or comments
-      const match = rawText.match(/"stepIds"\s*:\s*\[([^\]]+)\]/);
+      const match = cleaned.match(/"stepIds"\s*:\s*\[([^\]]+)\]/);
       if (match) {
         try {
           const arr = JSON.parse(`[${match[1]}]`);

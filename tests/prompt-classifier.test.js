@@ -12,9 +12,13 @@ describe('Prompt Classifier Unit Tests', () => {
       'good morning', 'Good afternoon!', 'good evening',
       'hi there', 'hello there', 'hey buddy',
       'greetings', 'Greetings!',
+      // Slang, vocatives, character repeats
+      'hi bro', 'hi broo', 'hi broooo', 'hey bro', 'yo bro!',
+      'hey man', 'hello dude', 'heyyy', 'helloooo', 'hiiiii',
+      'good morning team', 'what\'s up bro', 'sup mate',
       // Khmer greetings
       'សួស្ដី', 'ជំរាបសួរ', 'ហេឡូ', 'ហាយ',
-      'សួស្ដី!',
+      'សួស្ដី!', 'សួស្ដីបង', 'សួស្តី bro', 'ជំរាបសួរបងប្រុស',
     ];
 
     for (const greeting of greetings) {
@@ -81,11 +85,15 @@ describe('Prompt Classifier Unit Tests', () => {
       'download the report',
       'share this page',
       'scroll down to footer',
+      'ok help me share the doc to my friend so he can edit it too',
+      'help me share the file',
+      'how to export spreadsheet',
       // Khmer actionable
       'ចុចប៊ូតុង Login',
       'បើកទំព័រ Settings',
       'ស្វែងរកផលិតផល',
       'វាយ email',
+      'ជួយខ្ញុំចែករំលែកឯកសារ',
     ];
 
     for (const input of actionableInputs) {
@@ -114,6 +122,11 @@ describe('Prompt Classifier Unit Tests', () => {
       assert.strictEqual(result.type, 'actionable');
     });
 
+    test('greeting + help me share is actionable, not greeting', () => {
+      const result = classifyPrompt('hi bro help me share doc');
+      assert.strictEqual(result.type, 'actionable');
+    });
+
     test('"show me" alone is unclear (no specific target)', () => {
       assert.strictEqual(classifyPrompt('show me').type, 'unclear');
     });
@@ -124,7 +137,7 @@ describe('Prompt Classifier Unit Tests', () => {
     });
 
     test('response objects always have km and en keys', () => {
-      const inputs = ['hi', 'help', 'click button'];
+      const inputs = ['hi', 'help', 'click button', 'hi broooo'];
       for (const input of inputs) {
         const result = classifyPrompt(input);
         assert.ok('km' in result.responses, `Missing km response for "${input}"`);

@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { DynamicPageAnalyzer, TutorialParser, GeminiDomAnalyzer } from '../packages/engine/src/index.js';
+import { DynamicPageAnalyzer, TutorialParser, GeminiDomAnalyzer, NvidiaDomAnalyzer } from '../packages/engine/src/index.js';
 
 // Mock simple DOM document for unit testing
 function createMockDoc({
@@ -296,4 +296,198 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     assert.ok(tutorial);
     assert.strictEqual(tutorial.steps[0].target.css, '#confirm-order-btn');
   });
+
+  test('NvidiaDomAnalyzer extracts structured interactive elements', () => {
+    const mockDoc = createMockDoc({
+      title: 'Kimi NIM Testbed',
+      buttons: [
+        { textContent: 'Submit Application', id: 'submit-app-btn' },
+      ],
+      inputs: [
+        { type: 'text', name: 'fullname', placeholder: 'Enter your name', id: 'fullname-input' },
+      ],
+    });
+
+    const domList = NvidiaDomAnalyzer.extractInteractiveDom(mockDoc);
+    assert.ok(Array.isArray(domList));
+    assert.ok(domList.length >= 2);
+    assert.ok(domList.some((el) => el.id === 'submit-app-btn' && el.tag === 'button'));
+    assert.ok(domList.some((el) => el.id === 'fullname-input' && el.tag === 'input'));
+  });
+
+  test('NvidiaDomAnalyzer synthesizes valid tutorial schema with mock fetch and strips reasoning tokens', async () => {
+    const mockDoc = createMockDoc({
+      title: 'Store Front',
+      buttons: [
+        { textContent: 'Add to Bag', id: 'add-bag' },
+      ],
+    });
+
+    // Mock response containing <think> tokens and Markdown code fences from Kimi-K3
+    const mockTutorialJson = JSON.stringify({
+      id: 'nvidia-test-guide',
+      name: { km: 'ការទិញទំនិញ', en: 'Shopping Guide' },
+      description: { km: 'ការណែនាំអំពីការទិញ', en: 'Shopping walkthrough' },
+      steps: [
+        {
+          id: 'step_add_bag',
+          title: { km: 'ចុចបន្ថែមក្នុងកន្ត្រក', en: 'Click Add to Bag' },
+          description: { km: 'ចុចប៊ូតុងនេះ', en: 'Click this button' },
+          target: { css: '#add-bag' },
+          action: {
+            type: 'spotlight',
+            title: { km: 'កន្ត្រក', en: 'Bag' },
+            content: { km: 'ចុចទីនេះ', en: 'Click here' },
+            placement: 'bottom',
+          },
+          validation: { type: 'click' },
+        },
+      ],
+    });
+
+    const mockResponse = {
+      choices: [
+        {
+          message: {
+            content: `<think>The user wants to add an item to bag. There is a button with id add-bag.</think>\n\`\`\`json\n${mockTutorialJson}\n\`\`\``,
+          },
+        },
+      ],
+    };
+
+    let calledEndpoint = '';
+    let calledHeaders = {};
+    const mockFetch = async (endpoint, options) => {
+      calledEndpoint = endpoint;
+      calledHeaders = options.headers;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      };
+    };
+
+    const tutorial = await NvidiaDomAnalyzer.analyzeWithNvidia({
+      prompt: 'Help me add this item to bag',
+      doc: mockDoc,
+      apiKey: 'nvapi-test-key',
+      fetchFn: mockFetch,
+    });
+
+    assert.strictEqual(calledEndpoint, 'https://integrate.api.nvidia.com/v1/chat/completions');
+    assert.strictEqual(calledHeaders['Authorization'], 'Bearer nvapi-test-key');
+    assert.strictEqual(tutorial.id, 'nvidia-test-guide');
+    assert.strictEqual(tutorial.steps.length, 1);
+    assert.strictEqual(tutorial.steps[0].target.css, '#add-bag');
+  });
+
+  test('NvidiaDomAnalyzer routes via backendUrl proxy when provided', async () => {
+    const mockDoc = createMockDoc({
+      title: 'Store Front',
+      buttons: [
+        { textContent: 'Add to Bag', id: 'add-bag' },
+      ],
+    });
+
+    const mockProxyTutorial = {
+      id: 'proxy-guide-123',
+      name: { km: 'ការណែនាំតាម Server', en: 'Server Proxy Guide' },
+      description: { km: 'វិភាគលើ Backend', en: 'Analyzed on Backend' },
+      steps: [
+        {
+          id: 'step_proxy_1',
+          title: { km: 'ជំហានទី ១', en: 'Step 1' },
+          description: { km: 'ការពិពណ៌នា', en: 'Description' },
+          target: { css: '#add-bag' },
+          action: {
+            type: 'spotlight',
+            title: { km: 'ចំណងជើង', en: 'Title' },
+            content: { km: 'ខ្លឹមសារ', en: 'Content' },
+            placement: 'bottom',
+          },
+          validation: { type: 'click' },
+        },
+      ],
+    };
+
+    let requestedUrl = '';
+    const mockFetch = async (url) => {
+      requestedUrl = url;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => mockProxyTutorial,
+      };
+    };
+
+    const tutorial = await NvidiaDomAnalyzer.analyzeWithNvidia({
+      prompt: 'Help me add to bag',
+      doc: mockDoc,
+      backendUrl: 'http://localhost:4000',
+      fetchFn: mockFetch,
+    });
+
+    assert.strictEqual(requestedUrl, 'http://localhost:4000/api/ai/dom-guide');
+    assert.strictEqual(tutorial.id, 'proxy-guide-123');
+    assert.strictEqual(tutorial.steps.length, 1);
+  });
+
+  test('DynamicPageAnalyzer.generateDynamicTutorialAsync uses NVIDIA NIM options seamlessly', async () => {
+    const mockDoc = createMockDoc({
+      title: 'Store Front',
+      buttons: [
+        { textContent: 'Add to Bag', id: 'add-bag' },
+      ],
+    });
+
+    const mockResponse = {
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              id: 'nvidia-async-guide',
+              name: { km: 'ការណែនាំ', en: 'Guide' },
+              description: { km: 'ការណែនាំ', en: 'Guide' },
+              steps: [
+                {
+                  id: 'step_1',
+                  title: { km: 'ចុច', en: 'Click' },
+                  description: { km: 'ចុច', en: 'Click' },
+                  target: { css: '#add-bag' },
+                  action: {
+                    type: 'spotlight',
+                    title: { km: 'កន្ត្រក', en: 'Bag' },
+                    content: { km: 'ចុច', en: 'Click' },
+                    placement: 'bottom',
+                  },
+                  validation: { type: 'click' },
+                },
+              ],
+            }),
+          },
+        },
+      ],
+    };
+
+    const mockFetch = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    });
+
+    const tutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
+      mockDoc,
+      'https://store.example.com',
+      'Help me click add to bag',
+      {
+        provider: 'nvidia',
+        nvidiaApiKey: 'nvapi-test-key',
+        fetchFn: mockFetch,
+      }
+    );
+
+    assert.strictEqual(tutorial.id, 'nvidia-async-guide');
+    assert.strictEqual(tutorial.steps[0].target.css, '#add-bag');
+  });
 });
+

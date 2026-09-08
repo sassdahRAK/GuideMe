@@ -168,25 +168,45 @@ export function SettingsOverlay({
   const isKhmer = currentLanguage === 'km';
   // Exclusive accordion: only one section open at a time
   const [openSection, setOpenSection] = useState(null);
-  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [aiProvider, setAiProvider] = useState('nvidia');
+  const [nvidiaApiKeyInput, setNvidiaApiKeyInput] = useState('');
+  const [nvidiaModelInput, setNvidiaModelInput] = useState('moonshotai/kimi-k3');
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('');
   const [isKeySaved, setIsKeySaved] = useState(false);
 
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-      chrome.storage.local.get('guideme_gemini_api_key', (res) => {
-        if (res?.guideme_gemini_api_key) {
-          setApiKeyInput(res.guideme_gemini_api_key);
+      chrome.storage.local.get(
+        [
+          'guideme_ai_provider',
+          'guideme_nvidia_api_key',
+          'guideme_nvidia_model',
+          'guideme_gemini_api_key',
+        ],
+        (res) => {
+          if (res?.guideme_ai_provider) setAiProvider(res.guideme_ai_provider);
+          if (res?.guideme_nvidia_api_key) setNvidiaApiKeyInput(res.guideme_nvidia_api_key);
+          if (res?.guideme_nvidia_model) setNvidiaModelInput(res.guideme_nvidia_model);
+          if (res?.guideme_gemini_api_key) setGeminiApiKeyInput(res.guideme_gemini_api_key);
         }
-      });
+      );
     }
   }, []);
 
-  const handleSaveApiKey = () => {
+  const handleSaveAiSettings = () => {
     if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-      chrome.storage.local.set({ guideme_gemini_api_key: apiKeyInput.trim() }, () => {
-        setIsKeySaved(true);
-        setTimeout(() => setIsKeySaved(false), 2500);
-      });
+      chrome.storage.local.set(
+        {
+          guideme_ai_provider: aiProvider,
+          guideme_nvidia_api_key: nvidiaApiKeyInput.trim(),
+          guideme_nvidia_model: nvidiaModelInput.trim() || 'moonshotai/kimi-k3',
+          guideme_gemini_api_key: geminiApiKeyInput.trim(),
+        },
+        () => {
+          setIsKeySaved(true);
+          setTimeout(() => setIsKeySaved(false), 2500);
+        }
+      );
     }
   };
 
@@ -320,37 +340,115 @@ export function SettingsOverlay({
               {getUIString('aiDomDescription', currentLanguage)}
             </p>
 
+            {/* Provider Selector */}
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-gray-800 dark:text-zinc-200">
+                {getUIString('aiProvider', currentLanguage)}
+              </label>
+              <div className="grid grid-cols-2 gap-1.5 p-1 rounded-lg bg-gray-100 dark:bg-[#12121e] border border-gray-200/60 dark:border-[#2d2d44]">
+                <button
+                  type="button"
+                  onClick={() => setAiProvider('nvidia')}
+                  className={`py-1 px-2 rounded-md text-[11px] font-medium border-0 cursor-pointer transition-all ${
+                    aiProvider === 'nvidia'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-transparent text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  NVIDIA NIM (Kimi-K3)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAiProvider('gemini')}
+                  className={`py-1 px-2 rounded-md text-[11px] font-medium border-0 cursor-pointer transition-all ${
+                    aiProvider === 'gemini'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-transparent text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Google Gemini
+                </button>
+              </div>
+            </div>
+
+            {/* Active Mode Badge */}
             <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40">
               <span className="font-medium text-gray-700 dark:text-zinc-300">
                 {isKhmer ? 'មុខងារសកម្ម' : 'Active Mode'}:
               </span>
               <span className="font-semibold text-purple-700 dark:text-purple-300">
-                {apiKeyInput.trim() ? getUIString('aiActive', currentLanguage) : getUIString('aiLocal', currentLanguage)}
+                {aiProvider === 'nvidia'
+                  ? (nvidiaApiKeyInput.trim() ? getUIString('aiActiveNvidia', currentLanguage) : getUIString('aiActiveBackend', currentLanguage))
+                  : (geminiApiKeyInput.trim() ? getUIString('aiActiveGemini', currentLanguage) : getUIString('aiLocal', currentLanguage))}
               </span>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-gray-800 dark:text-zinc-200">
-                {getUIString('geminiApiKey', currentLanguage)}
-              </label>
-              <div className="flex gap-2">
+            {/* NVIDIA Configuration */}
+            {aiProvider === 'nvidia' && (
+              <div className="flex flex-col gap-2.5">
+                <div className="p-2 rounded-lg bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100/60 dark:border-purple-900/30 text-[11px] text-purple-900 dark:text-purple-200">
+                  {getUIString('nvidiaFreeNotice', currentLanguage)}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold text-gray-800 dark:text-zinc-200">
+                    {getUIString('nvidiaApiKey', currentLanguage)}
+                  </label>
+                  <input
+                    type="password"
+                    value={nvidiaApiKeyInput}
+                    onChange={(e) => setNvidiaApiKeyInput(e.target.value)}
+                    placeholder={getUIString('nvidiaApiKeyPlaceholder', currentLanguage)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#38384f] bg-white dark:bg-[#101018] text-gray-900 dark:text-white outline-none focus:border-purple-500 text-xs box-border"
+                  />
+                  <span className="text-[10px] text-gray-500 dark:text-zinc-400">
+                    {isKhmer
+                      ? 'ទុកទទេដើម្បីប្រើ GuideMe Cloud Proxy ដោយស្វ័យប្រវត្តិ (Key រក្សាទុកលើ Server)'
+                      : 'Leave empty to use GuideMe Cloud Proxy automatically (Key stored on Server)'}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold text-gray-800 dark:text-zinc-200">
+                    {getUIString('nvidiaModel', currentLanguage)}
+                  </label>
+                  <input
+                    type="text"
+                    value={nvidiaModelInput}
+                    onChange={(e) => setNvidiaModelInput(e.target.value)}
+                    placeholder={getUIString('nvidiaModelPlaceholder', currentLanguage)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#38384f] bg-white dark:bg-[#101018] text-gray-900 dark:text-white outline-none focus:border-purple-500 text-xs box-border"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Gemini Configuration */}
+            {aiProvider === 'gemini' && (
+              <div className="flex flex-col gap-1.5">
+                <label className="font-semibold text-gray-800 dark:text-zinc-200">
+                  {getUIString('geminiApiKey', currentLanguage)}
+                </label>
                 <input
                   type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  value={geminiApiKeyInput}
+                  onChange={(e) => setGeminiApiKeyInput(e.target.value)}
                   placeholder={getUIString('geminiApiKeyPlaceholder', currentLanguage)}
-                  className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#38384f] bg-white dark:bg-[#101018] text-gray-900 dark:text-white outline-none focus:border-purple-500 text-xs"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#38384f] bg-white dark:bg-[#101018] text-gray-900 dark:text-white outline-none focus:border-purple-500 text-xs box-border"
                 />
-                <button
-                  type="button"
-                  onClick={handleSaveApiKey}
-                  className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors border-0 cursor-pointer text-xs shrink-0"
-                >
-                  {isKeySaved ? getUIString('keySaved', currentLanguage) : getUIString('saveKey', currentLanguage)}
-                </button>
               </div>
-            </div>
+            )}
 
+            {/* Save Button */}
+            <button
+              type="button"
+              onClick={handleSaveAiSettings}
+              className="mt-1 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors border-0 cursor-pointer text-xs flex items-center justify-center gap-1.5"
+            >
+              {isKeySaved ? getUIString('keySaved', currentLanguage) : getUIString('saveKey', currentLanguage)}
+            </button>
+
+            {/* Hints */}
             <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-[#12121e] border border-gray-100 dark:border-[#2d2d44] text-[11px] text-gray-600 dark:text-zinc-400 flex flex-col gap-1">
               <div className="font-bold text-gray-800 dark:text-zinc-200">
                 {isKhmer ? '💡 របៀបកំណត់ DOM targets តាមចិត្ត:' : '💡 How to define DOM targets:'}

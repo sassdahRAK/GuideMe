@@ -44,26 +44,32 @@ export default function App() {
   const [userProfile,       setUserProfile]       = useState(null);
 
   // ── Chat state ──────────────────────────────────────────────────────────────
-  const [messages,      setMessages]      = useState(() => [
-    {
-      role: 'assistant',
-      content: INITIAL_GREETINGS.km,
-      time: nowTime('km'),
-    },
-  ]);
+  const [messages,      setMessages]      = useState([]);
   const [customPrompt,  setCustomPrompt]  = useState('');
+
+  // Helper to persist messages to storage and state
+  const updateMessages = (newMessages) => {
+    setMessages(newMessages);
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.set({ guideme_chat_messages: newMessages });
+    }
+  };
 
   // Update initial greeting if chat is still untouched when language changes
   useEffect(() => {
     setMessages((prev) => {
       if (prev.length === 1 && prev[0].role === 'assistant') {
-        return [
+        const updated = [
           {
             role: 'assistant',
             content: INITIAL_GREETINGS[currentLanguage] || INITIAL_GREETINGS.km,
             time: nowTime(currentLanguage),
           },
         ];
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+           chrome.storage.local.set({ guideme_chat_messages: updated });
+        }
+        return updated;
       }
       return prev;
     });
@@ -94,6 +100,7 @@ export default function App() {
           STORAGE_KEY_HISTORY,
           STORAGE_KEY_AUTH_TOKEN,
           STORAGE_KEY_USER_PROFILE,
+          'guideme_chat_messages',
         ]);
 
         // First time open: Launch in-page onboarding overlay on active tab
@@ -128,6 +135,20 @@ export default function App() {
         if (stored[STORAGE_KEY_AUTH_TOKEN]) setAuthToken(stored[STORAGE_KEY_AUTH_TOKEN]);
         if (stored[STORAGE_KEY_USER_PROFILE]) setUserProfile(stored[STORAGE_KEY_USER_PROFILE]);
 
+        // Restore unified chat history or create default
+        if (stored.guideme_chat_messages && stored.guideme_chat_messages.length > 0) {
+          setMessages(stored.guideme_chat_messages);
+        } else {
+          const defaultGreeting = [
+            {
+              role: 'assistant',
+              content: INITIAL_GREETINGS[stored[STORAGE_KEY_LANG] || 'km'] || INITIAL_GREETINGS.km,
+              time: nowTime(stored[STORAGE_KEY_LANG] || 'km'),
+            },
+          ];
+          updateMessages(defaultGreeting);
+        }
+
         if (tab?.id && !tab.url?.startsWith('chrome://')) {
           chrome.tabs.sendMessage(tab.id, { action: ExtensionMessageAction.GET_TUTORIAL_STATUS }, (res) => {
             if (!chrome.runtime.lastError && res?.state?.language) {
@@ -140,7 +161,7 @@ export default function App() {
       }
     })();
 
-    // Listen for storage changes from in-page overlays
+    // Listen for storage changes from in-page overlays and PiP
     const storageListener = (changes, areaName) => {
       if (areaName === 'local') {
         if (changes[STORAGE_KEY_THEME]) {
@@ -154,6 +175,9 @@ export default function App() {
         }
         if (changes[STORAGE_KEY_USER_PROFILE]) {
           setUserProfile(changes[STORAGE_KEY_USER_PROFILE].newValue || null);
+        }
+        if (changes.guideme_chat_messages) {
+          setMessages(changes.guideme_chat_messages.newValue || []);
         }
       }
     };
@@ -218,28 +242,40 @@ export default function App() {
     });
   };
 
-  const handleOpenDashboard = () => {
+  // ── Send message to host webpage tab with auto-injection fallback ───────────
+  const sendMessageToContentScript = (payload, onComplete) => {
     if (!currentTab?.id || isChromeInternalUrl) {
-      window.close();
+      if (onComplete) onComplete({ success: false, error: 'Internal URL' });
       return;
     }
 
-    const payload = { action: 'OPEN_DASHBOARD_OVERLAY' };
     chrome.tabs.sendMessage(currentTab.id, payload, async (res) => {
-      if (chrome.runtime.lastError || !res?.success) {
+      if (chrome.runtime?.lastError || !res?.success) {
         try {
-          await chrome.scripting?.executeScript({
-            target: { tabId: currentTab.id },
-            files: ['content-scripts/content.js'],
-          });
-          setTimeout(() => chrome.tabs.sendMessage(currentTab.id, payload, () => window.close()), 300);
+          if (chrome.scripting?.executeScript) {
+            await chrome.scripting.executeScript({
+              target: { tabId: currentTab.id },
+              files: ['content-scripts/content.js'],
+            });
+          }
+          setTimeout(() => {
+            chrome.tabs.sendMessage(currentTab.id, payload, (fallbackRes) => {
+              if (onComplete) onComplete(fallbackRes);
+              window.close();
+            });
+          }, 300);
           return;
         } catch (err) {
           console.error('[GuideMe Popup] Failed to inject content script:', err);
         }
       }
+      if (onComplete) onComplete(res);
       window.close();
     });
+  };
+
+  const handleOpenDashboard = () => {
+    sendMessageToContentScript({ action: 'OPEN_DASHBOARD_OVERLAY' });
   };
 
   // ── Auth Handlers ─────────────────────────────────────────────────────────────
@@ -271,47 +307,97 @@ export default function App() {
 
     // Add user message to chat immediately
     const userMsg = { role: 'user', content: prompt, time: nowTime(currentLanguage) };
-    setMessages((prev) => [...prev, userMsg]);
+    const nextMessages = [...messages, userMsg];
+    updateMessages(nextMessages);
     setCustomPrompt('');
 
     // Classify the prompt to determine response type
     const classification = classifyPrompt(prompt);
 
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-
+    
+    try {
       let reply;
 
       if (classification.type === 'greeting') {
         // Greetings → greet back warmly
         reply = classification.responses[currentLanguage] || classification.responses.en;
-      } else if (classification.type === 'unclear') {
-        // Unclear → ask for clarification
-        reply = classification.responses[currentLanguage] || classification.responses.en;
-      } else {
-        // Actionable → original guiding replies
-        const contextualReplies = {
-          km: [
-            "ខ្ញុំអាចជួយអ្នកបាន! ចុច 'បំបែក UI ចេញពីផ្ទាំងនេះ' ដើម្បីចាប់ផ្ដើមការណែនាំជាជំហានៗលើទំព័រនេះ។",
-            "សំណួរល្អណាស់! ខ្ញុំកំពុងវិភាគទំព័រវេបសាយនេះដើម្បីផ្ដល់ការណែនាំដ៏ល្អបំផុតសម្រាប់អ្នក។",
-            "យល់ហើយ! អ្នកអាចចាប់ផ្ដើមមេរៀន ឬសួរខ្ញុំឱ្យពន្យល់ពីប៊ូតុង ឬទម្រង់ណាមួយលើអេក្រង់នេះ។",
-          ],
-          en: [
-            "I can help you with that! Click 'Extract Separate UI' to start interactive step-by-step guidance on this page.",
-            "Great question! I'm analyzing this webpage to provide the best walkthrough for you.",
-            "Got it! You can start a tutorial or ask me to explain any specific button or form on this screen.",
-          ],
-        };
-        const list = contextualReplies[currentLanguage] || contextualReplies.km;
-        reply = list[Math.floor(Math.random() * list.length)];
+        updateMessages([...nextMessages, { role: 'assistant', content: reply, time: nowTime(currentLanguage) }]);
+        return;
       }
 
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: reply, time: nowTime(currentLanguage) },
-      ]);
-    }, 600);
+      if (classification.type === 'unclear') {
+        reply = classification.responses[currentLanguage] || classification.responses.en;
+        updateMessages([...nextMessages, { role: 'assistant', content: reply, time: nowTime(currentLanguage) }]);
+        return;
+      }
+
+      // For actionable prompts or general AI queries:
+      let aiResponded = false;
+      const isDev = import.meta.env.DEV || process.env.NODE_ENV === 'development';
+      const defaultProdUrl = 'https://guideme-lac.vercel.app';
+      const baseUrl = import.meta.env.WXT_API_URL || (isDev ? 'http://localhost:4000' : defaultProdUrl);
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/ai/assistant-chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: prompt, language: currentLanguage }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          reply = data.answer || data.message;
+          if (reply) {
+            updateMessages([...nextMessages, { role: 'assistant', content: reply, time: nowTime(currentLanguage) }]);
+            aiResponded = true;
+
+            if (data.triggerGuide) {
+              const intentPrompt = data.intentPrompt || prompt;
+              sendMessageToContentScript({
+                action: 'GUIDEME_START_DYNAMIC_GUIDE',
+                payload: { prompt: intentPrompt },
+              });
+            }
+          }
+        }
+      } catch (backendErr) {
+        console.warn("[GuideMe Popup] Backend AI unreachable, executing on-page guide fallback:", backendErr);
+      }
+
+      // If backend was unreachable or offline, provide smart seamless fallback
+      if (!aiResponded) {
+        if (classification.type === 'actionable') {
+          const startingMsg = currentLanguage === 'km'
+            ? 'ខ្ញុំយល់ហើយ! កំពុងចាប់ផ្តើមការណែនាំជាជំហានៗលើទំព័រនេះ...'
+            : "Got it! Starting a step-by-step walkthrough on this page...";
+          updateMessages([...nextMessages, { role: 'assistant', content: startingMsg, time: nowTime(currentLanguage) }]);
+
+          sendMessageToContentScript({
+            action: 'GUIDEME_START_DYNAMIC_GUIDE',
+            payload: { prompt },
+          });
+        } else {
+          const fallbackReply = classification.responses?.[currentLanguage] || classification.responses?.en || "Hello! How can I help you on this page?";
+          updateMessages([...nextMessages, { role: 'assistant', content: fallbackReply, time: nowTime(currentLanguage) }]);
+        }
+      }
+    } catch (err) {
+      console.error("[GuideMe Popup] Error in handleCustomSubmit:", err);
+      if (classification.type === 'actionable') {
+        sendMessageToContentScript({
+          action: 'GUIDEME_START_DYNAMIC_GUIDE',
+          payload: { prompt },
+        });
+      }
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
 

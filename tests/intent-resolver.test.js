@@ -82,7 +82,7 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
 
   test('Stage 2 BackendIntentApiClient sends clean payload and extracts stepIds', async () => {
     const mockFetch = async (url, options) => {
-      assert.ok(url.endsWith('/api/v1/ai/intent-rerank'));
+      assert.ok(url.endsWith('/api/ai/intent-rerank'));
       const parsedBody = JSON.parse(options.body);
       assert.strictEqual(parsedBody.prompt, 'invite new team members');
       assert.ok(Array.isArray(parsedBody.candidates));
@@ -141,6 +141,48 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
     const stepIds = await reranker.rerank('invite colleagues', candidates);
     assert.deepStrictEqual(stepIds, ['cand-1']);
   });
+
+  test('Stage 2 LlmReranker supports NVIDIA NIM provider preset and strips reasoning tokens', async () => {
+    let capturedUrl = '';
+    let capturedHeaders = {};
+    const mockFetch = async (url, options) => {
+      capturedUrl = url;
+      capturedHeaders = options.headers;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: `<think>Candidate cand-1 represents Share action</think>\n{"stepIds": ["cand-1"]}`,
+              },
+            },
+          ],
+        }),
+      };
+    };
+
+    const reranker = new LlmReranker({
+      provider: 'nvidia',
+      apiKey: 'nvapi-kimi-key',
+      fetchFn: mockFetch,
+    });
+
+    assert.strictEqual(reranker.endpoint, 'https://integrate.api.nvidia.com/v1/chat/completions');
+    assert.strictEqual(reranker.model, 'moonshotai/kimi-k3');
+
+    const candidates = [
+      { candidateId: 'cand-0', desc: { category: 'navigation', label: 'Overview' }, score: 0.5 },
+      { candidateId: 'cand-1', desc: { category: 'action', label: 'Share' }, score: 0.4 },
+    ];
+
+    const stepIds = await reranker.rerank('share project', candidates);
+    assert.strictEqual(capturedUrl, 'https://integrate.api.nvidia.com/v1/chat/completions');
+    assert.strictEqual(capturedHeaders['Authorization'], 'Bearer nvapi-kimi-key');
+    assert.deepStrictEqual(stepIds, ['cand-1']);
+  });
+
 
   test('IntentResolver gracefully falls back to Stage 1 when API client errors or times out', async () => {
     const failingFetch = async () => {

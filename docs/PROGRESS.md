@@ -6,8 +6,8 @@
 
 ## 1. Project Health & Test Status
 
-- **Automated Test Suite:** All test suites passing (`tests/engine.test.js`, `tests/dynamic-analyzer.test.js`, `tests/dom-observer.test.js`, `tests/prompt-classifier.test.js`).
-- **Build Status:** Manifest V3 production bundle (`apps/chrome-extension/.output/chrome-mv3`) compiling cleanly via WXT + Vite.
+- **Automated Test Suite:** 119/119 unit tests passing across all 9 suites (`tests/engine.test.js`, `tests/dynamic-analyzer.test.js`, `tests/dom-observer.test.js`, `tests/prompt-classifier.test.js`, `tests/intent-resolver.test.js`).
+- **Build Status:** Manifest V3 production bundle (`apps/chrome-extension/.output/chrome-mv3`) compiling cleanly via WXT + Vite (1.92s).
 - **Specification Status:** Documentation unified under `docs/` and bound to root `AGENTS.md`.
 
 ---
@@ -58,9 +58,26 @@
 - [x] Automatic session restoration on page navigation or reload with 0 step context loss.
 - [x] Dynamic guide triggering from detached floating launcher directly to the active webpage.
 
+### Phase 4.4: NVIDIA AI NIM (Kimi-K3) DOM & Engine Intelligence Integration
+- [x] **Live DOM Engine + AI Synergy Loop:**
+  - Implemented two-stage interactive workflow: DOM Engine scans live host webpage elements (`tag`, `id`, `class`, `testId`, `ariaLabel`, `text`, `coordinates`) -> sends candidates to NVIDIA NIM -> `moonshotai/kimi-k3` reasons on user intent (Khmer/English) and maps sequential interactive steps -> Engine binds live spotlights, monitors clicks/inputs, and auto-advances.
+- [x] **Headless `NvidiaDomAnalyzer` (`@guideme/engine`):**
+  - Pure JS, Node & browser-compatible analyzer consuming NVIDIA NIM chat completions (`https://integrate.api.nvidia.com/v1/chat/completions`).
+  - Defensive extraction with `<think>...</think>` reasoning token stripping and Markdown code fence isolation for reasoning models (e.g. `moonshotai/kimi-k3`).
+  - Step candidate hydration and Zod `SchemaValidator` schema validation before passing to engine.
+- [x] **Dual-Tier Secret Management Architecture:**
+  - **Backend Layer (`GuideMe-Backend`):** Added secure proxy endpoint `POST /api/v1/ai/dom-guide` and `.env` credentials (`NVIDIA_API_KEY`, `NVIDIA_MODEL=moonshotai/kimi-k3`, `NVIDIA_BASE_URL`). Zero API key leakage into Chrome extension bundles; allows instant model/key rotation without waiting for Chrome Web Store reviews.
+  - **Client-Side BYOK:** Settings popup allows power users/developers to optionally supply their own personal key saved locally in `chrome.storage.local`.
+- [x] **Popup & UI Settings:**
+  - Added AI Provider selector (NVIDIA NIM vs Google Gemini vs Cloud Proxy).
+  - Added live status indicators, Khmer diacritic-safe Kantumruy typography, and full Khmer (`km`) / English (`en`) bilingual strings in `ui-strings.js`.
+- [x] **Automated Test Coverage:**
+  - Added unit test suites verifying `NvidiaDomAnalyzer`, think token stripping, backend proxy dispatch, and `LlmReranker` NVIDIA provider preset. Total test count increased to **119 passing tests** (100% pass rate).
+
 ---
 
 ## 3. Upcoming Roadmap
 
 ### Phase 5: Cloud Sync
 - [ ] Organization tutorial catalog distribution API.
+

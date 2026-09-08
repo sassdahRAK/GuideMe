@@ -161,10 +161,15 @@ export function StepCard({
         </div>
       </div>
 
-      {/* ── Main Instruction Text ── */}
+      {/* ── Main Step Header & Instruction Text ── */}
       <div className="pt-3 pb-2.5">
-        <p className="text-[14px] leading-relaxed text-gray-900 dark:text-white font-normal m-0 tracking-normal">
-          {cleanContent}
+        {title && (
+          <h3 className="text-[15px] font-bold text-gray-900 dark:text-white m-0 mb-1.5 leading-snug tracking-tight">
+            {title}
+          </h3>
+        )}
+        <p className="text-[13.5px] leading-relaxed text-gray-700 dark:text-gray-200 font-normal m-0 tracking-normal">
+          {cleanContent || title}
         </p>
 
         {/* Target Missing Warning Banner */}

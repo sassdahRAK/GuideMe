@@ -1,15 +1,16 @@
 /**
- * GuideMe PiP — Standalone Floating Companion Window Controller.
+ * GuideMe PiP — Floating Companion Window Controller.
  *
  * Features:
- *  - Conversational AI Prompt Classifier (greetings, clarifications, actionable tasks)
+ *  - Conversational AI synced across Popup and PiP via shared storage (`guideme_chat_messages`)
+ *  - Dynamic Intent Routing: AI triggers DOM analysis and step-by-step guidance on host tab
  *  - Active Walkthrough Controller HUD (Next, Prev, Audio Replay, End Guide)
- *  - Suggested Quick Actions (Spreadsheet walkthrough, Step capture, etc.)
+ *  - Suggested Quick Actions / Catalog Guides
  *  - Real-time Web Speech API voice input (Khmer km-KH & English en-US)
  *  - Step Capture Trigger (Element inspector on active tab)
  *  - Circular Progress Spinner during dynamic guide synthesis
- *  - Auto-growing multiline input with smooth window auto-resize
- *  - Persistent Window-on-Top focus discipline (never hides behind host page)
+ *  - Auto-growing multiline input with smooth window auto-resize (Windows clipping prevention)
+ *  - Persistent Window-on-Top focus discipline
  *  - Live storage synchronization (theme & language)
  */
 
@@ -35,12 +36,20 @@ import { createSpeechController } from './speech.js';
     guideStarted: { km: 'កំពុងចាប់ផ្តើមការណែនាំ...', en: 'Starting walkthrough...' },
     guideEnded: { km: 'បានបញ្ចប់ការណែនាំ!', en: 'Walkthrough ended!' },
     clickElementHint: { km: 'សូមចុចលើធាតុណាមួយលើទំព័រដើម្បីបង្កើតជំហាន...', en: 'Click any element on the page to create a step...' },
+    errorConnecting: { km: 'មានបញ្ហាក្នុងការតភ្ជាប់ទៅកាន់ AI', en: 'Error connecting to AI' },
   };
 
   function t(key, lang) {
     const item = UI_STRINGS[key];
     if (!item) return key;
     return item[lang] || item['km'] || item['en'] || key;
+  }
+
+  function nowTime(lang) {
+    return new Date().toLocaleTimeString(lang === 'km' ? 'km-KH' : 'en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   }
 
   // ── State ────────────────────────────────────────────────────
@@ -51,7 +60,6 @@ import { createSpeechController } from './speech.js';
   let activeGuideState = null;
   let availableTutorialsList = [];
   let speechController = null;
-  let responseTimer = null;
 
   // ── DOM refs ─────────────────────────────────────────────────
   let root,
@@ -62,8 +70,8 @@ import { createSpeechController } from './speech.js';
     form,
     badgePlus,
     badgeSpinner,
-    responseContainer,
-    responseText,
+    chatHistoryContainer,
+    chatMessagesList,
     activeGuideContainer,
     guideTitleEl,
     guideStepTitleEl,
@@ -78,7 +86,7 @@ import { createSpeechController } from './speech.js';
   /**
    * Initialize the PiP window.
    */
-  function init() {
+  async function init() {
     try {
       root = document.getElementById('guideme-pip-root');
       input = document.getElementById('pip-input');
@@ -88,8 +96,10 @@ import { createSpeechController } from './speech.js';
       form = document.getElementById('pip-form');
       badgePlus = document.getElementById('badge-icon-plus');
       badgeSpinner = document.getElementById('badge-spinner');
-      responseContainer = document.getElementById('pip-response');
-      responseText = document.getElementById('pip-response-text');
+
+      // Chat history container
+      chatHistoryContainer = document.getElementById('pip-chat-history');
+      chatMessagesList = document.getElementById('pip-chat-messages');
 
       // Active Guide HUD elements
       activeGuideContainer = document.getElementById('pip-active-guide');
@@ -110,10 +120,28 @@ import { createSpeechController } from './speech.js';
         return;
       }
 
-      // Load stored preferences (theme, language)
-      loadPreferences();
+      // Restore stored preferences and chat history
+      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+        const res = await chrome.storage.local.get([
+          'guideme_theme',
+          'guideme_lang',
+          'guideme_chat_messages',
+        ]);
 
-      // Listen for live theme/language & guide updates
+        if (res.guideme_theme) {
+          currentTheme = res.guideme_theme;
+          applyTheme(currentTheme);
+        }
+        if (res.guideme_lang) {
+          currentLang = res.guideme_lang;
+          applyLanguage(currentLang);
+        }
+        if (Array.isArray(res.guideme_chat_messages) && res.guideme_chat_messages.length > 0) {
+          renderChatMessages(res.guideme_chat_messages);
+        }
+      }
+
+      // Listen for live theme/language, chat history & guide updates
       setupStorageListener();
       setupRuntimeMessageListener();
 
@@ -143,23 +171,22 @@ import { createSpeechController } from './speech.js';
       // Auto-grow calculation on mount
       autoGrow();
 
-      // Dynamic ResizeObserver observing internal elements whose content dynamically changes
+      // Dynamic ResizeObserver to prevent window clipping on OS title bars / borders
       if (typeof ResizeObserver !== 'undefined') {
         const ro = new ResizeObserver(() => {
           recalculateWindowSize();
         });
         const wrapper = document.getElementById('pip-wrapper');
         if (wrapper) ro.observe(wrapper);
-        if (responseContainer) ro.observe(responseContainer);
+        if (chatHistoryContainer) ro.observe(chatHistoryContainer);
         if (activeGuideContainer) ro.observe(activeGuideContainer);
         if (suggestionsContainer) ro.observe(suggestionsContainer);
       }
 
-      // Focus input and keep window in front
       ensureWindowOnTop();
       input.focus();
 
-      console.log('[GuideMe PiP] Window initialized with full walkthrough controller.');
+      console.log('[GuideMe PiP] Window initialized with unified chat and guide controller.');
     } catch (err) {
       console.error('[GuideMe PiP] Init failed:', err);
     }
@@ -183,48 +210,97 @@ import { createSpeechController } from './speech.js';
   }
 
   /**
-   * Load theme & language from chrome.storage.local.
+   * Retrieve chat messages from storage.
    */
-  function loadPreferences() {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-        chrome.storage.local.get(['guideme_theme', 'guideme_lang'], (result) => {
-          try {
-            if (chrome.runtime?.lastError) return;
-            if (result?.guideme_theme) {
-              currentTheme = result.guideme_theme;
-              applyTheme(currentTheme);
-            }
-            if (result?.guideme_lang) {
-              currentLang = result.guideme_lang;
-              applyLanguage(currentLang);
-            }
-          } catch { }
-        });
+  function getStoredChatMessages() {
+    return new Promise((resolve) => {
+      if (typeof chrome === 'undefined' || !chrome.storage?.local) {
+        resolve([]);
+        return;
       }
-    } catch (err) {
-      console.error('[GuideMe PiP] loadPreferences failed:', err);
+      chrome.storage.local.get(['guideme_chat_messages'], (res) => {
+        resolve(res?.guideme_chat_messages || []);
+      });
+    });
+  }
+
+  /**
+   * Save chat messages to storage.
+   */
+  function saveStoredChatMessages(messages) {
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      chrome.storage.local.set({ guideme_chat_messages: messages });
     }
   }
 
   /**
-   * Listen for theme/language changes made elsewhere.
+   * Render chat history list.
+   */
+  function renderChatMessages(messages) {
+    if (!chatHistoryContainer || !chatMessagesList) return;
+
+    if (!messages || messages.length === 0) {
+      chatHistoryContainer.style.display = 'none';
+      chatMessagesList.innerHTML = '';
+      recalculateWindowSize();
+      return;
+    }
+
+    chatHistoryContainer.style.display = 'flex';
+    chatMessagesList.innerHTML = '';
+
+    messages.forEach((msg) => {
+      const bubble = document.createElement('div');
+      const isUser = msg.role === 'user';
+      bubble.className = `chat-bubble ${isUser ? 'chat-bubble-user' : 'chat-bubble-ai'}`;
+      bubble.textContent = msg.content || '';
+      chatMessagesList.appendChild(bubble);
+    });
+
+    // Scroll chat to newest message
+    chatHistoryContainer.scrollTop = chatHistoryContainer.scrollHeight;
+    recalculateWindowSize();
+  }
+
+  /**
+   * Append a user message to shared chat history.
+   */
+  async function appendUserMessage(text) {
+    const messages = await getStoredChatMessages();
+    const updated = [...messages, { role: 'user', content: text, time: nowTime(currentLang) }];
+    saveStoredChatMessages(updated);
+    renderChatMessages(updated);
+  }
+
+  /**
+   * Append an assistant message to shared chat history.
+   */
+  async function appendAiMessage(text) {
+    const messages = await getStoredChatMessages();
+    const updated = [...messages, { role: 'assistant', content: text, time: nowTime(currentLang) }];
+    saveStoredChatMessages(updated);
+    renderChatMessages(updated);
+  }
+
+  /**
+   * Listen for theme/language/chat changes made elsewhere (e.g. in Popup).
    */
   function setupStorageListener() {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
         chrome.storage.onChanged.addListener((changes, areaName) => {
-          try {
-            if (areaName !== 'local') return;
-            if (changes.guideme_theme) {
-              currentTheme = changes.guideme_theme.newValue;
-              applyTheme(currentTheme);
-            }
-            if (changes.guideme_lang) {
-              currentLang = changes.guideme_lang.newValue;
-              applyLanguage(currentLang);
-            }
-          } catch { }
+          if (areaName !== 'local') return;
+          if (changes.guideme_theme) {
+            currentTheme = changes.guideme_theme.newValue;
+            applyTheme(currentTheme);
+          }
+          if (changes.guideme_lang) {
+            currentLang = changes.guideme_lang.newValue;
+            applyLanguage(currentLang);
+          }
+          if (changes.guideme_chat_messages) {
+            renderChatMessages(changes.guideme_chat_messages.newValue || []);
+          }
         });
       }
     } catch (err) {
@@ -241,7 +317,6 @@ import { createSpeechController } from './speech.js';
         chrome.runtime.onMessage.addListener((message) => {
           if (!message || !message.action) return;
 
-          // Tutorial state changed on the webpage
           if (message.action === 'GUIDEME_TUTORIAL_STATE_UPDATED') {
             const { active, currentStepIndex, totalSteps, tutorial, step } = message.payload || {};
             if (active) {
@@ -254,18 +329,6 @@ import { createSpeechController } from './speech.js';
               });
             } else {
               hideActiveGuideHUD();
-            }
-          }
-
-          if (message.action === 'GUIDEME_SYNC_SESSION') {
-            const session = message.payload;
-            if (session?.tutorial) {
-              updateActiveGuideHUD({
-                active: true,
-                currentStepIndex: session.currentStepIndex || 0,
-                totalSteps: session.tutorial.steps?.length || 1,
-                name: session.tutorial.name,
-              });
             }
           }
         });
@@ -311,7 +374,6 @@ import { createSpeechController } from './speech.js';
         return;
       }
 
-      // Add suggestions
       tutorials.slice(0, 3).forEach((tut) => {
         const chip = document.createElement('button');
         chip.type = 'button';
@@ -321,7 +383,7 @@ import { createSpeechController } from './speech.js';
           : tut.name;
         chip.textContent = `🎯 ${name}`;
         chip.addEventListener('click', () => {
-          showResponseMessage(`${t('guideStarted', currentLang)} ${name}`);
+          appendAiMessage(`${t('guideStarted', currentLang)} ${name}`);
           sendMessageToActiveTab({
             action: 'GUIDEME_START_TUTORIAL',
             payload: { tutorialId: tut.id },
@@ -333,7 +395,6 @@ import { createSpeechController } from './speech.js';
 
       suggestionsContainer.style.display = 'block';
       recalculateWindowSize();
-      setTimeout(() => recalculateWindowSize(), 40);
     } catch { }
   }
 
@@ -420,41 +481,6 @@ import { createSpeechController } from './speech.js';
   }
 
   /**
-   * Display conversational AI response message (greeting / clarification / feedback).
-   */
-  function showResponseMessage(message) {
-    try {
-      if (!responseContainer || !responseText) return;
-      responseText.textContent = message;
-      responseContainer.style.display = 'block';
-
-      recalculateWindowSize();
-      ensureWindowOnTop();
-
-      if (responseTimer) clearTimeout(responseTimer);
-      responseTimer = setTimeout(() => {
-        hideResponseMessage();
-      }, 8000);
-    } catch { }
-  }
-
-  /**
-   * Hide conversational AI response message.
-   */
-  function hideResponseMessage() {
-    try {
-      if (responseTimer) {
-        clearTimeout(responseTimer);
-        responseTimer = null;
-      }
-      if (responseContainer) {
-        responseContainer.style.display = 'none';
-      }
-      recalculateWindowSize();
-    } catch { }
-  }
-
-  /**
    * Toggle processing spinner state.
    */
   function setProcessing(processing) {
@@ -468,7 +494,6 @@ import { createSpeechController } from './speech.js';
    */
   function setupEventHandlers() {
     try {
-      // Form submit — send prompt to active tab
       if (form) {
         form.addEventListener('submit', (e) => {
           e.preventDefault();
@@ -476,7 +501,6 @@ import { createSpeechController } from './speech.js';
         });
       }
 
-      // Input change — auto-grow textarea & toggle mic/send button
       if (input) {
         input.addEventListener('input', () => {
           try {
@@ -487,87 +511,51 @@ import { createSpeechController } from './speech.js';
           } catch { }
         });
 
-        // Keydown — Enter sends, Shift+Enter newlines, Escape closes
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
           } else if (e.key === 'Escape') {
-            try {
-              window.close();
-            } catch { }
+            try { window.close(); } catch { }
           }
         });
-
         input.addEventListener('focus', () => ensureWindowOnTop());
       }
 
-      // Capture button — trigger element selection on webpage
       if (captureBtn) {
         captureBtn.addEventListener('click', () => {
-          try {
-            showResponseMessage(t('clickElementHint', currentLang));
-            sendMessageToActiveTab({ action: 'GUIDEME_START_CAPTURE_MODE' }, (res) => {
-              console.log('[GuideMe PiP] Capture mode started:', res);
-            });
-            ensureWindowOnTop();
-          } catch (err) {
-            console.error('[GuideMe PiP] Capture button error:', err);
-          }
+          appendAiMessage(t('clickElementHint', currentLang));
+          sendMessageToActiveTab({ action: 'GUIDEME_START_CAPTURE_MODE' });
+          ensureWindowOnTop();
         });
       }
 
-      // Mic button — toggle real speech recognition
       if (micBtn) {
         micBtn.addEventListener('click', () => {
-          try {
-            speechController?.toggle();
-            ensureWindowOnTop();
-          } catch (err) {
-            console.error('[GuideMe PiP] Mic button error:', err);
-          }
+          speechController?.toggle();
+          ensureWindowOnTop();
         });
       }
 
-      // Active Guide HUD Controls
-      if (guidePrevBtn) {
-        guidePrevBtn.addEventListener('click', () => {
-          sendMessageToActiveTab({ action: 'GUIDEME_PREV_STEP' });
-          ensureWindowOnTop();
-        });
-      }
-      if (guideNextBtn) {
-        guideNextBtn.addEventListener('click', () => {
-          sendMessageToActiveTab({ action: 'GUIDEME_NEXT_STEP' });
-          ensureWindowOnTop();
-        });
-      }
-      if (guideReplayBtn) {
-        guideReplayBtn.addEventListener('click', () => {
-          sendMessageToActiveTab({ action: 'GUIDEME_REPLAY_AUDIO' });
-          ensureWindowOnTop();
-        });
-      }
+      if (guidePrevBtn) guidePrevBtn.addEventListener('click', () => sendMessageToActiveTab({ action: 'GUIDEME_PREV_STEP' }));
+      if (guideNextBtn) guideNextBtn.addEventListener('click', () => sendMessageToActiveTab({ action: 'GUIDEME_NEXT_STEP' }));
+      if (guideReplayBtn) guideReplayBtn.addEventListener('click', () => sendMessageToActiveTab({ action: 'GUIDEME_REPLAY_AUDIO' }));
       if (guideStopBtn) {
         guideStopBtn.addEventListener('click', () => {
           sendMessageToActiveTab({ action: 'GUIDEME_STOP_TUTORIAL' });
           hideActiveGuideHUD();
-          showResponseMessage(t('guideEnded', currentLang));
-          ensureWindowOnTop();
+          appendAiMessage(t('guideEnded', currentLang));
         });
       }
 
-      // Clicking anywhere in the PiP container maintains window focus
-      if (root) {
-        root.addEventListener('pointerdown', () => ensureWindowOnTop());
-      }
+      if (root) root.addEventListener('pointerdown', () => ensureWindowOnTop());
     } catch (err) {
       console.error('[GuideMe PiP] setupEventHandlers failed:', err);
     }
   }
 
   /**
-   * Auto-grow textarea smoothly as prompt length expands.
+   * Auto-grow textarea smoothly.
    */
   function autoGrow() {
     if (!input) return;
@@ -578,129 +566,138 @@ import { createSpeechController } from './speech.js';
       input.style.height = targetH + 'px';
 
       const wrapper = document.getElementById('pip-wrapper');
-      const isMulti = targetH > 28;
       if (wrapper) {
-        wrapper.classList.toggle('multiline', isMulti);
+        wrapper.classList.toggle('multiline', targetH > 32);
       }
-
-      recalculateWindowSize();
     } catch { }
   }
 
   /**
-   * Compute exact rendered content height from visible child modules.
-   */
-  function getActualContentHeight() {
-    let h = 18; // Container vertical padding (8px top + 8px bottom + 2px buffer)
-
-    // Active guide HUD if visible
-    if (activeGuideContainer && activeGuideContainer.style.display !== 'none') {
-      const guideH = activeGuideContainer.offsetHeight || 0;
-      if (guideH > 0) h += guideH + 8;
-    }
-
-    // Response bubble if visible
-    if (responseContainer && responseContainer.style.display !== 'none') {
-      const respH = responseContainer.offsetHeight || 0;
-      if (respH > 0) h += respH + 8;
-    }
-
-    // Main input form
-    if (form) {
-      h += (form.offsetHeight || 48);
-    }
-
-    // Quick action suggestions if visible
-    if (suggestionsContainer && suggestionsContainer.style.display !== 'none') {
-      const suggH = suggestionsContainer.offsetHeight || 0;
-      if (suggH > 0) h += suggH + 6;
-    }
-
-    return h;
-  }
-
-  /**
-   * Recalculate and smoothly adjust window height dynamically to fit all content.
+   * Recalculate and adjust window height dynamically to fit all content.
+   * Fixes clipping on Windows & macOS OS window frames.
    */
   function recalculateWindowSize() {
     try {
-      if (typeof window === 'undefined' || typeof window.resizeTo !== 'function') return;
+      if (typeof window === 'undefined' || typeof window.resizeBy !== 'function') return;
 
-      const contentH = getActualContentHeight();
-      const frameOverhead = Math.max(28, Math.min(60, window.outerHeight - window.innerHeight));
-      const targetWindowH = Math.min(420, Math.max(90, Math.ceil(contentH + frameOverhead)));
+      requestAnimationFrame(() => {
+        const contentH = document.documentElement.scrollHeight;
+        const innerH = window.innerHeight;
 
-      if (Math.abs(window.outerHeight - targetWindowH) > 2) {
-        window.resizeTo(window.outerWidth, targetWindowH);
-      }
+        if (contentH > innerH) {
+          const delta = contentH - innerH;
+          window.resizeBy(0, delta + 16);
+        }
+      });
     } catch { }
   }
 
   /**
-   * Send the prompt to the active webpage tab in the main browser window.
+   * Send the prompt to the backend AI and active webpage tab in the main browser window.
    */
-  function handleSend() {
+  async function handleSend() {
     try {
       const text = input.value.trim();
       if (!text) return;
 
-      // 1. Classify prompt (greeting / unclear / actionable)
+      appendUserMessage(text);
+      finishSend(text);
+      setProcessing(true);
+
       const classification = classifyPrompt(text);
 
-      if (classification.type === 'greeting' || classification.type === 'unclear') {
+      if (classification.type === 'greeting') {
         const reply = classification.responses[currentLang] || classification.responses.en;
-        showResponseMessage(reply);
-        input.value = '';
-        if (micBtn) micBtn.style.display = '';
-        if (sendBtn) sendBtn.style.display = 'none';
-        autoGrow();
+        appendAiMessage(reply);
+        setProcessing(false);
         ensureWindowOnTop();
         return;
       }
 
-      // 2. Check if text matches an existing available catalog tutorial
-      const lower = text.toLowerCase();
-      const matchedCatalog = availableTutorialsList.find((tut) => {
-        const kmName = (tut.name?.km || '').toLowerCase();
-        const enName = (tut.name?.en || '').toLowerCase();
-        return lower.includes(kmName) || lower.includes(enName) || kmName.includes(lower) || enName.includes(lower);
-      });
-
-      if (matchedCatalog) {
-        const matchedTitle = matchedCatalog.name?.[currentLang] || matchedCatalog.name?.en || 'Guide';
-        showResponseMessage(`${t('guideStarted', currentLang)} ${matchedTitle}`);
-        sendMessageToActiveTab({
-          action: 'GUIDEME_START_TUTORIAL',
-          payload: { tutorialId: matchedCatalog.id },
-        });
-        finishSend(text);
+      if (classification.type === 'unclear') {
+        const reply = classification.responses[currentLang] || classification.responses.en;
+        appendAiMessage(reply);
+        setProcessing(false);
+        ensureWindowOnTop();
         return;
       }
 
-      // 3. Actionable prompt → Start dynamic guide generation
-      hideResponseMessage();
-      setProcessing(true);
-      showResponseMessage(t('guideStarted', currentLang));
+      // Query Backend AI for reasoning and dynamic guide triggering
+      let aiResponded = false;
+      const isDev = import.meta.env.DEV || process.env.NODE_ENV === 'development';
+      const defaultProdUrl = 'https://guideme-lac.vercel.app';
+      const baseUrl = import.meta.env.WXT_API_URL || (isDev ? 'http://localhost:4000' : defaultProdUrl);
 
-      sendMessageToActiveTab(
-        {
-          action: 'GUIDEME_START_DYNAMIC_GUIDE',
-          payload: { prompt: text },
-        },
-        (res) => {
-          setProcessing(false);
-          console.log('[GuideMe PiP] Dynamic guide response:', res);
-          if (res && res.success === false && res.error) {
-            showResponseMessage(res.error);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/ai/assistant-chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: text, language: currentLang }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          const reply = data.answer || data.message;
+          if (reply) {
+            appendAiMessage(reply);
+            aiResponded = true;
+
+            if (data.triggerGuide) {
+              const intentPrompt = data.intentPrompt || text;
+              sendMessageToActiveTab(
+                {
+                  action: 'GUIDEME_START_DYNAMIC_GUIDE',
+                  payload: { prompt: intentPrompt },
+                },
+                (bridgeRes) => {
+                  console.log('[GuideMe PiP] Dynamic guide started:', bridgeRes);
+                }
+              );
+            }
           }
-          ensureWindowOnTop();
         }
-      );
+      } catch (backendErr) {
+        console.warn('[GuideMe PiP] Backend AI unreachable, executing on-page guide fallback:', backendErr);
+      }
 
-      finishSend(text);
+      // If backend was offline or unreachable, execute resilient on-page guide fallback
+      if (!aiResponded) {
+        if (classification.type === 'actionable') {
+          const startingMsg = currentLang === 'km'
+            ? 'ខ្ញុំយល់ហើយ! កំពុងចាប់ផ្តើមការណែនាំជាជំហានៗលើទំព័រនេះ...'
+            : "Got it! Starting a step-by-step walkthrough on this page...";
+          appendAiMessage(startingMsg);
+
+          sendMessageToActiveTab(
+            {
+              action: 'GUIDEME_START_DYNAMIC_GUIDE',
+              payload: { prompt: text },
+            },
+            (bridgeRes) => {
+              console.log('[GuideMe PiP] Dynamic guide started via fallback:', bridgeRes);
+            }
+          );
+        } else {
+          const fallbackReply = classification.responses?.[currentLang] || classification.responses?.en || "Hello! How can I help you on this page?";
+          appendAiMessage(fallbackReply);
+        }
+      }
     } catch (err) {
       console.error('[GuideMe PiP] handleSend failed:', err);
+      if (classification.type === 'actionable') {
+        sendMessageToActiveTab({
+          action: 'GUIDEME_START_DYNAMIC_GUIDE',
+          payload: { prompt: text },
+        });
+      }
+    } finally {
       setProcessing(false);
+      ensureWindowOnTop();
     }
   }
 
@@ -714,7 +711,7 @@ import { createSpeechController } from './speech.js';
       });
     }
 
-    // Clear input and collapse window
+    // Clear input and collapse height
     input.value = '';
     if (micBtn) micBtn.style.display = '';
     if (sendBtn) sendBtn.style.display = 'none';
@@ -725,28 +722,48 @@ import { createSpeechController } from './speech.js';
 
   /**
    * Helper: Send message to the active webpage tab in the main browser window.
-   * NOTE: Never steals focus away from PiP so PiP stays on top!
    */
   function sendMessageToActiveTab(messagePayload, callback) {
-    if (typeof chrome === 'undefined' || !chrome.tabs || !chrome.windows) return;
+    if (typeof chrome === 'undefined' || !chrome.tabs) return;
 
     try {
       chrome.storage?.local?.get(['guideme_target_tab_id', 'guideme_target_window_id'], (res) => {
         const storedTabId = res?.guideme_target_tab_id;
-        const storedWinId = res?.guideme_target_window_id;
 
         const deliver = (targetTabId) => {
           if (!targetTabId) {
-            console.warn('[GuideMe PiP] No target webpage tab found to receive message.');
-            if (callback) callback({ success: false, error: 'No active tab' });
+            queryFallbackTab((fbId) => {
+              if (fbId) sendDirect(fbId);
+              else if (callback) callback({ success: false, error: 'No active tab' });
+            });
             return;
           }
+          sendDirect(targetTabId);
+        };
 
-          chrome.tabs.sendMessage(targetTabId, messagePayload, (response) => {
+        const sendDirect = (tabId) => {
+          chrome.tabs.sendMessage(tabId, messagePayload, (response) => {
             if (chrome.runtime?.lastError) {
-              console.warn('[GuideMe PiP] Content script unreachable:', chrome.runtime.lastError.message);
+              console.warn('[GuideMe PiP] Content script unreachable on tab', tabId, chrome.runtime.lastError.message);
+              // Auto-inject content script if tab was opened before extension reload
+              if (chrome.scripting?.executeScript) {
+                chrome.scripting.executeScript({
+                  target: { tabId },
+                  files: ['content-scripts/content.js'],
+                }).then(() => {
+                  setTimeout(() => {
+                    chrome.tabs.sendMessage(tabId, messagePayload, (retryRes) => {
+                      ensureWindowOnTop();
+                      if (callback) callback(retryRes);
+                    });
+                  }, 200);
+                }).catch(() => {
+                  ensureWindowOnTop();
+                  if (callback) callback({ success: false });
+                });
+                return;
+              }
             }
-            // Preserve PiP window focus on top!
             ensureWindowOnTop();
             if (callback) callback(response);
           });
@@ -771,18 +788,18 @@ import { createSpeechController } from './speech.js';
   }
 
   function queryFallbackTab(deliver) {
-    chrome.windows.getCurrent((currWin) => {
-      chrome.tabs.query({ active: true }, (tabs) => {
-        try {
-          const targetTab = tabs?.find(
-            (t) => t.windowId !== currWin?.id && !t.url?.startsWith('chrome-extension://')
-          );
-          deliver(targetTab?.id);
-        } catch (err) {
-          console.error('[GuideMe PiP] queryFallbackTab error:', err);
-          deliver(null);
-        }
-      });
+    chrome.tabs.query({}, (tabs) => {
+      try {
+        const targetTab = tabs?.find(
+          (t) => t.active && !t.url?.startsWith('chrome-extension://') && !t.url?.startsWith('chrome://')
+        ) || tabs?.find(
+          (t) => !t.url?.startsWith('chrome-extension://') && !t.url?.startsWith('chrome://')
+        );
+        deliver(targetTab?.id);
+      } catch (err) {
+        console.error('[GuideMe PiP] queryFallbackTab error:', err);
+        deliver(null);
+      }
     });
   }
 

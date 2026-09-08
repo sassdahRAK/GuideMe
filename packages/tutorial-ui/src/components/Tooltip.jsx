@@ -76,16 +76,23 @@ export function Tooltip({
   }, []);
 
   const defaultPositionStyle = useMemo(() => {
-    // Unanchored Center Modal Fallback or explicit center placement
+    const viewport = typeof window !== 'undefined' ? { width: window.innerWidth, height: window.innerHeight } : { width: 1024, height: 768 };
+    const cardW = cardSize.width || 410;
+    const cardH = cardSize.height || 240;
+
+    // Unanchored Floating Fallback (modal, missing target, or offscreen target)
+    // Placed in the top-right corner where it remains visible and never blocked by centered PiP/companion windows.
+    const fallbackLeft = Math.max(VIEWPORT_MARGIN, viewport.width - cardW - 32);
+    const fallbackTop = 80;
+
     if (!targetBoundingBox || placement === 'center' || typeof window === 'undefined') {
       return {
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
+        top: `${fallbackTop}px`,
+        left: `${fallbackLeft}px`,
+        transform: 'none',
       };
     }
 
-    const viewport = { width: window.innerWidth, height: window.innerHeight };
     const { top, left, bottom, right, width, height } = targetBoundingBox;
     const target = { top, left, bottom, right, width, height };
 
@@ -94,7 +101,11 @@ export function Tooltip({
     const targetGap = 61;
     const isOffscreen = bottom < 0 || top > viewport.height || right < 0 || left > viewport.width;
     if (isOffscreen) {
-      return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+      return {
+        top: `${fallbackTop}px`,
+        left: `${fallbackLeft}px`,
+        transform: 'none',
+      };
     }
 
     const preferred = placement === 'auto' ? 'bottom' : placement;

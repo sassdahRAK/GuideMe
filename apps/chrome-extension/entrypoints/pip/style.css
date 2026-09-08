@@ -633,3 +633,37 @@ html.dark .suggestion-chip:hover {
   background: #a855f7;
   color: #ffffff;
 }
+
+.pip-chat-history-container {
+  padding: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.chat-bubble {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.chat-bubble-user {
+  align-self: flex-end;
+  background: #8b5cf6;
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+.chat-bubble-ai {
+  align-self: flex-start;
+  background: #f3f4f6;
+  color: #1f2937;
+  border-bottom-left-radius: 4px;
+}
+html.dark .chat-bubble-ai {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f3f4f6;
+}

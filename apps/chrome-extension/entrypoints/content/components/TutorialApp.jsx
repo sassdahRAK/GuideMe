@@ -72,8 +72,7 @@ export function TutorialApp({ uiContainer }) {
     cancelCapture,
   } = useCaptureMode(engineRef);
 
-  if (isDismissed) return null;
-
+  // The Floating Assistant Button stays permanently visible on screen (never unmounts)
   return (
     <div className={theme === 'dark' ? 'dark' : ''}>
       <TutorialOverlay
@@ -128,7 +127,7 @@ export function TutorialApp({ uiContainer }) {
           setIsOnboardingOpen(false);
           setIsDashboardOpen(false);
           setIsFullPopupOpen(false);
-          setIsDismissed(true);
+          engineRef.current?.stop();
         }}
         availableTutorials={availableTutorials}
         onStartDynamicGuide={handleStartDynamicGuide}

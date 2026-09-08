@@ -316,6 +316,42 @@ export const UI_STRINGS = {
     km: 'បញ្ញាសិប្បនិម្មិត AI & ការចាប់ DOM',
     en: 'AI & DOM Intelligence',
   },
+  aiProvider: {
+    km: 'ប្រភព AI (Provider)',
+    en: 'AI Provider',
+  },
+  providerNvidia: {
+    km: 'NVIDIA NIM (Free / Kimi-K3)',
+    en: 'NVIDIA NIM (Free / Kimi-K3)',
+  },
+  providerBackend: {
+    km: 'GuideMe Cloud (ម៉ាស៊ីនបម្រើ)',
+    en: 'GuideMe Cloud (Server)',
+  },
+  providerGemini: {
+    km: 'Google Gemini',
+    en: 'Google Gemini',
+  },
+  nvidiaApiKey: {
+    km: 'NVIDIA NIM API Key',
+    en: 'NVIDIA NIM API Key',
+  },
+  nvidiaApiKeyPlaceholder: {
+    km: 'បញ្ចូល API Key (ឧ. nvapi-...)',
+    en: 'Enter API Key (e.g. nvapi-...)',
+  },
+  nvidiaModel: {
+    km: 'NVIDIA AI Model',
+    en: 'NVIDIA AI Model',
+  },
+  nvidiaModelPlaceholder: {
+    km: 'ឧ. moonshotai/kimi-k3',
+    en: 'e.g. moonshotai/kimi-k3',
+  },
+  nvidiaFreeNotice: {
+    km: 'ប្រើប្រាស់ NVIDIA NIM endpoint ឥតគិតថ្លៃ (integrate.api.nvidia.com) ជាមួយម៉ូដែល Kimi-K3 ដើម្បីវិភាគ DOM និងបង្កើតការណែនាំ។',
+    en: 'Uses NVIDIA NIM free endpoint (integrate.api.nvidia.com) with Kimi-K3 model to analyze DOM and generate walkthroughs.',
+  },
   geminiApiKey: {
     km: 'Gemini API Key',
     en: 'Gemini API Key',
@@ -325,20 +361,32 @@ export const UI_STRINGS = {
     en: 'Enter API Key (e.g. AIzaSy...)',
   },
   aiDomDescription: {
-    km: 'កំណត់រចនាសម្ព័ន្ធ DOM targets តាមការចង់បានរបស់អ្នក។ គាំទ្រទាំង CSS selectors ផ្ទាល់ (#id, .class) និងការវិភាគឆ្លាតវៃតាមរយៈ Gemini API។',
-    en: 'Define DOM targets as you want. Supports direct CSS selectors (#id, .class) and intelligent DOM analysis via Gemini API.',
+    km: 'កំណត់រចនាសម្ព័ន្ធ DOM targets និងការវិភាគ AI ឆ្លាតវៃតាមរយៈ NVIDIA NIM (Kimi-K3) ឬ Gemini API។',
+    en: 'Configure DOM targeting and intelligent AI analysis via NVIDIA NIM (Kimi-K3) or Gemini API.',
   },
   saveKey: {
-    km: 'រក្សាទុក Key',
-    en: 'Save Key',
+    km: 'រក្សាទុក',
+    en: 'Save',
   },
   keySaved: {
     km: 'បានរក្សាទុកដោយជោគជ័យ!',
     en: 'Saved successfully!',
   },
   aiActive: {
+    km: 'សកម្ម (AI)',
+    en: 'Active (AI)',
+  },
+  aiActiveNvidia: {
+    km: 'សកម្ម (NVIDIA Kimi-K3)',
+    en: 'Active (NVIDIA Kimi-K3)',
+  },
+  aiActiveGemini: {
     km: 'សកម្ម (Gemini AI)',
     en: 'Active (Gemini AI)',
+  },
+  aiActiveBackend: {
+    km: 'សកម្ម (GuideMe Cloud)',
+    en: 'Active (GuideMe Cloud)',
   },
   aiLocal: {
     km: 'ផ្គូផ្គងតាម Selectors ផ្ទាល់',
