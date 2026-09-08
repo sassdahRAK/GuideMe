@@ -346,9 +346,8 @@ export class DynamicPageAnalyzer {
       const scoreAndAdd = (el, type) => {
         if (!el || seenElements.has(el)) return;
 
-        // Ensure element is genuinely visible and not a hidden metadata node
-        const ariaHidden = el.getAttribute?.('aria-hidden');
-        if (ariaHidden === 'true') return;
+        // 1. Strict Visibility & Interactability check
+        if (!this._isInteractable(el)) return;
 
         const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
         const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim();
@@ -359,17 +358,21 @@ export class DynamicPageAnalyzer {
 
         const fullStr = `${text} ${aria} ${id} ${testId} ${placeholder} ${role}`.toLowerCase();
         let score = 0;
+        let primaryIntentId = null;
 
-        // 1. Universal Intent Match
+        // 2. Universal Intent Match
         for (const intent of matchedIntents) {
           for (const kw of intent.keywords) {
             const kwLower = kw.toLowerCase();
             if (text.toLowerCase() === kwLower || aria.toLowerCase() === kwLower) {
               score += intent.weight;
+              primaryIntentId = intent.id;
             } else if (text.toLowerCase().startsWith(kwLower) || aria.toLowerCase().startsWith(kwLower)) {
               score += intent.weight * 0.8;
+              primaryIntentId = primaryIntentId || intent.id;
             } else if (fullStr.includes(kwLower)) {
               score += intent.weight * 0.55;
+              primaryIntentId = primaryIntentId || intent.id;
             }
           }
           if (intent.preferInput && type === 'input') {
@@ -377,7 +380,7 @@ export class DynamicPageAnalyzer {
           }
         }
 
-        // 2. Specific Keyword Overlap Match
+        // 3. Specific Keyword Overlap Match
         for (const kw of searchKeywords) {
           const kwLower = kw.toLowerCase();
           if (text.toLowerCase() === kwLower || aria.toLowerCase() === kwLower) {
@@ -389,7 +392,7 @@ export class DynamicPageAnalyzer {
           }
         }
 
-        // 3. Action Verb & Control Affinity
+        // 4. Action Verb & Control Affinity
         if (isTypingAction && type === 'input') score += 60;
         if (isClickAction && type === 'button') score += 40;
 
@@ -397,9 +400,15 @@ export class DynamicPageAnalyzer {
         if (type === 'button' && (text || aria || testId)) score += 30;
         if (type === 'input' && (placeholder || aria || id || testId)) score += 20;
 
-        // 4. Large text walls and body container penalties
+        // 5. Large text walls and body container penalties
         if (text.length > 50) score -= 45;
         if (text.length > 120) score -= 90;
+
+        // 6. Context-Aware Proximity / Spatial Score (Modals, Dropdowns, Layout)
+        if (score > 10) {
+           const ctxScore = this._calculateContextScore(el, primaryIntentId);
+           score += ctxScore;
+        }
 
         if (score >= 40) {
           seenElements.add(el);
@@ -423,8 +432,54 @@ export class DynamicPageAnalyzer {
       // Sort candidates by score descending
       candidates.sort((a, b) => b.score - a.score);
 
-      // Take only top 1 to 3 relevant candidates! (Prevents multi-step bloat on large web apps)
-      const topCandidates = candidates.slice(0, 3);
+      // --- Sequence Locality Clustering & Deduplication ---
+      let topCandidates = [];
+      if (candidates.length > 0) {
+        // Start with the absolute best candidate (The Anchor)
+        const anchor = candidates[0];
+        topCandidates.push(anchor);
+        
+        // Find common ancestor among top candidates to cluster steps
+        const findDeepAncestor = (node, levels = 4) => {
+          if (!node) return null;
+          let current = node.parentElement;
+          let d = 0;
+          while (current && d < levels) {
+             const tag = (current.tagName || '').toLowerCase();
+             if (tag === 'form' || tag === 'fieldset' || (typeof current.className === 'string' && current.className.includes('card'))) {
+                return current;
+             }
+             current = current.parentElement;
+             d++;
+          }
+          return node.parentElement;
+        };
+
+        const anchorParent = findDeepAncestor(anchor.el, 5);
+
+        // Score remaining top 10 candidates based on locality to anchor and dedup labels
+        const seenLabels = new Set([`${anchor.type}-${anchor.label}`]);
+        
+        for (let i = 1; i < Math.min(candidates.length, 10); i++) {
+          if (topCandidates.length >= 3) break; // Take max 3 steps
+          
+          const cand = candidates[i];
+          const labelKey = `${cand.type}-${cand.label}`;
+          
+          // Only add if it's not identically labeled to a previous step (prevents 3 "Click Share" steps)
+          if (!seenLabels.has(labelKey)) {
+            // Locality boost for sharing an ancestor with the anchor
+            if (anchorParent && cand.el && anchorParent.contains(cand.el)) {
+              cand.score += 50; 
+            }
+            topCandidates.push(cand);
+            seenLabels.add(labelKey);
+          }
+        }
+        
+        // Re-sort the final selection in case locality changed the order
+        topCandidates.sort((a, b) => b.score - a.score);
+      }
 
       if (topCandidates.length > 0) {
         const isKm = activeLang === 'km';
@@ -760,6 +815,109 @@ export class DynamicPageAnalyzer {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Checks if an element is strictly visible and interactable.
+   * Drops ghost elements, disabled inputs, and zero-dimensional nodes.
+   * @private
+   */
+  static _isInteractable(el) {
+    if (!el) return false;
+
+    // 1. Semantic disabled states
+    if (el.disabled || el.getAttribute?.('aria-disabled') === 'true') {
+      return false;
+    }
+
+    // 2. Semantic hidden states
+    if (el.getAttribute?.('aria-hidden') === 'true') {
+      return false;
+    }
+
+    // 3. CSS Classes common for hiding elements
+    const className = (typeof el.className === 'string' ? el.className : el.className?.baseVal || '').toLowerCase();
+    if (className.includes('hidden') || className.includes('invisible') || className.includes('d-none') || className.includes('opacity-0')) {
+      return false;
+    }
+
+    // 4. Bounding Client Rect (if layout is available)
+    if (typeof el.getBoundingClientRect === 'function') {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        // Some span wrappers might have 0 size but visible children, but for interactable inputs/buttons, they must have size.
+        // Exception: If the element is purely a visually hidden text container (like screen reader only), but we are a visual engine.
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Evaluates the contextual primacy of the element within the page layout.
+   * Heavily favors active overlays/modals and transient UI.
+   * @private
+   */
+  static _calculateContextScore(el, intentId) {
+    let score = 0;
+    let current = el;
+    let depth = 0;
+    let hasModal = false;
+    
+    // Check global modal existence on the document
+    const doc = el.ownerDocument;
+    if (doc) {
+      const anyModalOpen = doc.querySelector('dialog[open], [role="dialog"], .modal.show, .modal.active, [aria-modal="true"]');
+      hasModal = !!anyModalOpen;
+    }
+
+    while (current && depth < 8) {
+      const tag = (current.tagName || '').toLowerCase();
+      const role = (current.getAttribute?.('role') || '').toLowerCase();
+      const ariaExpanded = current.getAttribute?.('aria-expanded');
+      const className = (typeof current.className === 'string' ? current.className : '').toLowerCase();
+
+      // 1. Modals & Dialogs (The Active Layer)
+      if (tag === 'dialog' || role === 'dialog' || role === 'alertdialog' || className.includes('modal') || current.getAttribute?.('aria-modal') === 'true') {
+        score += 200;
+        hasModal = false; // we are IN the modal, so cancel the penalty
+      }
+
+      // 2. Transient Hover/Click Menus (Dropdowns)
+      if (ariaExpanded === 'true' || role === 'menu' || role === 'listbox' || className.includes('dropdown-menu') || className.includes('popover') || className.includes('tippy-box')) {
+        score += 150;
+      }
+
+      // 3. Layout Primacy
+      if (tag === 'main' || current.id === 'main-content' || className.includes('main')) {
+        score += 50;
+      } else if (tag === 'footer' || tag === 'aside') {
+        // Penalty unless user specifically asked for navigation/settings which often reside in footers/sidebars
+        if (intentId !== 'navigation' && intentId !== 'settings' && intentId !== 'help') {
+          score -= 40;
+        }
+      } else if (tag === 'header' || tag === 'nav') {
+        if (intentId !== 'navigation' && intentId !== 'search' && intentId !== 'login') {
+          score -= 30; // Penalize standard actions in header
+        }
+      }
+
+      // 4. Repetitive List structures
+      if (tag === 'li' || tag === 'tr') {
+        score -= 20; // Slight penalty to avoid picking random list items over page-level buttons
+      }
+
+      current = current.parentElement;
+      depth++;
+    }
+    
+    // If a modal is open somewhere else on the page, and we are NOT in it, penalize heavily.
+    if (hasModal && score < 200) {
+      score -= 150;
+    }
+
+    return score;
   }
 
   /**
