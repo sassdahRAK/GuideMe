@@ -65,6 +65,27 @@ export class FuseFilter {
       category: desc.category || 'element',
     }));
 
+    // Exact UI labels are common and do not need fuzzy indexing.
+    const normalizedPrompt = cleanPrompt.toLowerCase().replace(/\s+/g, ' ');
+    const exactMatches = indexed.filter((item) => [
+      item.label,
+      item.text,
+      item.ariaLabel,
+      item.placeholder,
+      item.title,
+      item.name,
+      item.id,
+      item.href,
+    ].some((value) => String(value).trim().toLowerCase().replace(/\s+/g, ' ') === normalizedPrompt));
+
+    if (exactMatches.length > 0) {
+      return exactMatches.slice(0, limit).map((item) => ({
+        candidateId: item.candidateId,
+        desc: item.desc,
+        score: 100,
+      }));
+    }
+
     const options = { ...this.DEFAULT_OPTIONS, ...customOptions };
     const fuse = new Fuse(indexed, options);
 

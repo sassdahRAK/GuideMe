@@ -165,6 +165,7 @@ export function TutorialOverlay({
               if (onDismiss) onDismiss();
             }}
             onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
+            onStartCapture={onStartCapture}
             isActive={true}
             isOpen={isPromptOpen}
             language={lang}
@@ -198,6 +199,7 @@ export function TutorialOverlay({
             if (onDismiss) onDismiss();
           }}
           onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
+          onStartCapture={onStartCapture}
           isActive={true}
           isOpen={isPromptOpen}
           language={lang}
@@ -280,6 +282,7 @@ export function TutorialOverlay({
         onClick={() => onTogglePrompt && onTogglePrompt(!isPromptOpen)}
         onDismiss={onDismiss || onClose}
         onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
+        onStartCapture={onStartCapture}
         isActive={true}
         isOpen={isPromptOpen}
         language={lang}

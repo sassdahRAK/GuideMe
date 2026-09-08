@@ -6,10 +6,11 @@ import { getUIString } from '../i18n/ui-strings.js';
    ContextMenu — right-click menu for the floating button.
    Includes:
      1. Open Dashboard — purple primary button
-     2. Go to Extension— secondary button
-     3. Close          — subtle red text button
+     2. Capture a step — manual target selection
+     3. Go to Extension— secondary button
+     4. Close          — subtle red text button
 ───────────────────────────────────────────────────────────────── */
-function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, onGoToExtension }) {
+function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, onStartCapture, onGoToExtension }) {
   return (
     <div
       ref={menuRef}
@@ -34,6 +35,18 @@ function ContextMenu({ menuRef, position, language, onDismiss, onOpenDashboard, 
         className="w-full text-center py-2 px-3 text-[13px] font-semibold text-white bg-[#8b5cf6] hover:bg-[#7c3aed] active:bg-[#6d28d9] rounded-xl transition-all cursor-pointer border-0 shadow-[0_2px_8px_rgba(139,92,246,0.30)]"
       >
         {getUIString('openDashboard', language)}
+      </button>
+
+      {/* ── Manual target capture ── */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onStartCapture?.();
+        }}
+        className="w-full text-center py-2 px-3 text-[13px] font-medium text-purple-700 dark:text-purple-200 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 rounded-xl transition-colors cursor-pointer border-0"
+      >
+        {getUIString('captureStep', language)}
       </button>
 
       {/* ── Go to Extension ── */}
@@ -74,6 +87,7 @@ export function FloatingAssistantButton({
   onClick,
   onDismiss,
   onOpenDashboard,
+  onStartCapture,
   isOpen = false,
   isActive = true,
   language = 'km',
@@ -206,6 +220,11 @@ export function FloatingAssistantButton({
     onOpenDashboard?.();
   };
 
+  const handleStartCapture = () => {
+    setContextMenu(null);
+    onStartCapture?.();
+  };
+
   const handleGoToExtension = () => {
     setContextMenu(null);
     try {
@@ -271,6 +290,7 @@ export function FloatingAssistantButton({
           language={language}
           onDismiss={handleDismiss}
           onOpenDashboard={handleOpenDashboard}
+          onStartCapture={handleStartCapture}
           onGoToExtension={handleGoToExtension}
         />
       )}

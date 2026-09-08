@@ -2,6 +2,14 @@
  * Resilient DOM Query and MutationObserver Utilities.
  */
 export class DomObserver {
+  static normalizeText(value) {
+    return String(value || '')
+      .replace(/[^\p{L}\p{N}\s]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
   /**
    * Create a resilient selector from a user-picked live DOM element.
    * The primary selector is stable where possible; secondary metadata keeps
@@ -46,8 +54,10 @@ export class DomObserver {
   static findElement(selector) {
     if (!selector || typeof document === 'undefined') return null;
 
-    const targetText = selector.text ? selector.text.trim().toLowerCase() : '';
+    const targetText = selector.text ? this.normalizeText(selector.text) : '';
     const targetAria = selector.ariaLabel ? selector.ariaLabel.trim().toLowerCase() : '';
+    const isGenericCss = /^(button|div|a|input|span|select|p)$/i.test((selector.css || '').trim());
+    const allowPartialText = Boolean(selector.css && !isGenericCss);
 
     // 1. Direct CSS Selector (with text/aria verification if available)
     if (selector.css) {
@@ -63,13 +73,19 @@ export class DomObserver {
           // requested control. Prefer exact accessible-name/text matches over
           // a container whose descendant text happens to include the label.
           for (const el of matches) {
-            const elText = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            const elText = this.normalizeText(el.textContent);
             const elAria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim().toLowerCase();
-            const elVal = (el.value || el.getAttribute?.('value') || '').trim().toLowerCase();
+            const elVal = this.normalizeText(el.value || el.getAttribute?.('value') || '');
             const exactText = targetText && (elText === targetText || elVal === targetText);
-            const exactAria = targetAria && elAria === targetAria;
+            const exactAria = targetAria && (elAria === targetAria || elAria.includes(targetAria));
 
             if (exactText || exactAria) {
+              return el;
+            }
+
+            // A button may contain an icon and nested label text. Match the
+            // requested property inside it, but return the clickable button.
+            if (targetText && allowPartialText && elText.includes(targetText)) {
               return el;
             }
 
@@ -109,11 +125,11 @@ export class DomObserver {
         'button, [role="button"], a, input[type="submit"], input[type="button"], summary, [role="menuitem"], [role="tab"]'
       );
       for (const el of buttonCandidates) {
-        const text = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const text = this.normalizeText(el.textContent);
         const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim().toLowerCase();
-        const val = (el.value || el.getAttribute?.('value') || '').trim().toLowerCase();
+        const val = this.normalizeText(el.value || el.getAttribute?.('value') || '');
 
-        if (text === targetText || aria === targetText || val === targetText) {
+        if (text === targetText || (allowPartialText && text.includes(targetText)) || aria === targetText || aria.includes(targetText) || val === targetText) {
           if (el.offsetParent !== null || el.getClientRects().length > 0) {
             return el;
           }
@@ -123,8 +139,8 @@ export class DomObserver {
       // 4b. Check other text elements and ascend to parent button if nested
       const allTextNodes = document.querySelectorAll('span, div, p, label, b, strong, i');
       for (const node of allTextNodes) {
-        const text = (node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
-        if (text === targetText) {
+        const text = this.normalizeText(node.textContent);
+        if (text === targetText || (allowPartialText && text.includes(targetText))) {
           // If inside a button or clickable container, return the button itself!
           const parentBtn = node.closest ? node.closest('button, [role="button"], a') : null;
           const targetEl = parentBtn || node;
