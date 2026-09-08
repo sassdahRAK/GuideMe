@@ -51,6 +51,28 @@ export class ValidationEngine {
       }
     });
 
+    // Helper to check if an element is a workflow completion button (Done, Send, Save, etc.)
+    const isCompletionElement = (node) => {
+      if (!node || typeof node.getAttribute !== 'function') return false;
+      const text = (node.textContent || '').trim().toLowerCase();
+      const aria = (node.getAttribute('aria-label') || node.getAttribute('title') || '').trim().toLowerCase();
+      const id = (node.id || '').toLowerCase();
+      const testId = (node.getAttribute('data-testid') || '').toLowerCase();
+      const combined = `${text} ${aria} ${id} ${testId}`;
+      return (
+        combined.includes('done') ||
+        combined.includes('send') ||
+        combined.includes('save') ||
+        combined.includes('submit') ||
+        combined.includes('apply') ||
+        combined.includes('finish') ||
+        combined.includes('close') ||
+        combined.includes('រួចរាល់') ||
+        combined.includes('ផ្ញើ') ||
+        combined.includes('រក្សាទុក')
+      );
+    };
+
     // ── 2. Misclick Detection (Clicks Outside Target on Click Steps) ──
     if (
       validation.type === ValidationType.CLICK &&
@@ -74,7 +96,7 @@ export class ValidationEngine {
           return;
         }
 
-        // Guard B: Ignore clicks on or inside the valid target element
+        // Guard B: Ignore clicks on or inside primary target element
         const targetElement =
           typeof adapter.findElement === 'function' ? adapter.findElement(target) : null;
         if (targetElement) {
@@ -83,11 +105,25 @@ export class ValidationEngine {
             targetElement.contains(event.target) ||
             path.includes(targetElement)
           ) {
-            return; // Valid click target
+            return; // Valid primary target click
           }
         }
 
-        // Guard C: Coordinate fallback matching if bounding box provided
+        // Guard C: Ignore clicks on alternative targets or workflow completion buttons (Done, Send, Save)
+        const altTargets = validation.alternativeTargets || step.alternativeTargets || [];
+        for (const alt of altTargets) {
+          const altEl = typeof adapter.findElement === 'function' ? adapter.findElement(alt) : null;
+          if (altEl && (event.target === altEl || altEl.contains(event.target) || path.includes(altEl))) {
+            return; // Valid alternative click
+          }
+        }
+
+        const isActionComp = path.some((node) => isCompletionElement(node));
+        if (isActionComp) {
+          return; // Valid completion button click
+        }
+
+        // Guard D: Coordinate fallback matching if bounding box provided
         const box = typeof options.getTargetBoundingBox === 'function'
           ? options.getTargetBoundingBox()
           : options.targetBoundingBox;
@@ -119,20 +155,46 @@ export class ValidationEngine {
       });
     }
 
-    // ── 3. Action Validation Listeners ──
+    // ── 3. Universal Action Validation Listeners ──
+    const allTargets = [target, ...(validation.alternativeTargets || step.alternativeTargets || [])].filter(Boolean);
+
+    // Global Completion Listener for dialog actions (clicking Done, Send, Save finishes interactive step)
+    if (typeof document !== 'undefined') {
+      const globalCompletionHandler = (event) => {
+        const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+        const isInsideGuideMe = path.some(
+          (node) =>
+            node.id === 'guideme-tutorial-root' ||
+            node.tagName === 'GUIDEME-TUTORIAL-ROOT' ||
+            (node.classList && node.classList.contains('guideme-root-overlay'))
+        );
+        if (isInsideGuideMe) return;
+
+        const compNode = path.find((node) => isCompletionElement(node));
+        if (compNode && (validation.type === ValidationType.CLICK || validation.type === ValidationType.INPUT)) {
+          onValidate({ valid: true, eventData: { reason: 'completion_button_clicked', target: compNode } });
+        }
+      };
+
+      document.addEventListener('click', globalCompletionHandler, true);
+      cleanups.push(() => {
+        document.removeEventListener('click', globalCompletionHandler, true);
+      });
+    }
+
     switch (validation.type) {
       case ValidationType.CLICK:
-        if (target) {
-          const unsub = adapter.listenToElementEvent(target, 'click', (eventData) => {
+        allTargets.forEach((tgt) => {
+          const unsub = adapter.listenToElementEvent(tgt, 'click', (eventData) => {
             onValidate({ valid: true, eventData });
           });
           cleanups.push(unsub);
-        }
+        });
         break;
 
       case ValidationType.INPUT:
       case ValidationType.CHANGE:
-        if (target) {
+        allTargets.forEach((tgt) => {
           let inputDebounceTimer = null;
           cleanups.push(() => {
             if (inputDebounceTimer) clearTimeout(inputDebounceTimer);
@@ -141,7 +203,7 @@ export class ValidationEngine {
           // 1. Pre-check: If target element already contains the valid value on step start
           if (typeof adapter.findElement === 'function') {
             try {
-              const existingEl = adapter.findElement(target);
+              const existingEl = adapter.findElement(tgt);
               if (existingEl && typeof existingEl.value === 'string') {
                 const currentVal = existingEl.value.trim();
                 if (validation.expectedValue) {
@@ -159,7 +221,7 @@ export class ValidationEngine {
           }
 
           // 2. Continuous Input listener (typing)
-          const unsubInput = adapter.listenToElementEvent(target, 'input', (eventData) => {
+          const unsubInput = adapter.listenToElementEvent(tgt, 'input', (eventData) => {
             resetHesitationTimer();
             const val = (eventData?.targetValue ?? '').trim();
 
@@ -174,7 +236,7 @@ export class ValidationEngine {
               }
             } else if (val.length > 0) {
               // Generic input step without strict expected value:
-              // Debounce validation so user finishes typing their search/input query (650ms pause)
+              // Debounce validation so user finishes typing their query
               if (inputDebounceTimer) clearTimeout(inputDebounceTimer);
               inputDebounceTimer = setTimeout(() => {
                 onValidate({ valid: true, eventData });
@@ -184,7 +246,7 @@ export class ValidationEngine {
           cleanups.push(unsubInput);
 
           // 3. Change event (blur or tab away)
-          const unsubChange = adapter.listenToElementEvent(target, 'change', (eventData) => {
+          const unsubChange = adapter.listenToElementEvent(tgt, 'change', (eventData) => {
             resetHesitationTimer();
             if (inputDebounceTimer) clearTimeout(inputDebounceTimer);
             const val = (eventData?.targetValue ?? '').trim();
@@ -200,7 +262,7 @@ export class ValidationEngine {
           cleanups.push(unsubChange);
 
           // 4. Enter key submission
-          const unsubKey = adapter.listenToElementEvent(target, 'keydown', (eventData) => {
+          const unsubKey = adapter.listenToElementEvent(tgt, 'keydown', (eventData) => {
             resetHesitationTimer();
             if (eventData?.key === 'Enter' || eventData?.originalEvent?.key === 'Enter') {
               if (inputDebounceTimer) clearTimeout(inputDebounceTimer);
@@ -218,7 +280,7 @@ export class ValidationEngine {
             }
           });
           cleanups.push(unsubKey);
-        }
+        });
         break;
 
       case ValidationType.URL_CHANGE:

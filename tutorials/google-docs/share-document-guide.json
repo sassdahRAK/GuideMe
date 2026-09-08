@@ -1,8 +1,14 @@
 {
   "id": "google-docs-share-guide",
-  "version": "1.0.0",
-  "name": "Share & Manage Permissions in Google Docs",
-  "description": "Learn how to share your Google Doc, configure viewer/editor roles, and copy access links.",
+  "version": "1.1.0",
+  "name": {
+    "km": "ចែករំលែក និងកំណត់សិទ្ធិក្នុង Google Docs",
+    "en": "Share & Manage Permissions in Google Docs"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបចែករំលែក Google Doc របស់អ្នក អញ្ជើញសហការី និងចម្លងតំណភ្ជាប់ចែករំលែក។",
+    "en": "Learn how to share your Google Doc, invite teammates with editor/viewer access, or copy sharing links."
+  },
   "matchUrls": [
     "https://docs.google.com/document/*",
     "https://docs.google.com/document/d/*",
@@ -11,8 +17,14 @@
   "steps": [
     {
       "id": "step_open_share",
-      "title": "Open Sharing Settings",
-      "description": "Click the blue 'Share' button in the top-right corner to open document permissions.",
+      "title": {
+        "km": "បើកការកំណត់ការចែករំលែក",
+        "en": "Open Sharing Settings"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុងពណ៌ខៀវ 'Share' នៅជ្រុងខាងស្តាំខាងលើដើម្បីបើកផ្ទាំងចែករំលែក។",
+        "en": "Click the blue 'Share' button in the top-right corner to open document permissions."
+      },
       "target": {
         "css": "#docs-action-bar-share, #docs-share-button, [aria-label*='Share' i], [data-tooltip*='Share' i], div[role='button'][aria-label*='Share' i], #demo-share-btn",
         "ariaLabel": "Share",
@@ -20,8 +32,14 @@
       },
       "action": {
         "type": "spotlight",
-        "title": "Share Document",
-        "content": "Click the highlighted 'Share' button to open document permissions.",
+        "title": {
+          "km": "ចែករំលែកឯកសារ",
+          "en": "Share Document"
+        },
+        "content": {
+          "km": "សូមចុចលើប៊ូតុង 'Share' ដើម្បីបើកការកំណត់សិទ្ធិចែករំលែក។",
+          "en": "Click the highlighted 'Share' button to open document permissions."
+        },
         "placement": "bottom"
       },
       "validation": {
@@ -29,51 +47,64 @@
       }
     },
     {
-      "id": "step_add_people",
-      "title": "Add Collaborators",
-      "description": "Enter the email addresses of teammates you'd like to collaborate with.",
+      "id": "step_share_collaborators_or_link",
+      "title": {
+        "km": "អញ្ជើញសហការី ឬចម្លងតំណភ្ជាប់",
+        "en": "Add Collaborators or Copy Link"
+      },
+      "description": {
+        "km": "វាយបញ្ចូលអ៊ីមែលដើម្បីអញ្ជើញសហការី ឬចុច 'Copy link' ដើម្បីចែករំលែកតាមតំណភ្ជាប់។",
+        "en": "Type a teammate's email to invite them directly, OR click 'Copy link' to share via direct link."
+      },
       "target": {
-        "css": "input[aria-label*='Add' i], input[aria-autocomplete='list'], input[type='email'], input[placeholder*='people' i], input[placeholder*='email' i], [role='combobox'], input#demo-email-input",
+        "css": "input[aria-label*='Add' i], input[aria-autocomplete='list'], input[type='email'], input[placeholder*='people' i], input[placeholder*='email' i], [role='combobox'], input#demo-email-input, [aria-label*='Copy link' i], button[aria-label*='Copy link' i], #demo-copy-link-btn",
         "ariaLabel": "Add people",
         "text": "Add people"
       },
       "action": {
         "type": "spotlight",
-        "title": "Add People or Groups",
-        "content": "Type an email address here to invite a teammate.",
+        "title": {
+          "km": "បញ្ចូលអ៊ីមែល ឬចម្លងតំណភ្ជាប់",
+          "en": "Invite by Email or Copy Link"
+        },
+        "content": {
+          "km": "វាយបញ្ចូលអ៊ីមែលដើម្បីអញ្ជើញសហការី ឬចុច 'Copy link' ដើម្បីចែករំលែក។ បន្ទាប់មកចុច Done ឬ Send ដើម្បីបញ្ចប់។",
+          "en": "Type a teammate's email to invite them directly, OR click 'Copy link' to share. Then click Done or Send."
+        },
         "placement": "bottom"
       },
       "validation": {
-        "type": "input"
-      }
-    },
-    {
-      "id": "step_copy_link",
-      "title": "Copy Document Link",
-      "description": "Click 'Copy link' to quickly get a direct sharing URL on your clipboard.",
-      "target": {
-        "css": "[aria-label*='Copy link' i], [aria-label*='Copy' i], button[aria-label*='Copy' i], [data-tooltip*='Copy' i], #demo-copy-link-btn",
-        "ariaLabel": "Copy link",
-        "text": "Copy link"
-      },
-      "action": {
-        "type": "spotlight",
-        "title": "Copy Sharing Link",
-        "content": "Click 'Copy link' to share directly via chat or email.",
-        "placement": "top"
-      },
-      "validation": {
-        "type": "click"
+        "type": "input",
+        "alternativeTargets": [
+          {
+            "css": "[aria-label*='Copy link' i], button[aria-label*='Copy link' i], #demo-copy-link-btn"
+          },
+          {
+            "css": "button[aria-label*='Done' i], button[aria-label*='Send' i], [data-mdc-dialog-action='ok'], .docs-material-gm-dialog button"
+          }
+        ]
       }
     },
     {
       "id": "step_done",
-      "title": "All Set!",
-      "description": "You've mastered sharing in Google Docs. Collaborators can now access your document securely.",
+      "title": {
+        "km": "រួចរាល់ហើយ!",
+        "en": "All Set!"
+      },
+      "description": {
+        "km": "អ្នកបានបញ្ចប់ការចែករំលែកឯកសារដោយជោគជ័យ។",
+        "en": "You've successfully mastered sharing in Google Docs. Collaborators can now access your document securely."
+      },
       "action": {
         "type": "modal",
-        "title": "Sharing Complete!",
-        "content": "You now know how to invite team members and generate sharing links in Google Docs."
+        "title": {
+          "km": "ការចែករំលែកជោគជ័យ!",
+          "en": "Sharing Complete!"
+        },
+        "content": {
+          "km": "អ្នកឥឡូវនេះដឹងពីរបៀបអញ្ជើញសមាជិកក្រុម និងចែករំលែកតំណភ្ជាប់ក្នុង Google Docs ហើយ។",
+          "en": "You now know how to invite team members and generate sharing links in Google Docs."
+        }
       },
       "validation": {
         "type": "manual_next"
