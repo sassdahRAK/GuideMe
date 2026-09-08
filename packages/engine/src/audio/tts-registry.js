@@ -71,6 +71,20 @@ export const TTS_PRESETS = {
     voice: 'en-US-JennyNeural',
     responseType: 'binary',
   },
+
+  guideme: {
+    endpoint: 'http://localhost:4000/api/tts/synthesize',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    bodyTemplate: {
+      text: '{{TEXT}}',
+      language: '{{LANG}}',
+    },
+    responseType: 'json.url',
+    jsonField: 'audioUrl',
+  },
 };
 
 /**
@@ -122,7 +136,7 @@ export class TtsRegistry {
     }
 
     // Default fallback
-    return new PlaceholderTtsProvider();
+    return new PlaceholderTtsProvider(overrides);
   }
 
   /**
@@ -131,13 +145,14 @@ export class TtsRegistry {
    * @returns {import('./audio-engine.js').BaseTtsProvider}
    */
   static fromEnv(env = {}) {
+    const backendUrl = env.WXT_API_URL || env.VITE_API_URL || env.API_URL || 'http://localhost:4000';
     const apiKey = env.WXT_TTS_API_KEY || env.VITE_TTS_API_KEY || env.TTS_API_KEY || '';
     const endpoint = env.WXT_TTS_ENDPOINT || env.WXT_TTS_API_URL || env.TTS_ENDPOINT || '';
     const preset = env.WXT_TTS_PRESET || env.WXT_TTS_PROVIDER || env.TTS_PRESET || (apiKey ? 'openai' : '');
 
-    // If no external API key and no custom endpoint are configured, fall back to built-in speech provider
+    // If no external API key and no custom endpoint are configured, use GuideMe Backend TTS with browser fallback
     if (!apiKey && !endpoint) {
-      return new PlaceholderTtsProvider();
+      return new PlaceholderTtsProvider({ backendUrl });
     }
 
     const model = env.WXT_TTS_MODEL || env.TTS_MODEL || '';
@@ -148,7 +163,7 @@ export class TtsRegistry {
     // Do not create a network-backed preset without credentials. The browser
     // speech fallback remains fully usable and avoids an avoidable HTTP 401.
     if (!apiKey && !(endpoint && preset === 'custom')) {
-      return new PlaceholderTtsProvider();
+      return new PlaceholderTtsProvider({ backendUrl });
     }
 
     // Custom headers from env (if provided as JSON string)

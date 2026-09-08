@@ -43,8 +43,13 @@ export class BaseTtsProvider {
  * Provides resilient fallback in browser environments.
  */
 export class PlaceholderTtsProvider extends BaseTtsProvider {
-  constructor() {
+  /**
+   * @param {Object} [options]
+   * @param {string} [options.backendUrl='http://localhost:4000']
+   */
+  constructor({ backendUrl = 'http://localhost:4000' } = {}) {
     super();
+    this.backendUrl = backendUrl;
     this._currentTimeout = null;
     this._audioElement = null;
     this._isPaused = false;
@@ -53,45 +58,40 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
   async speak({ text, lang, audioUrl, rate = 1.0, onStart, onEnd, onError }) {
     this.stop();
 
-    // 1. If pre-recorded audio URL is provided, use HTML5 Audio
-    if (audioUrl && typeof window !== 'undefined' && typeof Audio !== 'undefined') {
+    // 1. If pre-recorded or explicit audio URL is provided, use HTML5 Audio
+    if (audioUrl) {
+      return this._playAudioElement(audioUrl, rate, onStart, onEnd, onError);
+    }
+
+    // 2. Synthesize audio dynamically via GuideMe Backend (Edge TTS Neural Voice)
+    if (text && typeof fetch !== 'undefined' && this.backendUrl) {
       try {
-        const audio = new Audio(audioUrl);
-        audio.playbackRate = rate;
-        this._audioElement = audio;
+        const speed = rate < 0.9 ? 'slow' : rate > 1.1 ? 'fast' : 'normal';
+        const language = lang === Language.EN || lang === 'en' ? 'en' : 'km';
 
-        audio.onplay = () => {
-          if (onStart) onStart();
-        };
-        audio.onended = () => {
-          this._audioElement = null;
-          if (onEnd) onEnd();
-        };
-        audio.onerror = (e) => {
-          console.warn('[GuideMe Audio] Pre-recorded audio failed, falling back:', e);
-          this._audioElement = null;
-          this._simulatePlayback({ text, rate, onStart, onEnd });
-        };
+        const res = await fetch(`${this.backendUrl.replace(/\/+$/, '')}/api/tts/synthesize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, language, speed }),
+        });
 
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch((err) => {
-            console.warn('[GuideMe Audio] Audio autoplay restricted by browser:', err);
-            this._simulatePlayback({ text, rate, onStart, onEnd });
-          });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.audioUrl) {
+            return this._playAudioElement(data.audioUrl, rate, onStart, onEnd, onError);
+          }
         }
-        return;
       } catch (err) {
-        console.warn('[GuideMe Audio] HTML5 Audio initialization failed:', err);
+        console.warn('[GuideMe Audio] Backend TTS synthesis request failed, falling back:', err?.message || err);
       }
     }
 
-    // 2. Web Speech API fallback (if supported in browser for en or basic synthesis)
+    // 3. Web Speech API fallback (if supported in browser for English)
     if (
       typeof window !== 'undefined' &&
       'speechSynthesis' in window &&
       typeof SpeechSynthesisUtterance !== 'undefined' &&
-      lang === Language.EN
+      (lang === Language.EN || lang === 'en')
     ) {
       try {
         window.speechSynthesis.cancel();
@@ -104,7 +104,8 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
         utterance.onend = () => {
           if (onEnd) onEnd();
         };
-        utterance.onerror = () => {
+        utterance.onerror = (e) => {
+          console.warn('[GuideMe Audio] Web Speech error:', e);
           this._simulatePlayback({ text, rate, onStart, onEnd });
         };
         window.speechSynthesis.speak(utterance);
@@ -114,8 +115,50 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
       }
     }
 
-    // 3. Simulated placeholder playback (synchronizes UI equalizer waves without blocking)
+    // 4. Simulated placeholder playback (synchronizes UI equalizer waves without blocking)
     this._simulatePlayback({ text, rate, onStart, onEnd });
+  }
+
+  _playAudioElement(url, rate, onStart, onEnd, onError) {
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') {
+      if (onStart) onStart();
+      if (onEnd) onEnd();
+      return;
+    }
+
+    try {
+      const audio = new Audio(url);
+      audio.playbackRate = rate || 1.0;
+      this._audioElement = audio;
+
+      audio.onplay = () => {
+        if (onStart) onStart();
+      };
+      audio.onended = () => {
+        this._audioElement = null;
+        if (onEnd) onEnd();
+      };
+      audio.onerror = (e) => {
+        console.warn('[GuideMe Audio] Audio element playback failed:', e);
+        this._audioElement = null;
+        if (onError) onError(e);
+        if (onEnd) onEnd();
+      };
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('[GuideMe Audio] Audio autoplay restricted by browser:', err);
+          this._audioElement = null;
+          if (onStart) onStart();
+          if (onEnd) onEnd();
+        });
+      }
+    } catch (err) {
+      console.warn('[GuideMe Audio] HTML5 Audio initialization failed:', err);
+      if (onStart) onStart();
+      if (onEnd) onEnd();
+    }
   }
 
   _simulatePlayback({ text, rate, onStart, onEnd }) {
