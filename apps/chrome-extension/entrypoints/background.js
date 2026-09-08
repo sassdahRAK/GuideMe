@@ -185,10 +185,14 @@ export default defineBackground(() => {
     }
 
     // ── Tutorial step badge updates ──
-    if (message.action === ExtensionMessageAction.TUTORIAL_STATE_UPDATED) {
+    if (
+      message.action === ExtensionMessageAction.TUTORIAL_STATE_UPDATED ||
+      message.action === 'TUTORIAL_STEP_ADVANCED' ||
+      message.action === ExtensionMessageAction.TUTORIAL_STEP_ADVANCED
+    ) {
       const { active, currentStepIndex, totalSteps } = message.payload || {};
 
-      if (active && sender.tab?.id) {
+      if ((active || currentStepIndex !== undefined) && sender.tab?.id) {
         chrome.action.setBadgeText({
           tabId: sender.tab.id,
           text: `${(currentStepIndex || 0) + 1}/${totalSteps || 1}`,
@@ -202,6 +206,27 @@ export default defineBackground(() => {
           tabId: sender.tab.id,
           text: '',
         });
+      }
+    }
+
+    if (
+      message.action === 'TUTORIAL_COMPLETED' ||
+      message.action === ExtensionMessageAction.TUTORIAL_COMPLETED
+    ) {
+      if (sender.tab?.id) {
+        chrome.action.setBadgeText({
+          tabId: sender.tab.id,
+          text: '✓',
+        });
+        chrome.action.setBadgeBackgroundColor({
+          tabId: sender.tab.id,
+          color: '#10b981', // Emerald green
+        });
+        setTimeout(() => {
+          try {
+            chrome.action.setBadgeText({ tabId: sender.tab.id, text: '' });
+          } catch {}
+        }, 3000);
       }
     }
 
@@ -265,24 +290,32 @@ export default defineBackground(() => {
         pipTop = (screenObj.availHeight || 1080) - 160;
       } catch { /* fallback */ }
 
-      chrome.windows.create({
-        url: pipUrl,
-        type: 'popup',
-        width: 550,
-        height: 160,
-        left: Math.max(10, pipLeft),
-        top: Math.max(10, pipTop),
-        focused: true,
-      }, (newWindow) => {
-        if (chrome.runtime.lastError || !newWindow?.id) {
-          console.error('[GuideMe Background] PiP creation failed:', chrome.runtime.lastError?.message);
-          responseCallback({ success: false, error: chrome.runtime.lastError?.message });
-        } else {
-          activePipWindowId = newWindow.id;
-          chrome.storage.local.set({ guideme_pip_window_id: newWindow.id });
-          console.log('[GuideMe Background] PiP window created:', newWindow.id);
-          responseCallback({ success: true, windowId: newWindow.id });
-        }
+      // Check if existing messages or active guide are saved to open with seamless height
+      chrome.storage?.local?.get(['guideme_chat_messages', 'guideme_active_guide_state'], (res) => {
+        const hasMessages = Array.isArray(res?.guideme_chat_messages) && res.guideme_chat_messages.length > 0;
+        const hasActiveGuide = Boolean(res?.guideme_active_guide_state?.active);
+        const initialHeight = (hasMessages || hasActiveGuide) ? 360 : 160;
+        const adjustedTop = (hasMessages || hasActiveGuide) ? Math.max(10, pipTop - 200) : Math.max(10, pipTop);
+
+        chrome.windows.create({
+          url: pipUrl,
+          type: 'popup',
+          width: 550,
+          height: initialHeight,
+          left: Math.max(10, pipLeft),
+          top: adjustedTop,
+          focused: true,
+        }, (newWindow) => {
+          if (chrome.runtime.lastError || !newWindow?.id) {
+            console.error('[GuideMe Background] PiP creation failed:', chrome.runtime.lastError?.message);
+            responseCallback({ success: false, error: chrome.runtime.lastError?.message });
+          } else {
+            activePipWindowId = newWindow.id;
+            chrome.storage.local.set({ guideme_pip_window_id: newWindow.id });
+            console.log('[GuideMe Background] PiP window created:', newWindow.id);
+            responseCallback({ success: true, windowId: newWindow.id });
+          }
+        });
       });
     }
 

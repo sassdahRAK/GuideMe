@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { TutorialEngine, DynamicPageAnalyzer, TtsRegistry } from '@guideme/engine';
 import { ChromeAdapter } from '@guideme/chrome-adapter';
-import { ExtensionMessageAction, Language } from '@guideme/core-types';
+import { ExtensionMessageAction, Language, EngineEvent } from '@guideme/core-types';
 import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../../src/catalog.js';
 import { getCapturedStepStorageKey, createCapturedTutorial } from './useCaptureMode.js';
 
@@ -78,22 +78,63 @@ export function useContentBridge({
     const unsubscribe = engine.subscribe((state) => {
       setEngineState(state);
 
-      // 1. Notify background worker of state updates for badge indicators
+      const activeStepData = state.currentStep ? {
+        id: state.currentStep.id,
+        title: state.currentStep.action?.title || state.currentStep.title || '',
+        description: state.currentStep.action?.content || state.currentStep.instruction || state.currentStep.description || '',
+      } : null;
+
+      const activeTutorialData = (state.isActive && engine.activeTutorial) ? {
+        active: true,
+        currentStepIndex: state.currentStepIndex || 0,
+        totalSteps: state.totalSteps || engine.activeTutorial.steps?.length || 1,
+        language: state.language,
+        name: typeof engine.activeTutorial.name === 'object' ? engine.activeTutorial.name : { km: engine.activeTutorial.name, en: engine.activeTutorial.name },
+        tutorial: {
+          id: engine.activeTutorial.id,
+          name: engine.activeTutorial.name,
+          description: engine.activeTutorial.description,
+        },
+        step: activeStepData,
+        stepTitle: activeStepData?.title || '',
+        targetUrl: window.location.href,
+        updatedAt: Date.now(),
+      } : null;
+
+      // 1. Notify background & PiP of state updates for badge indicators and active guide HUD
       try {
         chrome.runtime?.sendMessage({
           action: ExtensionMessageAction.TUTORIAL_STATE_UPDATED,
           payload: {
             active: state.isActive,
+            isCompleted: state.isCompleted,
             currentStepIndex: state.currentStepIndex,
             totalSteps: state.totalSteps,
             language: state.language,
+            tutorial: activeTutorialData?.tutorial || null,
+            step: activeStepData,
           },
         });
       } catch {
         // Extension context may be reloading
       }
 
-      // 2. Synchronize active tutorial session with background for cross-tab/reload durability
+      // 2. Persist active state in storage (local & session) so PiP restores seamlessly on reopen
+      try {
+        if (activeTutorialData) {
+          chrome.storage?.local?.set({
+            guideme_active_guide_state: activeTutorialData,
+          });
+          chrome.storage?.session?.set({
+            guideme_active_guide_state: activeTutorialData,
+          }).catch?.(() => {});
+        } else if (!state.isActive) {
+          chrome.storage?.local?.remove('guideme_active_guide_state');
+          chrome.storage?.session?.remove('guideme_active_guide_state').catch?.(() => {});
+        }
+      } catch {}
+
+      // 3. Synchronize active tutorial session with background for cross-tab/reload durability
       try {
         chrome.runtime?.sendMessage({
           action: 'GUIDEME_UPDATE_SESSION',
@@ -108,6 +149,71 @@ export function useContentBridge({
         // Extension context may be reloading
       }
     });
+
+    // ── Realtime Step Progress Broadcasts (PiP and Background Sync) ──
+    const onStepStart = ({ step, stepIndex }) => {
+      const stepData = {
+        id: step?.id,
+        title: step?.action?.title || step?.title || '',
+        description: step?.action?.content || step?.instruction || step?.description || '',
+      };
+      const payload = {
+        active: true,
+        currentStepIndex: stepIndex,
+        totalSteps: engine.activeTutorial?.steps?.length || 1,
+        tutorial: engine.activeTutorial ? {
+          id: engine.activeTutorial.id,
+          name: engine.activeTutorial.name,
+        } : null,
+        step: stepData,
+      };
+
+      try {
+        chrome.runtime?.sendMessage({
+          action: 'TUTORIAL_STEP_ADVANCED',
+          payload,
+        });
+        chrome.runtime?.sendMessage({
+          action: ExtensionMessageAction.TUTORIAL_STEP_ADVANCED,
+          payload,
+        });
+      } catch {}
+    };
+
+    const onTutorialComplete = ({ tutorial }) => {
+      const payload = {
+        active: false,
+        isCompleted: true,
+        tutorial: tutorial ? { id: tutorial.id, name: tutorial.name } : null,
+      };
+
+      try {
+        chrome.runtime?.sendMessage({
+          action: 'TUTORIAL_COMPLETED',
+          payload,
+        });
+        chrome.runtime?.sendMessage({
+          action: ExtensionMessageAction.TUTORIAL_COMPLETED,
+          payload,
+        });
+      } catch {}
+
+      try {
+        chrome.storage?.local?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session']);
+        chrome.storage?.session?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session']).catch?.(() => {});
+      } catch {}
+    };
+
+    const onTutorialStop = () => {
+      try {
+        chrome.storage?.local?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session']);
+        chrome.storage?.session?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session']).catch?.(() => {});
+      } catch {}
+    };
+
+    engine.events.on(EngineEvent.STEP_START, onStepStart);
+    engine.events.on(EngineEvent.TUTORIAL_COMPLETE, onTutorialComplete);
+    engine.events.on(EngineEvent.TUTORIAL_STOP, onTutorialStop);
 
     // Listen for popup, PiP, and background runtime commands
     const messageHandler = (message, _sender, sendResponse) => {
@@ -258,6 +364,29 @@ export function useContentBridge({
           sendResponse({ success: true });
           break;
 
+        case ExtensionMessageAction.TOGGLE_MUTE: {
+          const isMuted = engine.toggleMute();
+          sendResponse({ success: true, isMuted });
+          break;
+        }
+
+        case ExtensionMessageAction.MUTE_AUDIO: {
+          const isMuted = message.payload?.muted !== undefined ? message.payload.muted : true;
+          engine.setMuted(isMuted);
+          sendResponse({ success: true, isMuted: engine.isMuted() });
+          break;
+        }
+
+        case ExtensionMessageAction.SET_VOLUME: {
+          if (typeof message.payload?.volume === 'number') {
+            engine.setVolume(message.payload.volume);
+            sendResponse({ success: true, volume: engine.getVolume() });
+          } else {
+            sendResponse({ success: false, error: 'Invalid volume value' });
+          }
+          break;
+        }
+
         case ExtensionMessageAction.GET_TUTORIAL_STATUS:
           sendResponse({
             success: true,
@@ -320,6 +449,9 @@ export function useContentBridge({
     return () => {
       isMounted = false;
       unsubscribe();
+      engine.events.off(EngineEvent.STEP_START, onStepStart);
+      engine.events.off(EngineEvent.TUTORIAL_COMPLETE, onTutorialComplete);
+      engine.events.off(EngineEvent.TUTORIAL_STOP, onTutorialStop);
       chrome.runtime?.onMessage?.removeListener(messageHandler);
       engine.destroy();
     };

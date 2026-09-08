@@ -91,3 +91,103 @@ test('DomObserver captures a resilient selector from a user-picked element', () 
     text: 'Save profile',
   });
 });
+
+test('DomObserver.findElement resolves hover-triggered flyout items by dispatching synthetic hover events', () => {
+  const originalDocument = globalThis.document;
+  const dispatchedEvents = [];
+
+  const triggerButton = {
+    tagName: 'BUTTON',
+    id: 'nav-account',
+    textContent: 'Account',
+    offsetParent: {},
+    getClientRects: () => [{}],
+    getAttribute: () => null,
+    dispatchEvent: (evt) => {
+      dispatchedEvents.push(evt.type);
+    },
+  };
+
+  const flyoutItem = {
+    tagName: 'A',
+    id: 'nav-logout',
+    textContent: 'Sign out',
+    offsetParent: {},
+    getClientRects: () => [{}],
+    getAttribute: () => null,
+  };
+
+  globalThis.document = {
+    querySelectorAll(selector) {
+      if (selector === '#nav-account' || selector.includes('#nav-account')) return [triggerButton];
+      if (selector === '#nav-logout' || selector.includes('#nav-logout')) return [flyoutItem];
+      return [];
+    },
+    querySelector(selector) {
+      if (selector === '#nav-account') return triggerButton;
+      if (selector === '#nav-logout') return flyoutItem;
+      return null;
+    },
+  };
+
+  try {
+    const selector = {
+      css: '#nav-logout',
+      text: 'Sign out',
+      hoverTrigger: { css: '#nav-account' },
+    };
+
+    const found = DomObserver.findElement(selector);
+    assert.strictEqual(found, flyoutItem);
+    assert.ok(dispatchedEvents.includes('mouseover') || dispatchedEvents.includes('mouseenter'));
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test('DomObserver.findElement respects container scoping to disambiguate identical elements', () => {
+  const originalDocument = globalThis.document;
+
+  const bgButton = createButton('Submit');
+  bgButton.id = 'bg-submit';
+
+  const modalButton = createButton('Submit');
+  modalButton.id = 'modal-submit';
+
+  const modalDialog = {
+    tagName: 'DIALOG',
+    querySelector(selector) {
+      if (selector === 'button' || selector.includes('button')) return modalButton;
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector.includes('button')) return [modalButton];
+      return [];
+    },
+  };
+
+  globalThis.document = {
+    querySelector(selector) {
+      if (selector.includes('dialog') || selector.includes('.modal')) return modalDialog;
+      if (selector === '#bg-submit') return bgButton;
+      if (selector === '#modal-submit') return modalButton;
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === 'button') return [bgButton, modalButton];
+      return [];
+    },
+  };
+
+  try {
+    const found = DomObserver.findElement({
+      css: 'button',
+      text: 'Submit',
+      container: 'dialog[open], [role="dialog"], .modal',
+    });
+    assert.strictEqual(found, modalButton);
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+

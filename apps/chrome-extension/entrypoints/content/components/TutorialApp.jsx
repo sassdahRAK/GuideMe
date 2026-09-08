@@ -134,6 +134,8 @@ export function TutorialApp({ uiContainer }) {
         onStartTutorial={handleStartTutorial}
         onLanguageChange={(newLang) => engineRef.current?.setLanguage(newLang)}
         onReplayAudio={() => engineRef.current?.getAudioEngine()?.replay()}
+        onToggleMute={() => engineRef.current?.toggleMute()}
+        onVolumeChange={(vol) => engineRef.current?.setVolume(vol)}
         onNext={() => engineRef.current?.nextStep()}
         onPrev={() => engineRef.current?.prevStep()}
         onSkip={() => engineRef.current?.skipStep()}

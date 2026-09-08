@@ -558,6 +558,27 @@ html.dark .guide-ctrl-btn:hover {
   color: #ffffff;
 }
 
+.guide-ctrl-btn.muted {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.guide-volume-slider {
+  width: 48px;
+  height: 4px;
+  accent-color: #8b5cf6;
+  cursor: pointer;
+  background: rgba(139, 92, 246, 0.2);
+  border-radius: 4px;
+  margin: 0 2px;
+}
+
+html.dark .guide-volume-slider {
+  accent-color: #c084fc;
+  background: rgba(255, 255, 255, 0.2);
+}
+
 html.dark .guide-ctrl-btn.stop {
   color: #f87171;
   border-color: rgba(248, 113, 113, 0.3);

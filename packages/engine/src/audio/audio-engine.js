@@ -1,4 +1,5 @@
 import { AudioPlaybackStatus, AudioEngineEvent, Language } from '@guideme/core-types';
+import { globalAudioCache } from './audio-cache.js';
 
 /**
  * Base interface for TTS & Audio Synthesis Providers.
@@ -35,6 +36,18 @@ export class BaseTtsProvider {
    * Resume synthesis or playback.
    */
   resume() {}
+
+  /**
+   * Set playback volume (0.0 to 1.0).
+   * @param {number} volume
+   */
+  setVolume(volume) {}
+
+  /**
+   * Set mute state.
+   * @param {boolean} muted
+   */
+  setMuted(muted) {}
 }
 
 /**
@@ -53,40 +66,103 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
     this._currentTimeout = null;
     this._audioElement = null;
     this._isPaused = false;
+    this.volume = 1.0;
+    this.isMuted = false;
+    this._abortController = null;
+    this._currentBlobUrl = null;
+  }
+
+  setVolume(volume) {
+    this.volume = Math.max(0, Math.min(1, typeof volume === 'number' ? volume : 1.0));
+    if (this._audioElement) {
+      this._audioElement.volume = this.isMuted ? 0 : this.volume;
+    }
+  }
+
+  setMuted(muted) {
+    this.isMuted = Boolean(muted);
+    if (this._audioElement) {
+      this._audioElement.muted = this.isMuted;
+      this._audioElement.volume = this.isMuted ? 0 : this.volume;
+    }
   }
 
   async speak({ text, lang, audioUrl, rate = 1.0, onStart, onEnd, onError }) {
     this.stop();
+
+    if (this.isMuted) {
+      if (onStart) onStart();
+      if (onEnd) onEnd();
+      return;
+    }
 
     // 1. If pre-recorded or explicit audio URL is provided, use HTML5 Audio
     if (audioUrl) {
       return this._playAudioElement(audioUrl, rate, onStart, onEnd, onError);
     }
 
-    // 2. Synthesize audio dynamically via GuideMe Backend (Edge TTS Neural Voice)
-    if (text && typeof fetch !== 'undefined' && this.backendUrl) {
+    const language = lang === Language.EN || lang === 'en' ? 'en' : 'km';
+    const speed = rate < 0.9 ? 'slow' : rate > 1.1 ? 'fast' : 'normal';
+
+    // 2. Check Client-Side Audio Cache (L1 Memory / L2 IndexedDB)
+    if (text) {
       try {
-        const speed = rate < 0.9 ? 'slow' : rate > 1.1 ? 'fast' : 'normal';
-        const language = lang === Language.EN || lang === 'en' ? 'en' : 'km';
-
-        const res = await fetch(`${this.backendUrl.replace(/\/+$/, '')}/api/tts/synthesize`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, language, speed }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.audioUrl) {
-            return this._playAudioElement(data.audioUrl, rate, onStart, onEnd, onError);
-          }
+        const cachedBlob = await globalAudioCache.get(text, { lang: language, rate: speed, voice: 'edge-tts' });
+        if (cachedBlob && typeof window !== 'undefined' && typeof URL !== 'undefined') {
+          this._currentBlobUrl = URL.createObjectURL(cachedBlob);
+          return this._playAudioElement(this._currentBlobUrl, rate, onStart, onEnd, onError);
         }
       } catch (err) {
+        // Cache read failure is non-blocking
+      }
+    }
+
+    // 3. Synthesize audio dynamically via GuideMe Backend (Edge TTS Neural Voice)
+    if (text && typeof fetch !== 'undefined' && this.backendUrl) {
+      try {
+        this._abortController = new AbortController();
+        const base = this.backendUrl.replace(/\/+$/, '');
+        const endpoints = [`${base}/api/tts/synthesize`, `${base}/api/v1/tts`];
+
+        let data = null;
+        for (const endpoint of endpoints) {
+          try {
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text, language, speed }),
+              signal: this._abortController.signal,
+            });
+            if (res.ok) {
+              data = await res.json();
+              if (data?.audioUrl) break;
+            }
+          } catch (e) {
+            if (e.name === 'AbortError') return; // Cancelled cleanly
+          }
+        }
+
+        if (data?.audioUrl) {
+          // Asynchronously fetch and cache the synthesized audio blob in background
+          (async () => {
+            try {
+              const audioRes = await fetch(data.audioUrl);
+              if (audioRes.ok) {
+                const blob = await audioRes.blob();
+                await globalAudioCache.set(text, { lang: language, rate: speed, voice: 'edge-tts' }, blob);
+              }
+            } catch {}
+          })();
+
+          return this._playAudioElement(data.audioUrl, rate, onStart, onEnd, onError);
+        }
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
         console.warn('[GuideMe Audio] Backend TTS synthesis request failed, falling back:', err?.message || err);
       }
     }
 
-    // 3. Web Speech API fallback (if supported in browser for English)
+    // 4. Web Speech API fallback (if supported in browser for English)
     if (
       typeof window !== 'undefined' &&
       'speechSynthesis' in window &&
@@ -98,6 +174,7 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = rate;
         utterance.lang = 'en-US';
+        utterance.volume = this.isMuted ? 0 : this.volume;
         utterance.onstart = () => {
           if (onStart) onStart();
         };
@@ -115,7 +192,7 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
       }
     }
 
-    // 4. Simulated placeholder playback (synchronizes UI equalizer waves without blocking)
+    // 5. Simulated placeholder playback (synchronizes UI equalizer waves without blocking)
     this._simulatePlayback({ text, rate, onStart, onEnd });
   }
 
@@ -129,6 +206,8 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
     try {
       const audio = new Audio(url);
       audio.playbackRate = rate || 1.0;
+      audio.volume = this.isMuted ? 0 : this.volume;
+      audio.muted = this.isMuted;
       this._audioElement = audio;
 
       audio.onplay = () => {
@@ -164,7 +243,6 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
   _simulatePlayback({ text, rate, onStart, onEnd }) {
     if (onStart) onStart();
     const wordCount = (text || '').split(/\s+/).length || 5;
-    // Calculate realistic duration: ~180ms per word adjusted by rate
     const estimatedDurationMs = Math.max(1200, Math.min(6000, (wordCount * 250) / rate));
 
     this._currentTimeout = setTimeout(() => {
@@ -174,6 +252,18 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
   }
 
   stop() {
+    if (this._abortController) {
+      try {
+        this._abortController.abort();
+      } catch {}
+      this._abortController = null;
+    }
+    if (this._currentBlobUrl && typeof URL !== 'undefined') {
+      try {
+        URL.revokeObjectURL(this._currentBlobUrl);
+      } catch {}
+      this._currentBlobUrl = null;
+    }
     if (this._currentTimeout) {
       clearTimeout(this._currentTimeout);
       this._currentTimeout = null;
@@ -217,9 +307,63 @@ export class AudioEngine {
     this.ttsProvider = ttsProvider || new PlaceholderTtsProvider();
     this.status = AudioPlaybackStatus.IDLE;
     this.speechRate = 1.0;
+    this.volume = 1.0;
+    this.muted = false;
     this.lastPrompt = null;
     this.lastLang = Language.KM;
     this.listeners = new Set();
+  }
+
+  /**
+   * Set playback volume (0.0 to 1.0).
+   * @param {number} vol
+   */
+  setVolume(vol) {
+    this.volume = Math.max(0, Math.min(1, typeof vol === 'number' ? vol : 1.0));
+    if (this.ttsProvider && typeof this.ttsProvider.setVolume === 'function') {
+      this.ttsProvider.setVolume(this.volume);
+    }
+    this._setStatus(this.status, { volume: this.volume, isMuted: this.muted });
+  }
+
+  /**
+   * Get current playback volume.
+   * @returns {number}
+   */
+  getVolume() {
+    return this.volume;
+  }
+
+  /**
+   * Set mute state.
+   * @param {boolean} muted
+   */
+  setMuted(muted) {
+    this.muted = Boolean(muted);
+    if (this.ttsProvider && typeof this.ttsProvider.setMuted === 'function') {
+      this.ttsProvider.setMuted(this.muted);
+    }
+    if (this.muted && this.isPlaying()) {
+      this.stop();
+    }
+    this._setStatus(this.status, { volume: this.volume, isMuted: this.muted });
+  }
+
+  /**
+   * Check if audio is currently muted.
+   * @returns {boolean}
+   */
+  isMuted() {
+    return this.muted;
+  }
+
+  /**
+   * Toggle mute state.
+   * @returns {boolean} New muted state
+   */
+  toggleMute() {
+    this.setMuted(!this.muted);
+    return this.muted;
   }
 
   /**

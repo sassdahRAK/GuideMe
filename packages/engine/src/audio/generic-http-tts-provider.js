@@ -1,5 +1,6 @@
 import { BaseTtsProvider, PlaceholderTtsProvider } from './audio-engine.js';
 import { Language } from '@guideme/core-types';
+import { globalAudioCache } from './audio-cache.js';
 
 /**
  * Universal, Config-Driven HTTP TTS Provider.
@@ -47,7 +48,27 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
 
     this.currentAudio = null;
     this.currentBlobUrl = null;
+    this.volume = 1.0;
+    this.isMuted = false;
+    this._abortController = null;
     this.fallbackProvider = new PlaceholderTtsProvider();
+  }
+
+  setVolume(volume) {
+    this.volume = Math.max(0, Math.min(1, typeof volume === 'number' ? volume : 1.0));
+    if (this.currentAudio) {
+      this.currentAudio.volume = this.isMuted ? 0 : this.volume;
+    }
+    this.fallbackProvider.setVolume(this.volume);
+  }
+
+  setMuted(muted) {
+    this.isMuted = Boolean(muted);
+    if (this.currentAudio) {
+      this.currentAudio.muted = this.isMuted;
+      this.currentAudio.volume = this.isMuted ? 0 : this.volume;
+    }
+    this.fallbackProvider.setMuted(this.isMuted);
   }
 
   /**
@@ -56,12 +77,29 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
   async speak({ text, lang = Language.KM, audioUrl, rate = 1.0, onStart, onEnd, onError }) {
     this.stop();
 
+    if (this.isMuted) {
+      if (onStart) onStart();
+      if (onEnd) onEnd();
+      return;
+    }
+
     // 1. Direct audio clip if provided
     if (audioUrl) {
       return this._playAudioUrl(audioUrl, rate, onStart, onEnd, onError);
     }
 
-    // 2. If endpoint or text is missing, or required API key is empty, fall back cleanly
+    // 2. Check Client-Side Audio Cache (L1 Memory / L2 IndexedDB)
+    if (text) {
+      try {
+        const cachedBlob = await globalAudioCache.get(text, { voice: this.voice, lang, rate });
+        if (cachedBlob && typeof window !== 'undefined' && typeof URL !== 'undefined') {
+          this.currentBlobUrl = URL.createObjectURL(cachedBlob);
+          return this._playAudioUrl(this.currentBlobUrl, rate, onStart, onEnd, onError, true);
+        }
+      } catch {}
+    }
+
+    // 3. If endpoint or text is missing, or required API key is empty, fall back cleanly
     const requiresKey =
       Object.values(this.headers || {}).some((h) => String(h).includes('{{API_KEY}}')) ||
       (this.endpoint && (this.endpoint.includes('{{API_KEY}}') || this.endpoint.includes('api.openai.com') || this.endpoint.includes('api.elevenlabs.io')));
@@ -71,6 +109,7 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
     }
 
     try {
+      this._abortController = new AbortController();
       if (onStart) onStart();
 
       const { url, requestHeaders, requestBody } = this._buildRequest({ text, lang, rate });
@@ -78,6 +117,7 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
       const fetchOptions = {
         method: this.method,
         headers: requestHeaders,
+        signal: this._abortController.signal,
       };
 
       if (this.method !== 'GET' && this.method !== 'HEAD' && requestBody !== null) {
@@ -93,15 +133,16 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
       const audioSource = await this._extractAudio(response);
 
       if (typeof audioSource === 'string') {
-        // Direct URL or Data URI
         return this._playAudioUrl(audioSource, rate, null, onEnd, onError, false);
       } else if (audioSource instanceof Blob && typeof window !== 'undefined' && typeof URL !== 'undefined') {
+        await globalAudioCache.set(text, { voice: this.voice, lang, rate }, audioSource);
         this.currentBlobUrl = URL.createObjectURL(audioSource);
         return this._playAudioUrl(this.currentBlobUrl, rate, null, onEnd, onError, true);
       } else {
         if (onEnd) onEnd();
       }
     } catch (err) {
+      if (err?.name === 'AbortError') return;
       console.warn('[GuideMe GenericHttpTtsProvider] API synthesis failed, activating fallback:', err?.message || err);
       return this.fallbackProvider.speak({ text, lang, audioUrl, rate, onStart: null, onEnd, onError });
     }
@@ -311,6 +352,12 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
   }
 
   stop() {
+    if (this._abortController) {
+      try {
+        this._abortController.abort();
+      } catch {}
+      this._abortController = null;
+    }
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;

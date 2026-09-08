@@ -76,4 +76,16 @@ export class AiTtsProvider extends BaseTtsProvider {
   resume() {
     this.driver.resume();
   }
+
+  setVolume(volume) {
+    if (this.driver && typeof this.driver.setVolume === 'function') {
+      this.driver.setVolume(volume);
+    }
+  }
+
+  setMuted(muted) {
+    if (this.driver && typeof this.driver.setMuted === 'function') {
+      this.driver.setMuted(muted);
+    }
+  }
 }

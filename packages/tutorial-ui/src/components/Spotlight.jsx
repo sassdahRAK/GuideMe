@@ -16,6 +16,7 @@ export function Spotlight({
 }) {
   const hasValidBox =
     targetBoundingBox &&
+    !targetBoundingBox.isClipped &&
     (targetBoundingBox.width > 0 || targetBoundingBox.height > 0) &&
     !(targetBoundingBox.left === 0 && targetBoundingBox.top === 0 && targetBoundingBox.width <= 1);
 

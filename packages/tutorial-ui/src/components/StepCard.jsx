@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   FiVolume2,
+  FiVolumeX,
   FiArrowRight,
   FiArrowLeft,
   FiCheck,
@@ -30,6 +31,8 @@ export function StepCard({
   isLastStep = false,
   canSkip = true,
   isPlayingAudio = false,
+  isMuted = false,
+  volume = 1.0,
   isDragging = false,
   targetMissing = false,
   onRetry,
@@ -39,6 +42,8 @@ export function StepCard({
   onSkip,
   onClose,
   onReplayAudio,
+  onToggleMute,
+  onVolumeChange,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -84,30 +89,64 @@ export function StepCard({
         style={{ touchAction: 'none' }}
         className="flex items-center justify-between gap-2 pb-2.5 border-b border-gray-100 dark:border-white/10 cursor-grab active:cursor-grabbing"
       >
-        {/* Left: Speaker icon + Sound wave animation */}
-        <button
-          type="button"
-          onClick={onReplayAudio}
-          title={getUIString('replayVoiceTooltip', lang)}
-          className="flex items-center gap-2 text-gray-800 hover:text-gray-900 dark:text-white/90 dark:hover:text-white cursor-pointer bg-transparent border-0 p-0 transition-opacity hover:opacity-100"
-        >
-          <FiVolume2 className="w-4 h-4 text-[#8b5cf6] dark:text-white shrink-0" />
-          {/* Animated sound wave bars */}
-          <div className="flex items-end gap-[2px] h-3.5 shrink-0">
-            {[0.4, 0.9, 0.5, 1, 0.6, 0.8, 0.35].map((ratio, i) => (
-              <span
-                key={i}
-                className="inline-block w-[2px] bg-gray-800 dark:bg-white rounded-full transition-all"
-                style={{
-                  height: isPlayingAudio ? '100%' : `${ratio * 100}%`,
-                  animation: isPlayingAudio
-                    ? `guideme-wave 0.7s ease-in-out infinite alternate ${i * 0.12}s`
-                    : 'none',
-                }}
-              />
-            ))}
-          </div>
-        </button>
+        {/* Left: Audio controls cluster (Mute / Repeat / Volume) */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Mute Toggle */}
+          <button
+            type="button"
+            onClick={onToggleMute}
+            title={isMuted ? (isKhmer ? 'បើកសំឡេង (Unmute)' : 'Unmute audio') : (isKhmer ? 'បិទសំឡេង (Mute)' : 'Mute audio')}
+            className={`flex items-center justify-center w-6 h-6 rounded-md border-0 cursor-pointer transition-all ${
+              isMuted
+                ? 'text-red-500 bg-red-50 dark:bg-red-500/20 hover:bg-red-100'
+                : 'text-[#8b5cf6] dark:text-purple-300 bg-purple-50 dark:bg-purple-500/20 hover:bg-purple-100'
+            }`}
+          >
+            {isMuted ? (
+              <FiVolumeX className="w-3.5 h-3.5 shrink-0" />
+            ) : (
+              <FiVolume2 className="w-3.5 h-3.5 shrink-0" />
+            )}
+          </button>
+
+          {/* Repeat / Replay Voice with Animated Waves */}
+          <button
+            type="button"
+            onClick={onReplayAudio}
+            title={getUIString('replayVoiceTooltip', lang)}
+            className="flex items-center gap-1.5 text-gray-800 hover:text-gray-900 dark:text-white/90 dark:hover:text-white cursor-pointer bg-transparent border-0 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+          >
+            <FiRotateCcw className="w-3 h-3 text-[#8b5cf6] dark:text-purple-300 shrink-0" />
+            <div className="flex items-end gap-[2px] h-3 shrink-0">
+              {[0.4, 0.9, 0.5, 1, 0.6, 0.8, 0.35].map((ratio, i) => (
+                <span
+                  key={i}
+                  className={`inline-block w-[2px] rounded-full transition-all ${
+                    isMuted ? 'bg-gray-300 dark:bg-white/20' : 'bg-[#8b5cf6] dark:bg-purple-300'
+                  }`}
+                  style={{
+                    height: isPlayingAudio && !isMuted ? '100%' : `${ratio * 100}%`,
+                    animation: isPlayingAudio && !isMuted
+                      ? `guideme-wave 0.7s ease-in-out infinite alternate ${i * 0.12}s`
+                      : 'none',
+                  }}
+                />
+              ))}
+            </div>
+          </button>
+
+          {/* Volume Slider */}
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={isMuted ? 0 : (volume ?? 1.0)}
+            onChange={(e) => onVolumeChange?.(parseFloat(e.target.value))}
+            title={`Volume: ${Math.round((isMuted ? 0 : (volume ?? 1.0)) * 100)}%`}
+            className="w-12 h-1 accent-[#8b5cf6] cursor-pointer bg-gray-200 dark:bg-white/20 rounded-lg"
+          />
+        </div>
 
         {/* Center: Subtle Drag Grip Handle */}
         <div

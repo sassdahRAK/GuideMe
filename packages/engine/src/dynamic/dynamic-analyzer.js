@@ -340,14 +340,19 @@ export class DynamicPageAnalyzer {
     const isClickAction = /\b(click|press|open|tap|select|choose|go\s*to|ចុច|បើក|ជ្រើសរើស)\b/i.test(promptText);
 
     if (searchKeywords.length > 0 || matchedIntents.length > 0) {
+      // 0. Hover-triggered Element Resolution: dispatch synthetic hover before matching
+      const hoverRevealedMap = this._resolveHoverFlyouts(doc, searchKeywords, matchedIntents);
+
       const candidates = [];
       const seenElements = new Set();
 
       const scoreAndAdd = (el, type) => {
         if (!el || seenElements.has(el)) return;
 
+        const isHoverRevealed = hoverRevealedMap.has(el);
+
         // 1. Strict Visibility & Interactability check
-        if (!this._isInteractable(el)) return;
+        if (!this._isInteractable(el, { isHoverRevealed })) return;
 
         const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
         const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim();
@@ -400,13 +405,19 @@ export class DynamicPageAnalyzer {
         if (type === 'button' && (text || aria || testId)) score += 30;
         if (type === 'input' && (placeholder || aria || id || testId)) score += 20;
 
+        // Flyout item affinity bonus (user specifically requested menu item action)
+        if (isHoverRevealed) score += 60;
+
         // 5. Large text walls and body container penalties
         if (text.length > 50) score -= 45;
         if (text.length > 120) score -= 90;
 
-        // 6. Context-Aware Proximity / Spatial Score (Modals, Dropdowns, Layout)
+        // 6. Context-Aware Proximity / Spatial Score (Modals, Dropdowns, Layout, Reference elements)
         if (score > 10) {
-           const ctxScore = this._calculateContextScore(el, primaryIntentId);
+           const ctxScore = this._calculateContextScore(el, primaryIntentId, {
+             doc,
+             previousElement: options.previousElement || null,
+           });
            score += ctxScore;
         }
 
@@ -419,6 +430,7 @@ export class DynamicPageAnalyzer {
             type,
             score,
             label: cleanLabel,
+            hoverTrigger: hoverRevealedMap.get(el) || null,
           });
         }
       };
@@ -428,6 +440,11 @@ export class DynamicPageAnalyzer {
       analysis.allInputs.forEach((input) => scoreAndAdd(input, 'input'));
       const linksAndActionables = this._safeQueryAll(doc, 'a[href], [role="button"], [role="tab"], [role="menuitem"], [role="link"], summary');
       linksAndActionables.forEach((link) => scoreAndAdd(link, 'button'));
+
+      // If hover revealed any elements that weren't caught in query, add them directly
+      for (const [revealedEl] of hoverRevealedMap) {
+        scoreAndAdd(revealedEl, (revealedEl.tagName || '').toLowerCase() === 'input' ? 'input' : 'button');
+      }
 
       // Sort candidates by score descending
       candidates.sort((a, b) => b.score - a.score);
@@ -446,7 +463,7 @@ export class DynamicPageAnalyzer {
           let d = 0;
           while (current && d < levels) {
              const tag = (current.tagName || '').toLowerCase();
-             if (tag === 'form' || tag === 'fieldset' || (typeof current.className === 'string' && current.className.includes('card'))) {
+             if (tag === 'form' || tag === 'fieldset' || tag === 'dialog' || (typeof current.className === 'string' && (current.className.includes('card') || current.className.includes('modal')))) {
                 return current;
              }
              current = current.parentElement;
@@ -468,10 +485,39 @@ export class DynamicPageAnalyzer {
           
           // Only add if it's not identically labeled to a previous step (prevents 3 "Click Share" steps)
           if (!seenLabels.has(labelKey)) {
-            // Locality boost for sharing an ancestor with the anchor
-            if (anchorParent && cand.el && anchorParent.contains(cand.el)) {
+            const prevCand = topCandidates[topCandidates.length - 1];
+
+            // 1. Locality boost for sharing an ancestor with the anchor or previous step
+            if (anchorParent && cand.el && typeof anchorParent.contains === 'function' && anchorParent.contains(cand.el)) {
               cand.score += 50; 
             }
+            if (prevCand?.el?.closest && cand.el?.closest) {
+              const prevContainer = prevCand.el.closest('form, dialog, [role="dialog"], .card, section, fieldset');
+              if (prevContainer && cand.el.closest('form, dialog, [role="dialog"], .card, section, fieldset') === prevContainer) {
+                cand.score += 70;
+              }
+            }
+
+            // 2. Geometric coordinate proximity to the previous step
+            if (prevCand?.el && typeof cand.el.getBoundingClientRect === 'function' && typeof prevCand.el.getBoundingClientRect === 'function') {
+              try {
+                const r1 = cand.el.getBoundingClientRect();
+                const r2 = prevCand.el.getBoundingClientRect();
+                if (r1 && r2 && (r1.width > 0 || r1.height > 0) && (r2.width > 0 || r2.height > 0)) {
+                  const c1 = { x: (r1.left || r1.x || 0) + (r1.width || 0) / 2, y: (r1.top || r1.y || 0) + (r1.height || 0) / 2 };
+                  const c2 = { x: (r2.left || r2.x || 0) + (r2.width || 0) / 2, y: (r2.top || r2.y || 0) + (r2.height || 0) / 2 };
+                  const dist = Math.hypot(c1.x - c2.x, c1.y - c2.y);
+                  if (dist < 200) {
+                    cand.score += 80;
+                  } else if (dist < 400) {
+                    cand.score += 40;
+                  } else if (dist > 1000) {
+                    cand.score -= 30;
+                  }
+                }
+              } catch {}
+            }
+
             topCandidates.push(cand);
             seenLabels.add(labelKey);
           }
@@ -504,7 +550,11 @@ export class DynamicPageAnalyzer {
             id: `prompt_step_${cand.type}_${idx + 1}`,
             title: stepTitle,
             description: `Step ${idx + 1}: ${stepTitle}`,
-            target: this._buildTargetSelector(cand.el, isBtn ? 'button, [role="button"], a' : 'input, textarea'),
+            target: this._buildTargetSelector(
+              cand.el,
+              isBtn ? 'button, [role="button"], a' : 'input, textarea',
+              { hoverTrigger: cand.hoverTrigger }
+            ),
             action: {
               type: 'spotlight',
               title: stepTitle,
@@ -820,9 +870,13 @@ export class DynamicPageAnalyzer {
   /**
    * Checks if an element is strictly visible and interactable.
    * Drops ghost elements, disabled inputs, and zero-dimensional nodes.
+   * @param {HTMLElement} el
+   * @param {Object} [options={}]
+   * @param {boolean} [options.isHoverRevealed=false]
+   * @returns {boolean}
    * @private
    */
-  static _isInteractable(el) {
+  static _isInteractable(el, options = {}) {
     if (!el) return false;
 
     // 1. Semantic disabled states
@@ -835,6 +889,11 @@ export class DynamicPageAnalyzer {
       return false;
     }
 
+    // If element was revealed via synthetic hover trigger, bypass zero-size or transient hidden classes
+    if (options.isHoverRevealed) {
+      return true;
+    }
+
     // 3. CSS Classes common for hiding elements
     const className = (typeof el.className === 'string' ? el.className : el.className?.baseVal || '').toLowerCase();
     if (className.includes('hidden') || className.includes('invisible') || className.includes('d-none') || className.includes('opacity-0')) {
@@ -844,9 +903,7 @@ export class DynamicPageAnalyzer {
     // 4. Bounding Client Rect (if layout is available)
     if (typeof el.getBoundingClientRect === 'function') {
       const rect = el.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) {
-        // Some span wrappers might have 0 size but visible children, but for interactable inputs/buttons, they must have size.
-        // Exception: If the element is purely a visually hidden text container (like screen reader only), but we are a visual engine.
+      if (rect && rect.width === 0 && rect.height === 0) {
         return false;
       }
     }
@@ -855,20 +912,214 @@ export class DynamicPageAnalyzer {
   }
 
   /**
-   * Evaluates the contextual primacy of the element within the page layout.
-   * Heavily favors active overlays/modals and transient UI.
+   * Dispatches synthetic pointerenter, pointerover, mouseover, and mouseenter events
+   * to trigger flyouts and dropdowns before matching.
+   * @param {HTMLElement} element
+   */
+  static dispatchHoverEvents(element) {
+    if (!element || typeof element.dispatchEvent !== 'function') return;
+    try {
+      const doc = element.ownerDocument || (typeof document !== 'undefined' ? document : null);
+      const win = doc?.defaultView || (typeof window !== 'undefined' ? window : null);
+      const opts = { bubbles: true, cancelable: true, view: win };
+
+      if (typeof PointerEvent !== 'undefined') {
+        element.dispatchEvent(new PointerEvent('pointerover', opts));
+        element.dispatchEvent(new PointerEvent('pointerenter', { ...opts, bubbles: false }));
+      }
+      if (typeof MouseEvent !== 'undefined') {
+        element.dispatchEvent(new MouseEvent('mouseover', opts));
+        element.dispatchEvent(new MouseEvent('mouseenter', { ...opts, bubbles: false }));
+      } else if (typeof CustomEvent !== 'undefined') {
+        element.dispatchEvent(new CustomEvent('mouseover', opts));
+        element.dispatchEvent(new CustomEvent('mouseenter', { ...opts, bubbles: false }));
+      } else {
+        element.dispatchEvent({ type: 'mouseover', bubbles: true });
+        element.dispatchEvent({ type: 'mouseenter', bubbles: false });
+      }
+
+      if (typeof FocusEvent !== 'undefined') {
+        element.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      }
+    } catch {}
+  }
+
+  /**
+   * Locates the parent trigger element for an item located inside a flyout/dropdown menu.
+   * @param {HTMLElement} el
+   * @returns {HTMLElement|null}
    * @private
    */
-  static _calculateContextScore(el, intentId) {
+  static _findParentHoverTrigger(el) {
+    if (!el || !el.parentElement) return null;
+
+    let current = el.parentElement;
+    let depth = 0;
+
+    while (current && depth < 6) {
+      const tag = (current.tagName || '').toLowerCase();
+      const role = (current.getAttribute?.('role') || '').toLowerCase();
+      const className = (typeof current.className === 'string' ? current.className : current.className?.baseVal || '').toLowerCase();
+
+      const isMenuContainer = (
+        role === 'menu' ||
+        role === 'menubar' ||
+        className.includes('dropdown-menu') ||
+        className.includes('flyout') ||
+        className.includes('sub-menu') ||
+        className.includes('submenu') ||
+        tag === 'ul' ||
+        tag === 'ol'
+      );
+
+      if (isMenuContainer) {
+        // 1. Preceding sibling trigger
+        const prev = current.previousElementSibling;
+        if (prev) {
+          if (prev.matches?.('button, a, [role="button"], [aria-haspopup]')) {
+            return prev;
+          }
+          const nestedTrigger = prev.querySelector?.('button, a, [role="button"], [aria-haspopup]');
+          if (nestedTrigger) return nestedTrigger;
+        }
+
+        // 2. Parent's own trigger
+        const parent = current.parentElement;
+        if (parent) {
+          try {
+            const directTrigger = parent.querySelector?.(':scope > button, :scope > a, :scope > [role="button"], :scope > [aria-haspopup]');
+            if (directTrigger && directTrigger !== el) return directTrigger;
+          } catch {}
+
+          try {
+            const anyTrigger = parent.querySelector?.('[aria-haspopup="true"], [aria-haspopup="menu"], [data-toggle="dropdown"], .dropdown-toggle');
+            if (anyTrigger && anyTrigger !== el) return anyTrigger;
+          } catch {}
+
+          if (parent.children) {
+            const childTrigger = Array.from(parent.children).find((c) => c !== current && c !== el && c.matches?.('button, a, [role="button"], [aria-haspopup]'));
+            if (childTrigger) return childTrigger;
+          }
+        }
+      }
+
+      // Check if current itself has aria-haspopup or dropdown class
+      if (current.getAttribute?.('aria-haspopup') || className.includes('has-dropdown') || className.includes('menu-item-has-children')) {
+        const trigger = current.matches?.('button, a, [role="button"]') ? current : current.querySelector?.('button, a, [role="button"]');
+        if (trigger && trigger !== el) return trigger;
+      }
+
+      current = current.parentElement;
+      depth++;
+    }
+
+    return null;
+  }
+
+  /**
+   * Inspects potential flyout/dropdown menu candidates. If any match user keywords
+   * or intents, dispatches synthetic pointerenter/mouseover events to its parent trigger
+   * to reveal it before matching.
+   * @param {Document} doc
+   * @param {string[]} searchKeywords
+   * @param {Object[]} matchedIntents
+   * @returns {Map<HTMLElement, HTMLElement>} Map of revealed element -> parent hover trigger
+   * @private
+   */
+  static _resolveHoverFlyouts(doc, searchKeywords = [], matchedIntents = []) {
+    const revealedMap = new Map();
+    if (!doc || typeof doc.querySelectorAll !== 'function') return revealedMap;
+
+    const potentialMenuItems = this._safeQueryAll(doc, [
+      '[role="menuitem"]',
+      '.dropdown-item',
+      '.menu-item a',
+      '.menu-item button',
+      '.dropdown-menu a',
+      '.dropdown-menu button',
+      'nav ul ul a',
+      'nav ul ul button',
+      'header ul ul a',
+      'header ul ul button',
+      '[aria-expanded="false"] + * [role="menuitem"]',
+      '[aria-haspopup] + * a',
+      '[aria-haspopup] + * button',
+    ].join(', '));
+
+    for (const item of potentialMenuItems) {
+      const text = (item.textContent || '').toLowerCase();
+      const aria = (item.getAttribute?.('aria-label') || item.getAttribute?.('title') || '').toLowerCase();
+      const id = (item.id || '').toLowerCase();
+      const itemStr = `${text} ${aria} ${id}`;
+
+      let matches = false;
+
+      for (const kw of searchKeywords) {
+        if (kw && itemStr.includes(kw.toLowerCase())) {
+          matches = true;
+          break;
+        }
+      }
+
+      if (!matches) {
+        for (const intent of matchedIntents) {
+          for (const kw of intent.keywords) {
+            if (itemStr.includes(kw.toLowerCase())) {
+              matches = true;
+              break;
+            }
+          }
+          if (matches) break;
+        }
+      }
+
+      if (matches) {
+        const trigger = this._findParentHoverTrigger(item);
+        if (trigger) {
+          this.dispatchHoverEvents(trigger);
+          revealedMap.set(item, trigger);
+        }
+      }
+    }
+
+    return revealedMap;
+  }
+
+  /**
+   * Evaluates the contextual primacy and spatial proximity of the element within the page layout.
+   * Heavily prioritizes active overlays/modals, main containers, and elements near the previous step.
+   * Disambiguates duplicate elements sharing identical labels.
+   * @param {HTMLElement} el
+   * @param {string|null} intentId
+   * @param {Object} [options={}]
+   * @param {Document} [options.doc]
+   * @param {HTMLElement|null} [options.previousElement]
+   * @returns {number} Context score modifier
+   * @private
+   */
+  static _calculateContextScore(el, intentId, options = {}) {
     let score = 0;
     let current = el;
     let depth = 0;
     let hasModal = false;
-    
+    let isInModal = false;
+
     // Check global modal existence on the document
-    const doc = el.ownerDocument;
+    const doc = el.ownerDocument || options.doc;
+    let anyModalOpen = null;
     if (doc) {
-      const anyModalOpen = doc.querySelector('dialog[open], [role="dialog"], .modal.show, .modal.active, [aria-modal="true"]');
+      if (typeof doc.querySelector === 'function') {
+        try {
+          anyModalOpen = doc.querySelector(
+            'dialog[open], [role="dialog"][aria-modal="true"], [role="dialog"]:not([aria-hidden="true"]), [role="alertdialog"], .modal.show, .modal.active, [aria-modal="true"]'
+          );
+        } catch {}
+      } else if (typeof doc.querySelectorAll === 'function') {
+        try {
+          const list = doc.querySelectorAll('dialog[open], [role="dialog"], .modal.show, .modal.active, [aria-modal="true"]');
+          anyModalOpen = list?.[0] || null;
+        } catch {}
+      }
       hasModal = !!anyModalOpen;
     }
 
@@ -876,12 +1127,14 @@ export class DynamicPageAnalyzer {
       const tag = (current.tagName || '').toLowerCase();
       const role = (current.getAttribute?.('role') || '').toLowerCase();
       const ariaExpanded = current.getAttribute?.('aria-expanded');
-      const className = (typeof current.className === 'string' ? current.className : '').toLowerCase();
+      const ariaModal = current.getAttribute?.('aria-modal');
+      const className = (typeof current.className === 'string' ? current.className : current.className?.baseVal || '').toLowerCase();
 
       // 1. Modals & Dialogs (The Active Layer)
-      if (tag === 'dialog' || role === 'dialog' || role === 'alertdialog' || className.includes('modal') || current.getAttribute?.('aria-modal') === 'true') {
-        score += 200;
-        hasModal = false; // we are IN the modal, so cancel the penalty
+      if (tag === 'dialog' || role === 'dialog' || role === 'alertdialog' || className.includes('modal') || ariaModal === 'true') {
+        score += 300;
+        isInModal = true;
+        hasModal = false; // We are inside the modal, so cancel background penalty
       }
 
       // 2. Transient Hover/Click Menus (Dropdowns)
@@ -889,17 +1142,17 @@ export class DynamicPageAnalyzer {
         score += 150;
       }
 
-      // 3. Layout Primacy
-      if (tag === 'main' || current.id === 'main-content' || className.includes('main')) {
-        score += 50;
-      } else if (tag === 'footer' || tag === 'aside') {
+      // 3. Layout Primacy: Main Content Container priority
+      if (tag === 'main' || current.id === 'main-content' || current.id === 'content' || className.includes('main')) {
+        score += 80;
+      } else if (tag === 'footer' || tag === 'aside' || className.includes('sidebar')) {
         // Penalty unless user specifically asked for navigation/settings which often reside in footers/sidebars
         if (intentId !== 'navigation' && intentId !== 'settings' && intentId !== 'help') {
-          score -= 40;
+          score -= 60;
         }
       } else if (tag === 'header' || tag === 'nav') {
         if (intentId !== 'navigation' && intentId !== 'search' && intentId !== 'login') {
-          score -= 30; // Penalize standard actions in header
+          score -= 50; // Penalize standard actions in header
         }
       }
 
@@ -911,10 +1164,46 @@ export class DynamicPageAnalyzer {
       current = current.parentElement;
       depth++;
     }
-    
-    // If a modal is open somewhere else on the page, and we are NOT in it, penalize heavily.
-    if (hasModal && score < 200) {
-      score -= 150;
+
+    // If an active modal is open on the page and this element is NOT in it, heavily penalize it
+    if (hasModal && !isInModal) {
+      score -= 250;
+    }
+
+    // 5. Spatial & Visual Proximity Scoring relative to Previous Step / Reference element
+    const prevEl = options.previousElement;
+    if (prevEl && prevEl !== el) {
+      // Shared container bonus (same form, dialog, card, or fieldset)
+      if (typeof prevEl.closest === 'function' && typeof el.closest === 'function') {
+        try {
+          const container = el.closest('form, dialog, .modal, [role="dialog"], .card, fieldset, section');
+          if (container && prevEl.closest('form, dialog, .modal, [role="dialog"], .card, fieldset, section') === container) {
+            score += 90;
+          }
+        } catch {}
+      }
+
+      // Geometric Euclidean coordinate proximity
+      if (typeof el.getBoundingClientRect === 'function' && typeof prevEl.getBoundingClientRect === 'function') {
+        try {
+          const r1 = el.getBoundingClientRect();
+          const r2 = prevEl.getBoundingClientRect();
+          if (r1 && r2 && (r1.width > 0 || r1.height > 0) && (r2.width > 0 || r2.height > 0)) {
+            const c1 = { x: (r1.left || r1.x || 0) + (r1.width || 0) / 2, y: (r1.top || r1.y || 0) + (r1.height || 0) / 2 };
+            const c2 = { x: (r2.left || r2.x || 0) + (r2.width || 0) / 2, y: (r2.top || r2.y || 0) + (r2.height || 0) / 2 };
+            const dist = Math.hypot(c1.x - c2.x, c1.y - c2.y);
+            if (dist < 200) {
+              score += 100; // Right next to previous element
+            } else if (dist < 450) {
+              score += 60;  // Same visual section
+            } else if (dist < 750) {
+              score += 20;
+            } else if (dist > 1200) {
+              score -= 40;  // Distant outlier
+            }
+          }
+        } catch {}
+      }
     }
 
     return score;
@@ -1019,9 +1308,14 @@ export class DynamicPageAnalyzer {
 
   /**
    * Builds resilient multi-strategy target selector definition for a DOM element.
+   * Includes container context scoping and hover trigger references.
+   * @param {HTMLElement} el
+   * @param {string} [defaultCssFallback='']
+   * @param {Object} [options={}]
+   * @param {HTMLElement|null} [options.hoverTrigger]
    * @private
    */
-  static _buildTargetSelector(el, defaultCssFallback = '') {
+  static _buildTargetSelector(el, defaultCssFallback = '', options = {}) {
     if (!el) return { css: defaultCssFallback || 'body' };
 
     const target = {};
@@ -1056,6 +1350,23 @@ export class DynamicPageAnalyzer {
       target.css = defaultCssFallback || tag || 'body';
     }
 
+    // Contextual Container Scoping to disambiguate identical elements across regions
+    try {
+      const dialogAncestor = typeof el.closest === 'function' ? el.closest('dialog[open], [role="dialog"], [role="alertdialog"], .modal') : null;
+      if (dialogAncestor) {
+        target.container = 'dialog[open], [role="dialog"], .modal';
+        if (!el.id) {
+          target.css = `${target.container} ${target.css}`;
+        }
+      } else if (!el.id) {
+        const containerWithId = typeof el.closest === 'function' ? el.closest('[id]') : null;
+        if (containerWithId && containerWithId !== el && containerWithId.id) {
+          target.container = `#${containerWithId.id}`;
+          target.css = `#${containerWithId.id} ${target.css}`;
+        }
+      }
+    } catch {}
+
     // 2. data-testid attribute strategy
     const testId = el.getAttribute ? (el.getAttribute('data-testid') || el.getAttribute('data-cy')) : null;
     if (testId) {
@@ -1081,6 +1392,11 @@ export class DynamicPageAnalyzer {
       target.xpath = `//*[@data-testid="${testId}"]`;
     } else if (text && text.length >= 3 && text.length <= 25) {
       target.xpath = `//${tag || '*'}[contains(normalize-space(), "${text}")]`;
+    }
+
+    // 6. Hover Trigger strategy for flyouts/dropdown menus
+    if (options.hoverTrigger) {
+      target.hoverTrigger = this._buildTargetSelector(options.hoverTrigger, 'button, a');
     }
 
     return target;

@@ -41,6 +41,10 @@ export function Tooltip({
   isLastStep,
   canSkip,
   isPlayingAudio,
+  isMuted = false,
+  volume = 1.0,
+  onToggleMute,
+  onVolumeChange,
   onLanguageChange,
   onNext,
   onPrev,
@@ -99,7 +103,7 @@ export function Tooltip({
     // Keep the card clear of the spotlight's connector and label while still
     // anchoring it to the target's real viewport rect.
     const targetGap = 61;
-    const isOffscreen = bottom < 0 || top > viewport.height || right < 0 || left > viewport.width;
+    const isOffscreen = Boolean(targetBoundingBox.isClipped) || bottom < 0 || top > viewport.height || right < 0 || left > viewport.width;
     if (isOffscreen) {
       return {
         top: `${fallbackTop}px`,
@@ -268,6 +272,10 @@ export function Tooltip({
         isLastStep={isLastStep}
         canSkip={canSkip}
         isPlayingAudio={isPlayingAudio}
+        isMuted={isMuted}
+        volume={volume}
+        onToggleMute={onToggleMute}
+        onVolumeChange={onVolumeChange}
         isDragging={isDragging}
         isCustomPositioned={Boolean(customPosition)}
         isGeneralStep={!targetBoundingBox || placement === 'center'}

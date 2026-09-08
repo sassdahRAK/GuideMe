@@ -188,6 +188,7 @@ export class TutorialEngine {
    * Advance to the next step.
    */
   async nextStep() {
+    this.audio.stop();
     if (!this.activeTutorial || !this.currentStep) return;
 
     const nextIndex = this.stepResolver.resolveNextStepIndex(
@@ -208,6 +209,7 @@ export class TutorialEngine {
    * Return to the previous step.
    */
   async prevStep() {
+    this.audio.stop();
     if (!this.activeTutorial || !this.currentStep) return;
 
     const prevIndex = this.currentStep.defaultPrevStepIndex;
@@ -221,7 +223,52 @@ export class TutorialEngine {
    * Skip current step.
    */
   async skipStep() {
+    this.audio.stop();
     await this.nextStep();
+  }
+
+  /**
+   * Set playback volume (0.0 to 1.0).
+   * @param {number} vol
+   */
+  setVolume(vol) {
+    this.audio.setVolume(vol);
+    this._notifyState();
+  }
+
+  /**
+   * Get current playback volume.
+   * @returns {number}
+   */
+  getVolume() {
+    return this.audio.getVolume();
+  }
+
+  /**
+   * Set mute state.
+   * @param {boolean} muted
+   */
+  setMuted(muted) {
+    this.audio.setMuted(muted);
+    this._notifyState();
+  }
+
+  /**
+   * Check if audio is muted.
+   * @returns {boolean}
+   */
+  isMuted() {
+    return this.audio.isMuted();
+  }
+
+  /**
+   * Toggle mute state.
+   * @returns {boolean} New mute state
+   */
+  toggleMute() {
+    const res = this.audio.toggleMute();
+    this._notifyState();
+    return res;
   }
 
   /**
@@ -301,6 +348,8 @@ export class TutorialEngine {
       stepBadgeText: this.i18n.formatStepBadge(this.currentStepIndex, totalSteps, currentLang),
       isPlayingAudio: this.audio.isPlaying(),
       audioStatus: this.audio.getStatus(),
+      volume: this.audio.getVolume(),
+      isMuted: this.audio.isMuted(),
       tutorial: this.activeTutorial ? {
         id: this.activeTutorial.id,
         name: this.i18n.resolve(this.activeTutorial.name, currentLang),
@@ -398,10 +447,12 @@ export class TutorialEngine {
 
   /**
    * Clean up observers and event bindings for previous step.
+   * Auto-stops any ongoing audio so clips never overlap across steps.
    * @private
    */
   _cleanupStepSubscriptions() {
     this._clearAlertState();
+    this.audio.stop();
     if (typeof this._activeValidationCleanup === 'function') {
       this._activeValidationCleanup();
       this._activeValidationCleanup = null;

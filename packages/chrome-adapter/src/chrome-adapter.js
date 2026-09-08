@@ -26,12 +26,8 @@ export class ChromeAdapter extends BaseTutorialAdapter {
    */
   async scrollToElement(selector) {
     const element = DomObserver.findElement(selector);
-    if (element && typeof element.scrollIntoView === 'function') {
-      element.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-        inline: 'nearest',
-      });
+    if (element) {
+      DomObserver.scrollIntoView(element);
     }
   }
 

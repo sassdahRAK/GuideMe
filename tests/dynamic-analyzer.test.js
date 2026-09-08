@@ -489,5 +489,243 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     assert.strictEqual(tutorial.id, 'nvidia-async-guide');
     assert.strictEqual(tutorial.steps[0].target.css, '#add-bag');
   });
+
+  test('Disambiguation: Prioritizes button inside active dialog over identical background button', () => {
+    const modalContainer = {
+      tagName: 'DIALOG',
+      open: true,
+      getAttribute: (attr) => (attr === 'open' ? '' : null),
+      querySelectorAll: () => [],
+    };
+
+    const modalButton = {
+      tagName: 'BUTTON',
+      id: 'modal-save-btn',
+      textContent: 'Save Changes',
+      parentElement: modalContainer,
+      getAttribute: () => null,
+      closest: (selector) => {
+        if (selector.includes('dialog') || selector.includes('modal')) return modalContainer;
+        return null;
+      },
+    };
+
+    const backgroundContainer = {
+      tagName: 'DIV',
+      className: 'bg-page-container',
+      getAttribute: () => null,
+      querySelectorAll: () => [],
+    };
+
+    const backgroundButton = {
+      tagName: 'BUTTON',
+      id: 'bg-save-btn',
+      textContent: 'Save Changes',
+      parentElement: backgroundContainer,
+      getAttribute: () => null,
+      closest: () => null,
+    };
+
+    const mockDoc = {
+      title: 'Modal Test Page',
+      querySelectorAll: (selector) => {
+        if (selector.includes('dialog[open]') || selector.includes('dialog')) return [modalContainer];
+        if (selector.includes('button')) return [backgroundButton, modalButton];
+        if (selector.startsWith('#')) {
+          const id = selector.slice(1);
+          if (id === 'modal-save-btn') return [modalButton];
+          if (id === 'bg-save-btn') return [backgroundButton];
+        }
+        return [];
+      },
+      querySelector: (selector) => {
+        if (selector.includes('dialog[open]') || selector.includes('dialog')) return modalContainer;
+        return null;
+      },
+    };
+
+    modalButton.ownerDocument = mockDoc;
+    backgroundButton.ownerDocument = mockDoc;
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/app', 'click save changes');
+    assert.ok(tutorial.steps.length > 0);
+    assert.strictEqual(tutorial.steps[0].target.css, '#modal-save-btn');
+    assert.strictEqual(tutorial.steps[0].target.container, 'dialog[open], [role="dialog"], .modal');
+  });
+
+  test('Layout Primacy: Prioritizes button in <main> over identical button in <footer>', () => {
+    const mainContainer = {
+      tagName: 'MAIN',
+      id: 'main-content',
+      getAttribute: () => null,
+    };
+    const footerContainer = {
+      tagName: 'FOOTER',
+      getAttribute: () => null,
+    };
+
+    const mainActionBtn = {
+      tagName: 'BUTTON',
+      id: 'main-action',
+      textContent: 'Get Started',
+      parentElement: mainContainer,
+      getAttribute: () => null,
+      closest: (sel) => (sel.includes('main') ? mainContainer : null),
+    };
+
+    const footerActionBtn = {
+      tagName: 'BUTTON',
+      id: 'footer-action',
+      textContent: 'Get Started',
+      parentElement: footerContainer,
+      getAttribute: () => null,
+      closest: (sel) => (sel.includes('footer') ? footerContainer : null),
+    };
+
+    const mockDoc = {
+      title: 'Layout Page',
+      querySelectorAll: (selector) => {
+        if (selector.includes('dialog')) return [];
+        if (selector.includes('button')) return [footerActionBtn, mainActionBtn];
+        if (selector === '#main-action') return [mainActionBtn];
+        if (selector === '#footer-action') return [footerActionBtn];
+        return [];
+      },
+      querySelector: () => null,
+    };
+
+    mainActionBtn.ownerDocument = mockDoc;
+    footerActionBtn.ownerDocument = mockDoc;
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com', 'get started');
+    assert.ok(tutorial.steps.length > 0);
+    assert.strictEqual(tutorial.steps[0].target.css, '#main-action');
+  });
+
+  test('Spatial Proximity: Prioritizes button physically close to previousElement', () => {
+    const sharedForm = {
+      tagName: 'FORM',
+      getAttribute: () => null,
+    };
+
+    const prevInput = {
+      tagName: 'INPUT',
+      id: 'order-notes',
+      parentElement: sharedForm,
+      closest: (sel) => (sel.includes('form') ? sharedForm : null),
+      getBoundingClientRect: () => ({ left: 100, top: 100, width: 200, height: 40 }),
+      getAttribute: () => null,
+    };
+
+    const closeBtn = {
+      tagName: 'BUTTON',
+      id: 'close-submit-btn',
+      textContent: 'Confirm',
+      parentElement: sharedForm,
+      closest: (sel) => (sel.includes('form') ? sharedForm : null),
+      getBoundingClientRect: () => ({ left: 100, top: 160, width: 100, height: 40 }),
+      getAttribute: () => null,
+    };
+
+    const distantBtn = {
+      tagName: 'BUTTON',
+      id: 'distant-submit-btn',
+      textContent: 'Confirm',
+      parentElement: { tagName: 'DIV' },
+      closest: () => null,
+      getBoundingClientRect: () => ({ left: 1800, top: 2200, width: 100, height: 40 }),
+      getAttribute: () => null,
+    };
+
+    const mockDoc = {
+      title: 'Order Page',
+      querySelectorAll: (selector) => {
+        if (selector.includes('dialog')) return [];
+        if (selector.includes('button')) return [distantBtn, closeBtn];
+        return [];
+      },
+      querySelector: () => null,
+    };
+
+    closeBtn.ownerDocument = mockDoc;
+    distantBtn.ownerDocument = mockDoc;
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(
+      mockDoc,
+      'https://example.com/order',
+      'confirm',
+      { previousElement: prevInput }
+    );
+
+    assert.ok(tutorial.steps.length > 0);
+    assert.strictEqual(tutorial.steps[0].target.css, '#close-submit-btn');
+  });
+
+  test('Hover Resolution: Dispatches synthetic hover on menu trigger and sets target.hoverTrigger', () => {
+    const dispatchedEvents = [];
+
+    const triggerBtn = {
+      tagName: 'BUTTON',
+      id: 'user-profile-toggle',
+      textContent: 'Account',
+      getAttribute: (attr) => (attr === 'aria-haspopup' ? 'true' : null),
+      dispatchEvent: (evt) => {
+        dispatchedEvents.push(evt.type);
+      },
+      matches: (sel) => sel.includes('button') || sel.includes('aria-haspopup'),
+    };
+
+    const dropdownList = {
+      tagName: 'UL',
+      className: 'dropdown-menu',
+      parentElement: {
+        tagName: 'DIV',
+        className: 'user-dropdown-container',
+        children: [triggerBtn],
+        querySelector: () => triggerBtn,
+      },
+      previousElementSibling: triggerBtn,
+      getAttribute: (attr) => (attr === 'role' ? 'menu' : null),
+    };
+
+    const flyoutItem = {
+      tagName: 'A',
+      id: 'settings-menu-item',
+      textContent: 'Settings and Preferences',
+      parentElement: dropdownList,
+      getAttribute: (attr) => (attr === 'role' ? 'menuitem' : null),
+      closest: () => null,
+    };
+
+    const mockDoc = {
+      title: 'App with Flyout Menu',
+      querySelectorAll: (selector) => {
+        if (selector.includes('role="menuitem"') || selector.includes('.dropdown-item') || selector.includes('.dropdown-menu a')) {
+          return [flyoutItem];
+        }
+        if (selector.includes('button') || selector.includes('a[href]')) {
+          return [triggerBtn, flyoutItem];
+        }
+        return [];
+      },
+      querySelector: () => null,
+    };
+
+    flyoutItem.ownerDocument = mockDoc;
+    triggerBtn.ownerDocument = mockDoc;
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(
+      mockDoc,
+      'https://example.com/dashboard',
+      'settings'
+    );
+
+    assert.ok(tutorial.steps.length > 0);
+    assert.ok(dispatchedEvents.includes('mouseover') || dispatchedEvents.includes('mouseenter'));
+    const step = tutorial.steps[0];
+    assert.strictEqual(step.target.css, '#settings-menu-item');
+    assert.ok(step.target.hoverTrigger);
+    assert.strictEqual(step.target.hoverTrigger.css, '#user-profile-toggle');
+  });
 });
 

@@ -12,6 +12,7 @@ export * from './dynamic/gemini-dom-analyzer.js';
 export * from './dynamic/nvidia-dom-analyzer.js';
 export * from './i18n/i18n-manager.js';
 export * from './audio/audio-engine.js';
+export * from './audio/audio-cache.js';
 export * from './audio/ai-tts-provider.js';
 export * from './audio/generic-http-tts-provider.js';
 export * from './audio/tts-registry.js';

@@ -71,6 +71,30 @@ export class GeminiDomAnalyzer {
       }
     }
 
+    // Traverse open shadow roots for Web Components (Google Docs, Canvas LMS, Microsoft 365)
+    try {
+      const allNodes = doc.querySelectorAll ? doc.querySelectorAll('*') : [];
+      for (let i = 0; i < allNodes.length; i++) {
+        const sr = allNodes[i].shadowRoot;
+        if (sr && typeof sr.querySelectorAll === 'function') {
+          for (const q of queries) {
+            try {
+              const shadowMatches = sr.querySelectorAll(q);
+              if (shadowMatches) {
+                for (let j = 0; j < shadowMatches.length; j++) {
+                  const el = shadowMatches[j];
+                  if (!seenSet.has(el)) {
+                    seenSet.add(el);
+                    rawElements.push(el);
+                  }
+                }
+              }
+            } catch {}
+          }
+        }
+      }
+    } catch {}
+
     const candidates = [];
     const seen = new Set();
 

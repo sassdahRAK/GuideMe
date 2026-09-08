@@ -17,6 +17,8 @@ export function TutorialOverlay({
   onClose,
   onLanguageChange,
   onReplayAudio,
+  onToggleMute,
+  onVolumeChange,
   onRetryLocateTarget,
   onToggleLauncher,
   onStartDynamicGuide,
@@ -247,6 +249,8 @@ export function TutorialOverlay({
         isLastStep={isLastStep}
         canSkip={actionPayload?.canSkip ?? true}
         isPlayingAudio={isPlayingAudio}
+        isMuted={state?.isMuted ?? false}
+        volume={state?.volume ?? 1.0}
         targetMissing={targetMissing}
         onRetry={onRetryLocateTarget}
         onLanguageChange={onLanguageChange}
@@ -255,6 +259,8 @@ export function TutorialOverlay({
         onSkip={onSkip}
         onClose={onClose}
         onReplayAudio={onReplayAudio}
+        onToggleMute={onToggleMute}
+        onVolumeChange={onVolumeChange}
       />
 
 

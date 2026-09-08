@@ -79,9 +79,16 @@ import { createSpeechController } from './speech.js';
     guidePrevBtn,
     guideNextBtn,
     guideReplayBtn,
+    guideMuteBtn,
+    guideVolumeSlider,
+    iconVol,
+    iconMute,
     guideStopBtn,
     suggestionsContainer,
     suggestionsListEl;
+
+  let isAudioMuted = false;
+  let audioVolume = 1.0;
 
   /**
    * Initialize the PiP window.
@@ -109,6 +116,10 @@ import { createSpeechController } from './speech.js';
       guidePrevBtn = document.getElementById('pip-guide-prev');
       guideNextBtn = document.getElementById('pip-guide-next');
       guideReplayBtn = document.getElementById('pip-guide-replay');
+      guideMuteBtn = document.getElementById('pip-guide-mute');
+      guideVolumeSlider = document.getElementById('pip-guide-volume');
+      iconVol = document.getElementById('pip-icon-vol');
+      iconMute = document.getElementById('pip-icon-mute');
       guideStopBtn = document.getElementById('pip-guide-stop');
 
       // Suggestions elements
@@ -120,13 +131,29 @@ import { createSpeechController } from './speech.js';
         return;
       }
 
-      // Restore stored preferences and chat history
-      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-        const res = await chrome.storage.local.get([
-          'guideme_theme',
-          'guideme_lang',
-          'guideme_chat_messages',
-        ]);
+      // Restore stored preferences, chat history, and active guide state
+      if (typeof chrome !== 'undefined') {
+        const localData = chrome.storage?.local
+          ? await chrome.storage.local.get([
+              'guideme_theme',
+              'guideme_lang',
+              'guideme_chat_messages',
+              'guideme_active_guide_state',
+              'guideme_active_tutorial_session',
+            ])
+          : {};
+
+        let sessionData = {};
+        if (chrome.storage?.session) {
+          try {
+            sessionData = await chrome.storage.session.get([
+              'guideme_active_guide_state',
+              'guideme_active_tutorial_session',
+            ]);
+          } catch {}
+        }
+
+        const res = { ...localData, ...sessionData };
 
         if (res.guideme_theme) {
           currentTheme = res.guideme_theme;
@@ -138,6 +165,19 @@ import { createSpeechController } from './speech.js';
         }
         if (Array.isArray(res.guideme_chat_messages) && res.guideme_chat_messages.length > 0) {
           renderChatMessages(res.guideme_chat_messages);
+        }
+
+        // Restore active guide state if one was active when PiP was closed or reopened
+        const activeState = res.guideme_active_guide_state || res.guideme_active_tutorial_session;
+        if (activeState && (activeState.active || activeState.tutorial)) {
+          const stepTitle = activeState.step?.title || activeState.stepTitle || '';
+          updateActiveGuideHUD({
+            active: true,
+            currentStepIndex: activeState.currentStepIndex || 0,
+            totalSteps: activeState.totalSteps || activeState.tutorial?.steps?.length || 1,
+            name: activeState.tutorial?.name || activeState.name,
+            stepTitle,
+          });
         }
       }
 
@@ -289,7 +329,7 @@ import { createSpeechController } from './speech.js';
     try {
       if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
         chrome.storage.onChanged.addListener((changes, areaName) => {
-          if (areaName !== 'local') return;
+          if (areaName !== 'local' && areaName !== 'session') return;
           if (changes.guideme_theme) {
             currentTheme = changes.guideme_theme.newValue;
             applyTheme(currentTheme);
@@ -301,6 +341,20 @@ import { createSpeechController } from './speech.js';
           if (changes.guideme_chat_messages) {
             renderChatMessages(changes.guideme_chat_messages.newValue || []);
           }
+          if (changes.guideme_active_guide_state || changes.guideme_active_tutorial_session) {
+            const newState = (changes.guideme_active_guide_state || changes.guideme_active_tutorial_session)?.newValue;
+            if (newState && (newState.active || newState.tutorial)) {
+              updateActiveGuideHUD({
+                active: true,
+                currentStepIndex: newState.currentStepIndex || 0,
+                totalSteps: newState.totalSteps || newState.tutorial?.steps?.length || 1,
+                name: newState.tutorial?.name || newState.name,
+                stepTitle: newState.step?.title || newState.stepTitle || '',
+              });
+            } else {
+              hideActiveGuideHUD();
+            }
+          }
         });
       }
     } catch (err) {
@@ -309,7 +363,7 @@ import { createSpeechController } from './speech.js';
   }
 
   /**
-   * Listen for real-time tutorial state updates from content script.
+   * Listen for real-time tutorial state updates and step progress from content script.
    */
   function setupRuntimeMessageListener() {
     try {
@@ -317,19 +371,49 @@ import { createSpeechController } from './speech.js';
         chrome.runtime.onMessage.addListener((message) => {
           if (!message || !message.action) return;
 
-          if (message.action === 'GUIDEME_TUTORIAL_STATE_UPDATED') {
+          // 1. General state update
+          if (
+            message.action === 'GUIDEME_TUTORIAL_STATE_UPDATED' ||
+            message.action === 'TUTORIAL_STATE_UPDATED'
+          ) {
             const { active, currentStepIndex, totalSteps, tutorial, step } = message.payload || {};
             if (active) {
+              const stepTitle = step?.action?.title || step?.title || '';
               updateActiveGuideHUD({
                 active: true,
                 currentStepIndex: currentStepIndex || 0,
                 totalSteps: totalSteps || 1,
                 name: tutorial?.name || activeGuideState?.name,
-                stepTitle: step?.title,
+                stepTitle,
               });
             } else {
               hideActiveGuideHUD();
             }
+          }
+
+          // 2. Realtime Step Progress: Step Advanced
+          if (
+            message.action === 'TUTORIAL_STEP_ADVANCED' ||
+            message.action === 'GUIDEME_TUTORIAL_STEP_ADVANCED'
+          ) {
+            const { currentStepIndex, totalSteps, tutorial, step } = message.payload || {};
+            const stepTitle = step?.action?.title || step?.title || '';
+            updateActiveGuideHUD({
+              active: true,
+              currentStepIndex: currentStepIndex || 0,
+              totalSteps: totalSteps || 1,
+              name: tutorial?.name || activeGuideState?.name,
+              stepTitle,
+            });
+          }
+
+          // 3. Realtime Step Progress: Tutorial Completed
+          if (
+            message.action === 'TUTORIAL_COMPLETED' ||
+            message.action === 'GUIDEME_TUTORIAL_COMPLETED'
+          ) {
+            hideActiveGuideHUD();
+            appendAiMessage(t('guideEnded', currentLang));
           }
         });
       }
@@ -345,12 +429,14 @@ import { createSpeechController } from './speech.js';
     sendMessageToActiveTab({ action: 'GUIDEME_GET_TUTORIAL_STATUS' }, (res) => {
       if (res?.success) {
         if (res.state?.isActive) {
+          const step = res.state.currentStep || res.state.step;
+          const stepTitle = step?.action?.title || step?.title || '';
           updateActiveGuideHUD({
             active: true,
             currentStepIndex: res.state.currentStepIndex || 0,
             totalSteps: res.state.totalSteps || 1,
             name: res.state.tutorial?.name,
-            stepTitle: res.state.step?.title,
+            stepTitle: stepTitle,
           });
         }
         if (Array.isArray(res.availableTutorials) && res.availableTutorials.length > 0) {
@@ -424,10 +510,31 @@ import { createSpeechController } from './speech.js';
         guideStepCountEl.textContent = `${(data.currentStepIndex || 0) + 1}/${data.totalSteps || 1}`;
       }
 
+      if (data.isMuted !== undefined) {
+        updateMuteUI(data.isMuted);
+      }
+      if (data.volume !== undefined && guideVolumeSlider) {
+        guideVolumeSlider.value = data.volume;
+        guideVolumeSlider.title = `Volume: ${Math.round(data.volume * 100)}%`;
+      }
+
       activeGuideContainer.style.display = 'block';
       recalculateWindowSize();
       ensureWindowOnTop();
     } catch { }
+  }
+
+  /**
+   * Update mute icon and class in PiP HUD.
+   */
+  function updateMuteUI(muted) {
+    isAudioMuted = Boolean(muted);
+    if (guideMuteBtn) {
+      guideMuteBtn.classList.toggle('muted', isAudioMuted);
+      guideMuteBtn.title = isAudioMuted ? 'Unmute audio' : 'Mute audio';
+    }
+    if (iconVol) iconVol.style.display = isAudioMuted ? 'none' : 'block';
+    if (iconMute) iconMute.style.display = isAudioMuted ? 'block' : 'none';
   }
 
   /**
@@ -540,6 +647,25 @@ import { createSpeechController } from './speech.js';
       if (guidePrevBtn) guidePrevBtn.addEventListener('click', () => sendMessageToActiveTab({ action: 'GUIDEME_PREV_STEP' }));
       if (guideNextBtn) guideNextBtn.addEventListener('click', () => sendMessageToActiveTab({ action: 'GUIDEME_NEXT_STEP' }));
       if (guideReplayBtn) guideReplayBtn.addEventListener('click', () => sendMessageToActiveTab({ action: 'GUIDEME_REPLAY_AUDIO' }));
+      if (guideMuteBtn) {
+        guideMuteBtn.addEventListener('click', () => {
+          isAudioMuted = !isAudioMuted;
+          updateMuteUI(isAudioMuted);
+          sendMessageToActiveTab({ action: 'GUIDEME_TOGGLE_MUTE', payload: { muted: isAudioMuted } });
+        });
+      }
+      if (guideVolumeSlider) {
+        guideVolumeSlider.addEventListener('input', (e) => {
+          const vol = parseFloat(e.target.value);
+          audioVolume = vol;
+          if (isAudioMuted && vol > 0) {
+            isAudioMuted = false;
+            updateMuteUI(false);
+          }
+          guideVolumeSlider.title = `Volume: ${Math.round(vol * 100)}%`;
+          sendMessageToActiveTab({ action: 'GUIDEME_SET_VOLUME', payload: { volume: vol } });
+        });
+      }
       if (guideStopBtn) {
         guideStopBtn.addEventListener('click', () => {
           sendMessageToActiveTab({ action: 'GUIDEME_STOP_TUTORIAL' });
@@ -578,15 +704,22 @@ import { createSpeechController } from './speech.js';
    */
   function recalculateWindowSize() {
     try {
-      if (typeof window === 'undefined' || typeof window.resizeBy !== 'function') return;
-
       requestAnimationFrame(() => {
-        const contentH = document.documentElement.scrollHeight;
-        const innerH = window.innerHeight;
+        const rootEl = document.documentElement;
+        const bodyEl = document.body;
+        const scrollH = Math.max(rootEl ? rootEl.scrollHeight : 0, bodyEl ? bodyEl.scrollHeight : 0);
+        const targetH = Math.min(600, Math.max(160, scrollH + 24));
 
-        if (contentH > innerH) {
-          const delta = contentH - innerH;
-          window.resizeBy(0, delta + 16);
+        if (typeof chrome !== 'undefined' && chrome.windows) {
+          chrome.windows.getCurrent((currWin) => {
+            if (currWin?.id && Math.abs((currWin.height || 0) - targetH) > 8) {
+              chrome.windows.update(currWin.id, { height: targetH }, () => {
+                if (chrome.runtime?.lastError) { /* ignore */ }
+              });
+            }
+          });
+        } else if (typeof window !== 'undefined' && typeof window.resizeTo === 'function') {
+          window.resizeTo(window.outerWidth || 550, targetH);
         }
       });
     } catch { }
