@@ -3,7 +3,7 @@ import { FiAward, FiThumbsUp, FiThumbsDown, FiCheckCircle } from 'react-icons/fi
 import { Spotlight } from './Spotlight.jsx';
 import { Tooltip } from './Tooltip.jsx';
 import { FloatingAssistantButton } from './FloatingAssistantButton.jsx';
-import { FloatingPromptWidget } from './FloatingPromptWidget.jsx';
+
 import { CaptureOverlay } from './CaptureOverlay.jsx';
 import { DashboardOverlay } from './DashboardOverlay.jsx';
 import { OnboardingOverlay } from './OnboardingOverlay.jsx';
@@ -149,7 +149,7 @@ export function TutorialOverlay({
 
               <button
                 type="button"
-                onClick={onClose}
+                onClick={onDismiss || onClose}
                 className="w-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-extrabold py-3 px-6 rounded-xl text-sm cursor-pointer shadow-[0_4px_14px_rgba(147,51,234,0.30)] hover:-translate-y-0.5 transition-all duration-150"
               >
                 {getUIString('done', lang)}
@@ -159,7 +159,7 @@ export function TutorialOverlay({
 
           {/* Floating Assistant Button — always persistent */}
           <FloatingAssistantButton
-            onClick={() => onTogglePrompt && onTogglePrompt(!isPromptOpen)}
+            onClick={() => { try { chrome.runtime?.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }); } catch {} }}
             onDismiss={() => {
               if (isPromptOpen && onTogglePrompt) onTogglePrompt(false);
               if (onDismiss) onDismiss();
@@ -180,20 +180,11 @@ export function TutorialOverlay({
         {modalOverlays}
         {captureOverlay}
 
-        {/* Floating single-line prompt widget (opened via left click) */}
-        {isPromptOpen && (
-          <FloatingPromptWidget
-            isOpen={isPromptOpen}
-            onToggleOpen={onTogglePrompt}
-            onStartDynamicGuide={onStartDynamicGuide}
-            onStartCapture={onStartCapture}
-            language={state?.language || 'km'}
-          />
-        )}
+
 
         {/* Floating Assistant Button */}
         <FloatingAssistantButton
-          onClick={() => onTogglePrompt && onTogglePrompt(!isPromptOpen)}
+          onClick={() => { try { chrome.runtime?.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }); } catch {} }}
           onDismiss={() => {
             if (isPromptOpen && onTogglePrompt) onTogglePrompt(false);
             if (onDismiss) onDismiss();
@@ -266,27 +257,18 @@ export function TutorialOverlay({
         onReplayAudio={onReplayAudio}
       />
 
-      {/* 3. Floating single-line prompt widget */}
-      {isPromptOpen && (
-        <FloatingPromptWidget
-          isOpen={isPromptOpen}
-          onToggleOpen={onTogglePrompt}
-          onStartDynamicGuide={onStartDynamicGuide}
-          onStartCapture={onStartCapture}
-          language={language || 'km'}
-        />
-      )}
+
 
       {/* 4. Floating "Ask GuideMe" button */}
-      <FloatingAssistantButton
-        onClick={() => onTogglePrompt && onTogglePrompt(!isPromptOpen)}
-        onDismiss={onDismiss || onClose}
-        onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
-        onStartCapture={onStartCapture}
-        isActive={true}
-        isOpen={isPromptOpen}
-        language={lang}
-      />
+        <FloatingAssistantButton
+          onClick={() => { try { chrome.runtime?.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }); } catch {} }}
+          onDismiss={onDismiss || onClose}
+          onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
+          onStartCapture={onStartCapture}
+          isActive={true}
+          isOpen={isPromptOpen}
+          language={lang}
+        />
     </div>
   );
 }

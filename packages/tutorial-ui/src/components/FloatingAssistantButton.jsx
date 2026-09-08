@@ -48,17 +48,7 @@ function ContextMenu({
         {getUIString('openDashboard', language)}
       </button>
 
-      {/* ── Manual target capture ── */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onStartCapture?.();
-        }}
-        className="w-full text-center py-2 px-3 text-[13px] font-medium text-purple-700 dark:text-purple-200 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 rounded-xl transition-colors cursor-pointer border-0"
-      >
-        {getUIString('captureStep', language)}
-      </button>
+
 
       {/* ── Go to Extension ── */}
       <button
