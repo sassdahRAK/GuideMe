@@ -42,10 +42,10 @@ This document tracks all foundational architectural choices, scope definitions, 
 - **Decision:** Configure `<all_urls>` combined with `activeTab` and on-demand content scripting.
 - **Status:** **APPROVED**
 
-### ADR-005: Autonomous Prompt Path Detection
-- **Context:** Real-world learners require on-demand walkthroughs immediately without waiting for educators to pre-record guides.
-- **Decision:** Defer visual educator recording studio to Layer 7 roadmap; focus current development strictly on the Learner Playback Experience with autonomous DOM analysis.
-- **Status:** **APPROVED (Recording deferred to Phase 5)**
+### ADR-005: Autonomous Prompt Path Detection (Learner-Only Architecture)
+- **Context:** Real-world learners require on-demand walkthroughs immediately without manual recording, screen capture, or authoring studio overhead.
+- **Decision:** Permanently reject visual educator recording studios, click-recording capture modes, and manual authoring studios. Focus the entire architecture exclusively on autonomous, real-time AI & dynamic DOM walkthrough synthesis directly from natural language prompts.
+- **Status:** **APPROVED (Manual recording studios and capture modes permanently rejected)**
 
 ### ADR-006: Hybrid Two-Stage Intent Resolution
 - **Context:** Pure regex fails on unscripted pages; sending entire raw DOMs to LLMs causes latency (3-5s), token exhaustion, and selector hallucination.

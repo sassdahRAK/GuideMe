@@ -44,7 +44,6 @@
 - [x] Enabled prompt-driven CSS selector matching and chained multi-target sequences.
 - [x] Built `classifyPrompt` intent classifier distinguishing greetings, unclear prompts, and actionable requests.
 - [x] Integrated Gemini DOM Analyzer service with compact DOM extraction.
-- [x] Added in-page capture mode for element spotlight targeting.
 
 ### Phase 4.2: Tooltip & Target Resilience
 - [x] Floating tooltip collision measurement and least-colliding placement around live targets.
