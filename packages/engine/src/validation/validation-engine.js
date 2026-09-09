@@ -180,6 +180,39 @@ export class ValidationEngine {
       cleanups.push(() => {
         document.removeEventListener('click', globalCompletionHandler, true);
       });
+
+      // Global Dialog / Menu Action Listener for interactive selection steps
+      if (validation.type === ValidationType.CLICK) {
+        const dialogInteractionHandler = (event) => {
+          const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+          const isInsideGuideMe = path.some(
+            (node) =>
+              node.id === 'guideme-tutorial-root' ||
+              node.tagName === 'GUIDEME-TUTORIAL-ROOT' ||
+              (node.classList && node.classList.contains('guideme-root-overlay'))
+          );
+          if (isInsideGuideMe) return;
+
+          const isMenuOrDropdownClick = path.some(
+            (node) =>
+              node && node.getAttribute &&
+              (node.getAttribute('role') === 'menuitem' ||
+               node.getAttribute('role') === 'option' ||
+               node.classList?.contains('goog-menuitem') ||
+               node.classList?.contains('goog-menuitem-content') ||
+               (node.getAttribute('role') === 'button' && Boolean(node.closest?.('dialog, [role="dialog"], [aria-modal="true"], .apps-share-dialog, .modal-dialog'))))
+          );
+
+          if (isMenuOrDropdownClick) {
+            onValidate({ valid: true, eventData: { reason: 'dialog_menu_clicked' } });
+          }
+        };
+
+        document.addEventListener('click', dialogInteractionHandler, true);
+        cleanups.push(() => {
+          document.removeEventListener('click', dialogInteractionHandler, true);
+        });
+      }
     }
 
     switch (validation.type) {

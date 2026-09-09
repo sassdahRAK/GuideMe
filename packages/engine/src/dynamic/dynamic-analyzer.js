@@ -1,5 +1,9 @@
 import { GeminiDomAnalyzer } from './gemini-dom-analyzer.js';
 import { NvidiaDomAnalyzer } from './nvidia-dom-analyzer.js';
+import { safeIdSelector, harvestInteractiveElements } from './dom-harvester.js';
+import { matchDomElementWithFuse, synthesizeGroundedTutorial } from './fuse-dom-matcher.js';
+
+export { safeIdSelector, harvestInteractiveElements };
 
 /**
  * Dynamic Page Analyzer & Universal Step Generator (Hybrid Engine Mode 2).
@@ -185,6 +189,36 @@ export class DynamicPageAnalyzer {
    */
   static async generateDynamicTutorialAsync(doc, url = '', userPrompt = '', options = {}) {
     const isJsonPrompt = typeof userPrompt === 'string' && userPrompt.trim().startsWith('{');
+
+    // Fast-path: Explicit selector prompt (e.g. 'click #confirm-order-btn')
+    if (typeof userPrompt === 'string' && !isJsonPrompt) {
+      const explicitSteps = this._extractExplicitSelectors(userPrompt.trim(), doc);
+      if (explicitSteps.length > 0) {
+        return {
+          id: `dynamic-guide-${Date.now()}`,
+          version: '1.0.0',
+          name: `Guide: ${userPrompt}`,
+          description: `Step-by-step guidance for "${userPrompt}".`,
+          matchUrls: ['<all_urls>'],
+          steps: explicitSteps,
+        };
+      }
+    }
+
+    // 0. Option 1: Zero-Hallucination Fuse.js Grounded DOM Matching
+    let intent = options.intent || (typeof userPrompt === 'object' && userPrompt !== null && !Array.isArray(userPrompt) ? userPrompt : null);
+    if (!intent && typeof userPrompt === 'string' && userPrompt.trim() && !isJsonPrompt) {
+      intent = this.extractIntentFromText(userPrompt);
+    }
+
+    if (intent && (intent.targetQuery || intent.action)) {
+      const candidates = harvestInteractiveElements(doc, { targetQuery: intent.targetQuery, ...options });
+      const matched = matchDomElementWithFuse(candidates, intent, options);
+      if (matched) {
+        return synthesizeGroundedTutorial(matched, intent, options);
+      }
+    }
+
     if (typeof userPrompt === 'string' && userPrompt.trim() && !isJsonPrompt) {
       const provider = (options.provider || 'auto').toLowerCase();
       const nvidiaKey = options.nvidiaApiKey || (provider === 'nvidia' ? options.apiKey : '');
@@ -223,7 +257,7 @@ export class DynamicPageAnalyzer {
             doc,
             url,
             apiKey: geminiKey || options.apiKey,
-            model: options.model || 'gemini-2.5-flash',
+            model: options.geminiModel || options.model || 'gemini-3.6-flash',
             language: options.language || 'km',
             fetchFn: options.fetchFn,
           });
@@ -238,6 +272,51 @@ export class DynamicPageAnalyzer {
       }
     }
     return this.generateDynamicTutorial(doc, url, userPrompt, options);
+  }
+
+  /**
+   * Deterministically extracts structured intent from user prompt text for zero-hallucination Fuse.js DOM matching.
+   * @param {string} text
+   * @returns {Object|null}
+   */
+  static extractIntentFromText(text) {
+    if (!text || typeof text !== 'string') return null;
+    const clean = text.toLowerCase();
+
+    if (/\b(share|collaborat|invite|distribut|broadcast|publish|ចែករំលែក|អញ្ជើញ|ផ្សព្វផ្សាយ)\b/i.test(clean)) {
+      return { targetQuery: 'Share', action: 'click', role: 'button', category: 'share' };
+    }
+    if (/\b(search|find|lookup|query|explore|browse|filter|sort|ស្វែងរក|រក|ច្រោះ|ជ្រើស)\b/i.test(clean)) {
+      return { targetQuery: 'Search', action: 'input', role: 'input', category: 'search' };
+    }
+    if (/\b(login|log\s*in|sign\s*in|signin|register|signup|sign\s*up|auth|sso|ចូល|ចុះឈ្មោះ|ចូលប្រើ)\b/i.test(clean)) {
+      return { targetQuery: 'Sign In', action: 'click', role: 'button', category: 'auth' };
+    }
+    if (/\b(settings|setting|config|prefer|preference|option|profile|account|custom|ការកំណត់|គណនី|ប្រវត្តិរូប)\b/i.test(clean)) {
+      return { targetQuery: 'Settings', action: 'click', role: 'button', category: 'navigation' };
+    }
+    if (/\b(export|download|save|print|backup|dump|sync|ទាញយក|រក្សាទុក|បោះពុម្ព)\b/i.test(clean)) {
+      return { targetQuery: 'Export', action: 'click', role: 'button', category: 'general' };
+    }
+    if (/\b(new|create|add|plus|make|compose|upload|post|insert|បង្កើត|បន្ថែម|សរសេរ|បង្ហោះ)\b/i.test(clean)) {
+      return { targetQuery: 'New', action: 'click', role: 'button', category: 'general' };
+    }
+
+    const stripped = clean
+      .replace(/^(yes\s+)?(please\s+)?(help\s+me\s+)?(to\s+)?(get\s+the\s+link\s+to\s+)?(how\s+to\s+)?(can\s+you\s+)?(show\s+me\s+)?(click\s+)?(open\s+)?(find\s+)?/i, '')
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .trim();
+    const words = stripped.split(/\s+/).filter(w => w.length >= 3);
+    if (words.length > 0) {
+      return {
+        targetQuery: words[0].charAt(0).toUpperCase() + words[0].slice(1),
+        action: 'click',
+        role: 'button',
+        category: 'general',
+      };
+    }
+
+    return null;
   }
 
   /**
@@ -1323,7 +1402,7 @@ export class DynamicPageAnalyzer {
 
     // 1. CSS Selector strategy
     if (el.id) {
-      target.css = `#${el.id}`;
+      target.css = safeIdSelector(el.id);
     } else if (el.getAttribute && (el.getAttribute('data-testid') || el.getAttribute('data-cy'))) {
       const tid = el.getAttribute('data-testid') || el.getAttribute('data-cy');
       target.css = `[data-testid="${tid}"]`;
@@ -1361,8 +1440,8 @@ export class DynamicPageAnalyzer {
       } else if (!el.id) {
         const containerWithId = typeof el.closest === 'function' ? el.closest('[id]') : null;
         if (containerWithId && containerWithId !== el && containerWithId.id) {
-          target.container = `#${containerWithId.id}`;
-          target.css = `#${containerWithId.id} ${target.css}`;
+          target.container = safeIdSelector(containerWithId.id);
+          target.css = `${target.container} ${target.css}`;
         }
       }
     } catch {}

@@ -70,6 +70,7 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
     this.isMuted = false;
     this._abortController = null;
     this._currentBlobUrl = null;
+    this._currentSpeechId = 0;
   }
 
   setVolume(volume) {
@@ -89,6 +90,7 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
 
   async speak({ text, lang, audioUrl, rate = 1.0, onStart, onEnd, onError }) {
     this.stop();
+    const speechId = ++this._currentSpeechId;
 
     if (this.isMuted) {
       if (onStart) onStart();
@@ -98,7 +100,21 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
 
     // 1. If pre-recorded or explicit audio URL is provided, use HTML5 Audio
     if (audioUrl) {
-      return this._playAudioElement(audioUrl, rate, onStart, onEnd, onError);
+      if ((audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) && typeof window !== 'undefined' && typeof URL !== 'undefined') {
+        try {
+          const blob = await this._fetchAudioBlob(audioUrl);
+          if (this._currentSpeechId !== speechId) return;
+          if (blob) {
+            if (this._currentBlobUrl) {
+              try { URL.revokeObjectURL(this._currentBlobUrl); } catch { }
+            }
+            this._currentBlobUrl = URL.createObjectURL(blob);
+            return this._playAudioElement(this._currentBlobUrl, rate, onStart, onEnd, onError, speechId);
+          }
+        } catch { }
+      }
+      if (this._currentSpeechId !== speechId) return;
+      return this._playAudioElement(audioUrl, rate, onStart, onEnd, onError, speechId);
     }
 
     const language = lang === Language.EN || lang === 'en' ? 'en' : 'km';
@@ -108,9 +124,13 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
     if (text) {
       try {
         const cachedBlob = await globalAudioCache.get(text, { lang: language, rate: speed, voice: 'edge-tts' });
+        if (this._currentSpeechId !== speechId) return;
         if (cachedBlob && typeof window !== 'undefined' && typeof URL !== 'undefined') {
+          if (this._currentBlobUrl) {
+            try { URL.revokeObjectURL(this._currentBlobUrl); } catch { }
+          }
           this._currentBlobUrl = URL.createObjectURL(cachedBlob);
-          return this._playAudioElement(this._currentBlobUrl, rate, onStart, onEnd, onError);
+          return this._playAudioElement(this._currentBlobUrl, rate, onStart, onEnd, onError, speechId);
         }
       } catch (err) {
         // Cache read failure is non-blocking
@@ -133,34 +153,45 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
               body: JSON.stringify({ text, language, speed }),
               signal: this._abortController.signal,
             });
+            if (this._currentSpeechId !== speechId) return;
             if (res.ok) {
               data = await res.json();
               if (data?.audioUrl) break;
             }
           } catch (e) {
-            if (e.name === 'AbortError') return; // Cancelled cleanly
+            if (e.name === 'AbortError' || this._currentSpeechId !== speechId) return; // Cancelled cleanly
           }
         }
 
-        if (data?.audioUrl) {
-          // Asynchronously fetch and cache the synthesized audio blob in background
-          (async () => {
-            try {
-              const audioRes = await fetch(data.audioUrl);
-              if (audioRes.ok) {
-                const blob = await audioRes.blob();
-                await globalAudioCache.set(text, { lang: language, rate: speed, voice: 'edge-tts' }, blob);
-              }
-            } catch {}
-          })();
+        if (this._currentSpeechId !== speechId) return;
 
-          return this._playAudioElement(data.audioUrl, rate, onStart, onEnd, onError);
+        if (data?.audioUrl) {
+          try {
+            const blob = await this._fetchAudioBlob(data.audioUrl, this._abortController?.signal);
+            if (this._currentSpeechId !== speechId) return;
+            if (blob && typeof window !== 'undefined' && typeof URL !== 'undefined') {
+              await globalAudioCache.set(text, { lang: language, rate: speed, voice: 'edge-tts' }, blob);
+              if (this._currentSpeechId !== speechId) return;
+              if (this._currentBlobUrl) {
+                try { URL.revokeObjectURL(this._currentBlobUrl); } catch { }
+              }
+              this._currentBlobUrl = URL.createObjectURL(blob);
+              return this._playAudioElement(this._currentBlobUrl, rate, onStart, onEnd, onError, speechId);
+            }
+          } catch (blobErr) {
+            console.warn('[GuideMe Audio] Failed to prepare blob audio URL:', blobErr);
+          }
+
+          if (this._currentSpeechId !== speechId) return;
+          return this._playAudioElement(data.audioUrl, rate, onStart, onEnd, onError, speechId);
         }
       } catch (err) {
-        if (err?.name === 'AbortError') return;
+        if (err?.name === 'AbortError' || this._currentSpeechId !== speechId) return;
         console.warn('[GuideMe Audio] Backend TTS synthesis request failed, falling back:', err?.message || err);
       }
     }
+
+    if (this._currentSpeechId !== speechId) return;
 
     // 4. Web Speech API fallback (if supported in browser for English)
     if (
@@ -171,19 +202,21 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
     ) {
       try {
         window.speechSynthesis.cancel();
+        if (this._currentSpeechId !== speechId) return;
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = rate;
         utterance.lang = 'en-US';
         utterance.volume = this.isMuted ? 0 : this.volume;
         utterance.onstart = () => {
-          if (onStart) onStart();
+          if (this._currentSpeechId === speechId && onStart) onStart();
         };
         utterance.onend = () => {
-          if (onEnd) onEnd();
+          if (this._currentSpeechId === speechId && onEnd) onEnd();
         };
         utterance.onerror = (e) => {
+          if (this._currentSpeechId !== speechId) return;
           console.warn('[GuideMe Audio] Web Speech error:', e);
-          this._simulatePlayback({ text, rate, onStart, onEnd });
+          this._simulatePlayback({ text, rate, onStart, onEnd, speechId });
         };
         window.speechSynthesis.speak(utterance);
         return;
@@ -193,13 +226,35 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
     }
 
     // 5. Simulated placeholder playback (synchronizes UI equalizer waves without blocking)
-    this._simulatePlayback({ text, rate, onStart, onEnd });
+    if (this._currentSpeechId === speechId) {
+      this._simulatePlayback({ text, rate, onStart, onEnd, speechId });
+    }
   }
 
-  _playAudioElement(url, rate, onStart, onEnd, onError) {
+  _playAudioElement(url, rate, onStart, onEnd, onError, speechId) {
     if (typeof window === 'undefined' || typeof Audio === 'undefined') {
       if (onStart) onStart();
       if (onEnd) onEnd();
+      return;
+    }
+
+    // Ensure any existing audio element or web speech is immediately stopped
+    if (this._audioElement) {
+      try {
+        this._audioElement.pause();
+        this._audioElement.src = '';
+        this._audioElement.onplay = null;
+        this._audioElement.onended = null;
+        this._audioElement.onerror = null;
+      } catch {}
+      this._audioElement = null;
+    }
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch {}
+    }
+
+    if (speechId !== undefined && this._currentSpeechId !== speechId) {
       return;
     }
 
@@ -211,26 +266,40 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
       this._audioElement = audio;
 
       audio.onplay = () => {
-        if (onStart) onStart();
+        if (speechId === undefined || this._currentSpeechId === speechId) {
+          if (onStart) onStart();
+        }
       };
       audio.onended = () => {
-        this._audioElement = null;
-        if (onEnd) onEnd();
+        if (this._audioElement === audio) {
+          this._audioElement = null;
+        }
+        if (speechId === undefined || this._currentSpeechId === speechId) {
+          if (onEnd) onEnd();
+        }
       };
       audio.onerror = (e) => {
-        console.warn('[GuideMe Audio] Audio element playback failed:', e);
-        this._audioElement = null;
-        if (onError) onError(e);
-        if (onEnd) onEnd();
+        if (this._audioElement === audio) {
+          this._audioElement = null;
+        }
+        if (speechId === undefined || this._currentSpeechId === speechId) {
+          console.warn('[GuideMe Audio] Audio element playback failed:', e);
+          if (onError) onError(e);
+          if (onEnd) onEnd();
+        }
       };
 
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
-          console.warn('[GuideMe Audio] Audio autoplay restricted by browser:', err);
-          this._audioElement = null;
-          if (onStart) onStart();
-          if (onEnd) onEnd();
+          if (this._audioElement === audio) {
+            this._audioElement = null;
+          }
+          if (speechId === undefined || this._currentSpeechId === speechId) {
+            console.warn('[GuideMe Audio] Audio autoplay restricted by browser:', err);
+            if (onStart) onStart();
+            if (onEnd) onEnd();
+          }
         });
       }
     } catch (err) {
@@ -240,18 +309,60 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
     }
   }
 
-  _simulatePlayback({ text, rate, onStart, onEnd }) {
+  async _fetchAudioBlob(url, signal = null) {
+    if (!url || typeof fetch === 'undefined') return null;
+    if (url.startsWith('blob:') || url.startsWith('data:')) return null;
+
+    try {
+      const fetchOpts = signal ? { signal } : {};
+      const res = await fetch(url, fetchOpts);
+      if (res.ok) {
+        return await res.blob();
+      }
+    } catch {
+      // Direct fetch could be blocked by connect-src CSP on certain host pages
+    }
+
+    // Fallback: proxy fetch via extension background worker
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      try {
+        const response = await new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            { action: 'GUIDEME_PROXY_FETCH_AUDIO_BASE64', payload: { url } },
+            (res) => resolve(res)
+          );
+        });
+        if (response?.success && response?.base64 && typeof atob !== 'undefined') {
+          const byteCharacters = atob(response.base64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          return new Blob([byteArray], { type: response.contentType || 'audio/mpeg' });
+        }
+      } catch {}
+    }
+
+    return null;
+  }
+
+  _simulatePlayback({ text, rate, onStart, onEnd, speechId }) {
+    if (speechId !== undefined && this._currentSpeechId !== speechId) return;
     if (onStart) onStart();
     const wordCount = (text || '').split(/\s+/).length || 5;
     const estimatedDurationMs = Math.max(1200, Math.min(6000, (wordCount * 250) / rate));
 
     this._currentTimeout = setTimeout(() => {
       this._currentTimeout = null;
-      if (onEnd) onEnd();
+      if (speechId === undefined || this._currentSpeechId === speechId) {
+        if (onEnd) onEnd();
+      }
     }, estimatedDurationMs);
   }
 
   stop() {
+    this._currentSpeechId++;
     if (this._abortController) {
       try {
         this._abortController.abort();
@@ -269,7 +380,13 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
       this._currentTimeout = null;
     }
     if (this._audioElement) {
-      this._audioElement.pause();
+      try {
+        this._audioElement.pause();
+        this._audioElement.src = '';
+        this._audioElement.onplay = null;
+        this._audioElement.onended = null;
+        this._audioElement.onerror = null;
+      } catch {}
       this._audioElement = null;
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -312,6 +429,7 @@ export class AudioEngine {
     this.lastPrompt = null;
     this.lastLang = Language.KM;
     this.listeners = new Set();
+    this._currentPlayId = 0;
   }
 
   /**
@@ -385,6 +503,7 @@ export class AudioEngine {
    */
   async play(audioConfig, lang = Language.KM, fallbackText = '') {
     this.stop();
+    const playId = ++this._currentPlayId;
 
     const langConfig = audioConfig?.[lang] || audioConfig;
     const textToSpeak = langConfig?.ttsText || langConfig?.transcript || fallbackText;
@@ -407,19 +526,27 @@ export class AudioEngine {
         audioUrl,
         rate: this.speechRate,
         onStart: () => {
-          this._setStatus(AudioPlaybackStatus.PLAYING);
+          if (this._currentPlayId === playId) {
+            this._setStatus(AudioPlaybackStatus.PLAYING);
+          }
         },
         onEnd: () => {
-          this._setStatus(AudioPlaybackStatus.ENDED);
+          if (this._currentPlayId === playId) {
+            this._setStatus(AudioPlaybackStatus.ENDED);
+          }
         },
         onError: (err) => {
-          console.warn('[GuideMe AudioEngine] Playback error:', err);
-          this._setStatus(AudioPlaybackStatus.ERROR, { error: err });
+          if (this._currentPlayId === playId) {
+            console.warn('[GuideMe AudioEngine] Playback error:', err);
+            this._setStatus(AudioPlaybackStatus.ERROR, { error: err });
+          }
         },
       });
     } catch (err) {
-      console.warn('[GuideMe AudioEngine] TTS dispatch failed:', err);
-      this._setStatus(AudioPlaybackStatus.ERROR, { error: err });
+      if (this._currentPlayId === playId) {
+        console.warn('[GuideMe AudioEngine] TTS dispatch failed:', err);
+        this._setStatus(AudioPlaybackStatus.ERROR, { error: err });
+      }
     }
   }
 
@@ -436,6 +563,7 @@ export class AudioEngine {
    * Stop active audio playback.
    */
   stop() {
+    this._currentPlayId++;
     this.ttsProvider.stop();
     this._setStatus(AudioPlaybackStatus.IDLE);
   }

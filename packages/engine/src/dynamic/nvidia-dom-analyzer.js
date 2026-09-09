@@ -1,6 +1,20 @@
 import { SchemaValidator } from '@guideme/tutorial-schema';
 
 /**
+ * Safely generates a CSS selector for an element ID.
+ * Uses attribute selector [id="..."] when the ID contains colons or special characters.
+ * @param {string} id
+ * @returns {string}
+ */
+export function safeIdSelector(id) {
+  if (!id || typeof id !== 'string') return '';
+  if (/^[^a-zA-Z_]|[^a-zA-Z0-9_-]/.test(id)) {
+    return `[id="${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
+  }
+  return `#${id}`;
+}
+
+/**
  * Strips reasoning tokens (<think>...</think>) and Markdown code fences from LLM text.
  * Essential for reasoning models like moonshotai/kimi-k3.
  * @param {string} rawText
@@ -142,7 +156,7 @@ export class NvidiaDomAnalyzer {
       // Build clean suggested selector
       let selector = '';
       if (id) {
-        selector = `#${id}`;
+        selector = safeIdSelector(id);
       } else if (testId) {
         selector = `[data-testid="${testId}"]`;
       } else if (name) {

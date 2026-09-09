@@ -1,4 +1,4 @@
-import { DomObserver } from './dom-observer.js';
+import { DomObserver, sanitizeCssSelector } from './dom-observer.js';
 
 /**
  * Normalizes and binds DOM event listeners on target elements.
@@ -22,11 +22,64 @@ export class DomEventListener {
         targetElement = DomObserver.findElement(selector);
       }
 
-      const isDirectMatch = targetElement && (event.target === targetElement || targetElement.contains(event.target));
-      const isCssMatch = Boolean(selector?.css && event.target?.matches?.(selector.css));
-      const isClosestMatch = Boolean(selector?.css && targetElement && event.target?.closest?.(selector.css) === targetElement);
+      const path = typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
 
-      if (isDirectMatch || isCssMatch || isClosestMatch) {
+      // Guard: Strictly ignore all events originating from within GuideMe's UI root / Shadow DOM overlay
+      const isInsideGuideMe = path.some(
+        (node) =>
+          node &&
+          (node.id === 'guideme-tutorial-root' ||
+           node.tagName === 'GUIDEME-TUTORIAL-ROOT' ||
+           (node.classList && node.classList.contains && (node.classList.contains('guideme-root-overlay') || node.classList.contains('guideme-card-pop'))))
+      );
+      if (isInsideGuideMe) {
+        return;
+      }
+
+      const isDirectMatch = Boolean(targetElement && (path.includes(targetElement) || event.target === targetElement || targetElement.contains(event.target)));
+
+      let isCssMatch = false;
+      let isClosestMatch = false;
+
+      if (selector?.css) {
+        const subSelectors = selector.css.split(',').map((s) => s.trim()).filter(Boolean);
+        for (const sub of subSelectors) {
+          try {
+            if (path.some((node) => node && node.matches && (node.matches(sub) || (node.closest && node.closest(sub))))) {
+              isCssMatch = true;
+              break;
+            }
+          } catch {
+            const sanitized = sanitizeCssSelector(sub);
+            if (sanitized && sanitized !== sub) {
+              try {
+                if (path.some((node) => node && node.matches && (node.matches(sanitized) || (node.closest && node.closest(sanitized))))) {
+                  isCssMatch = true;
+                  break;
+                }
+              } catch {}
+            }
+          }
+        }
+      }
+
+      let isTextOrAriaMatch = false;
+      if (selector?.text || selector?.ariaLabel) {
+        const normTargetText = selector.text ? DomObserver.normalizeText(selector.text) : '';
+        const normTargetAria = selector.ariaLabel ? selector.ariaLabel.trim().toLowerCase() : '';
+
+        for (const node of path) {
+          if (!node || !node.getAttribute) continue;
+          const nodeText = DomObserver.normalizeText(node.textContent || '');
+          const nodeAria = (node.getAttribute('aria-label') || node.getAttribute('title') || '').trim().toLowerCase();
+          if ((normTargetText && nodeText.includes(normTargetText)) || (normTargetAria && nodeAria.includes(normTargetAria))) {
+            isTextOrAriaMatch = true;
+            break;
+          }
+        }
+      }
+
+      if (isDirectMatch || isCssMatch || isClosestMatch || isTextOrAriaMatch) {
         const payload = {
           type: eventType,
           targetValue: event.target?.value ?? targetElement?.value ?? '',

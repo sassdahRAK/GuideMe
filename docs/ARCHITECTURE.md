@@ -160,30 +160,40 @@ sequenceDiagram
 
 ---
 
-## 6. Two-Stage Dynamic Intent Resolution
+## 6. AI-First Intent Pipeline & Fuse.js Grounded DOM Scanner (ADR-014)
 
-For unscripted pages and natural language user requests, GuideMe executes a two-stage pipeline:
+For natural language chat, unscripted pages, and real-time guidance requests, GuideMe executes an AI-First Grounded Pipeline:
 
 ```
-User Prompt ("find my repo GuideMe")
+User Prompt ("heeloo brooo" or "help me share this document")
   │
   ▼
-Stage 1: Local Candidate Reduction (Fuse.js in <5ms)
-  ├── Extracts interactive DOM elements (buttons, links, inputs)
-  ├── Fuzzy-filters against prompt terms
-  └── Returns top 10–15 candidate descriptors
+Cloud/Backend AI Assistant (POST /api/ai/assistant-chat)
+  ├── Primary Engine: Google Gemini (gemini-3.6-flash, sub-second latency <500ms)
+  ├── Secondary Fallback: NVIDIA AI NIM (moonshotai/kimi-k3 / Llama-3.3-70B)
+  ├── No Premature Regex Gatekeeper: Handles colloquial greetings, typos, and slang directly
+  ├── Natural conversational reply returned to active chat tab immediately
+  └── If Actionable: Returns structured intent { targetQuery: "Share", action: "click", role: "button" }
   │
   ▼
-Stage 2: Semantic Re-Ranking (LLM via Backend or Local Fallback)
-  ├── Sends lightweight candidate list (~250 tokens) to POST /api/v1/ai/intent-rerank
-  ├── Backend resolves semantic intent without raw DOM bloat
-  └── Fallback: pure Fuse.js local score if offline/no key
+Content Script: Fuse.js DOM Scanner & Modal Primacy (<5ms local execution)
+  ├── DomObserver.getActiveModal(): Detects open <dialog>, [role="dialog"], [aria-modal="true"], and .apps-share-dialog
+  ├── Modal Scoping: Excludes background elements behind backdrops (prevents toolbar collisions)
+  ├── harvestInteractiveElements(): Collects real visible nodes across light DOM, Shadow Roots, and iframes
+  ├── matchDomElementWithFuse(): Fuzzy-matches targetQuery against real node text, aria-labels, placeholders
+  ├── Context & Spatial Weighting: Modal primacy (+40), viewport visibility (+25), action-role affinity (+30)
+  └── deriveConcreteSelector(): Derives verified, non-hallucinated CSS selector directly from winning DOM node
   │
   ▼
-Synthesized Step Sequence
-  ├── Step 1: Input text into search field (with debounce validation)
-  └── Step 2: Click matching result element
+Grounded Step Execution
+  ├── Synthesizes valid declarative GuideMe step
+  └── Locks Spotlight & Tooltip onto verified real physical element on screen
 ```
+
+### Offline / Network-Error Fallback
+If the backend AI service is unreachable or offline, the system seamlessly falls back to local `classifyPrompt`:
+- Exact and fuzzy greetings (e.g. "heeloo brooo", "សួស្ដីបង") receive warm offline greetings.
+- Actionable commands execute local Fuse.js candidate search against the current page DOM.
 
 ---
 

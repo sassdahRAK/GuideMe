@@ -1,6 +1,20 @@
 import { SchemaValidator } from '@guideme/tutorial-schema';
 
 /**
+ * Safely generates a CSS selector for an element ID.
+ * Uses attribute selector [id="..."] when the ID contains colons or special characters.
+ * @param {string} id
+ * @returns {string}
+ */
+export function safeIdSelector(id) {
+  if (!id || typeof id !== 'string') return '';
+  if (/^[^a-zA-Z_]|[^a-zA-Z0-9_-]/.test(id)) {
+    return `[id="${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
+  }
+  return `#${id}`;
+}
+
+/**
  * GeminiDomAnalyzer — Headless LLM-powered DOM Intelligence Engine.
  * Extracts a lightweight interactive DOM tree and asks Google Gemini to
  * intelligently map user intent to target DOM elements and generate tutorials.
@@ -125,7 +139,7 @@ export class GeminiDomAnalyzer {
       // Build clean suggested selector
       let selector = '';
       if (id) {
-        selector = `#${id}`;
+        selector = safeIdSelector(id);
       } else if (testId) {
         selector = `[data-testid="${testId}"]`;
       } else if (name) {
@@ -165,7 +179,7 @@ export class GeminiDomAnalyzer {
    * @param {Document|Object} params.doc - Target DOM document
    * @param {string} [params.url=''] - Page URL
    * @param {string} params.apiKey - Google Gemini API Key
-   * @param {string} [params.model='gemini-2.5-flash'] - Gemini model
+   * @param {string} [params.model='gemini-3.6-flash'] - Gemini model
    * @param {string} [params.language='km'] - Primary language ('km' | 'en')
    * @param {Function} [params.fetchFn] - Custom fetch function for testing
    * @returns {Promise<Object>} Validated GuideMe tutorial schema
@@ -175,7 +189,7 @@ export class GeminiDomAnalyzer {
     doc,
     url = '',
     apiKey,
-    model = 'gemini-2.5-flash',
+    model = 'gemini-3.6-flash',
     language = 'km',
     fetchFn = (typeof fetch !== 'undefined' ? fetch : null),
   }) {
@@ -193,8 +207,6 @@ export class GeminiDomAnalyzer {
     if (interactiveDom.length === 0) {
       throw new Error('No interactive DOM elements found on the current page to analyze.');
     }
-
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const systemInstruction = `You are GuideMe AI, an expert web walkthrough designer.
 Your mission is to inspect the provided interactive DOM elements from a webpage and the user's request, and generate a step-by-step interactive tutorial flow adhering strictly to GuideMe's JSON schema.
@@ -239,20 +251,51 @@ Generate the interactive tutorial JSON now.`;
       },
     };
 
-    const response = await fetchFn(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      throw new Error(`Gemini API returned HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+    // Build candidate model list with automatic fallbacks if primary model is deprecated/unavailable
+    const candidateModels = [model];
+    const fallbackList = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
+    for (const fb of fallbackList) {
+      if (!candidateModels.includes(fb)) {
+        candidateModels.push(fb);
+      }
     }
 
-    const data = await response.json();
+    let lastErrorText = '';
+    let lastStatus = 0;
+    let data = null;
+
+    for (let i = 0; i < candidateModels.length; i++) {
+      const currentModel = candidateModels[i];
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+
+      const response = await fetchFn(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        data = await response.json();
+        break;
+      }
+
+      lastStatus = response.status;
+      lastErrorText = await response.text().catch(() => '');
+
+      // If HTTP 404 (model deprecated / not found for new users), retry with next fallback model
+      if (response.status === 404 && i < candidateModels.length - 1) {
+        continue;
+      }
+
+      throw new Error(`Gemini API returned HTTP ${response.status}: ${lastErrorText.substring(0, 200)}`);
+    }
+
+    if (!data) {
+      throw new Error(`Gemini API returned HTTP ${lastStatus}: ${lastErrorText.substring(0, 200)}`);
+    }
+
     const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!candidateText) {
       throw new Error('Gemini API did not return any generated content.');

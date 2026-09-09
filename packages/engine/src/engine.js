@@ -46,11 +46,18 @@ export class TutorialEngine {
     this._activeValidationCleanup = null;
     this._activePositionCleanup = null;
     this._startGeneration = 0;
+    this._lastSpokenStepId = null;
+    this._lastSpokenLang = null;
+    this._lastVoicePromptTime = 0;
 
     // Synchronize language change with engine subscribers & trigger audio update
     this.i18n.onLanguageChange((newLang) => {
       this.events.emit(EngineEvent.LANGUAGE_CHANGE, { language: newLang });
-      if (this.currentStep) {
+      if (
+        this.currentStep &&
+        this.stateMachine.getState() === EngineStatus.STEP_ACTIVE &&
+        this._lastSpokenLang !== newLang
+      ) {
         this.playVoicePrompt(this.currentStep, newLang);
       }
       this._notifyState();
@@ -128,6 +135,21 @@ export class TutorialEngine {
    */
   async playVoicePrompt(step = this.currentStep, lang = this.i18n.getLanguage()) {
     if (!step) return;
+
+    const now = Date.now();
+    // Guard against duplicate concurrent or rapid sequential invocations for the exact same step & language
+    if (
+      this._lastSpokenStepId === step.id &&
+      this._lastSpokenLang === lang &&
+      now - this._lastVoicePromptTime < 350
+    ) {
+      return;
+    }
+
+    this._lastSpokenStepId = step.id;
+    this._lastSpokenLang = lang;
+    this._lastVoicePromptTime = now;
+
     const audioConfig = step.audio || step.action?.audio;
     const fallbackText = this.i18n.resolve(step.action?.content || step.instruction || step.description || step.title, lang);
     await this.audio.play(audioConfig, lang, fallbackText);

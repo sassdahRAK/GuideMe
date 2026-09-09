@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { ExtensionMessageAction } from '@guideme/core-types';
 import { getUIString } from '@guideme/tutorial-ui';
 import { classifyPrompt } from '@guideme/engine';
+import { FiPlus, FiX } from 'react-icons/fi';
 
 import {
   STORAGE_KEY_LANG,
@@ -23,11 +24,6 @@ const INITIAL_GREETINGS = {
   en: "Hi! I'm your GuideMe AI assistant. I can help you create guides, explain page elements, or answer questions about any webpage. What would you like to do?",
 };
 
-/** A simple timestamp like "Just now" or "ឥឡូវនេះ" */
-function nowTime(lang = 'km') {
-  return getUIString('justNow', lang);
-}
-
 /**
  * App — Root coordinator for GuideMe Chrome Extension popup.
  */
@@ -43,37 +39,170 @@ export default function App() {
   const [authToken,         setAuthToken]         = useState(null);
   const [userProfile,       setUserProfile]       = useState(null);
 
-  // ── Chat state ──────────────────────────────────────────────────────────────
-  const [messages,      setMessages]      = useState([]);
-  const [customPrompt,  setCustomPrompt]  = useState('');
+  // ── Multi-Tab Chat state ──────────────────────────────────────────────────
+  const [chatTabs, setChatTabs] = useState(() => [
+    {
+      id: 'tab-1',
+      title: 'ការជជែក ១',
+      messages: [
+        {
+          role: 'assistant',
+          content: INITIAL_GREETINGS.km,
+          timestamp: Date.now(),
+        },
+      ],
+      isDefaultTitle: true,
+      createdAt: Date.now(),
+    },
+  ]);
+  const [activeTabId, setActiveTabId] = useState('tab-1');
+  const [customPrompt, setCustomPrompt] = useState('');
 
-  // Helper to persist messages to storage and state
-  const updateMessages = (newMessages) => {
-    setMessages(newMessages);
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.set({ guideme_chat_messages: newMessages });
-    }
-  };
+  const tabsRef = useRef(chatTabs);
+  const activeTabIdRef = useRef(activeTabId);
 
-  // Update initial greeting if chat is still untouched when language changes
   useEffect(() => {
-    setMessages((prev) => {
-      if (prev.length === 1 && prev[0].role === 'assistant') {
-        const updated = [
+    tabsRef.current = chatTabs;
+  }, [chatTabs]);
+
+  useEffect(() => {
+    activeTabIdRef.current = activeTabId;
+  }, [activeTabId]);
+
+  /**
+   * Atomic tab updater that synchronizes state, refs, and storage
+   */
+  const updateTabs = useCallback((updater, newActiveId) => {
+    setChatTabs((prevTabs) => {
+      const nextTabs = typeof updater === 'function' ? updater(prevTabs) : updater;
+      tabsRef.current = nextTabs;
+      const targetActiveId = newActiveId || activeTabIdRef.current || nextTabs[0]?.id;
+      if (newActiveId && newActiveId !== activeTabIdRef.current) {
+        setActiveTabId(newActiveId);
+        activeTabIdRef.current = newActiveId;
+      }
+      try {
+        const active = nextTabs.find((t) => t.id === targetActiveId) || nextTabs[0];
+        chrome.storage?.local?.set({
+          guideme_chat_tabs: nextTabs,
+          guideme_active_chat_tab_id: targetActiveId,
+          guideme_chat_messages: active?.messages || [],
+        });
+      } catch { }
+      return nextTabs;
+    });
+  }, []);
+
+  const handleCreateNewTab = () => {
+    const newId = 'tab-' + Date.now();
+    updateTabs((prevTabs) => {
+      const num = prevTabs.length + 1;
+      const newTab = {
+        id: newId,
+        title: currentLanguage === 'km' ? `ការជជែក ${num}` : `Chat ${num}`,
+        messages: [
           {
             role: 'assistant',
             content: INITIAL_GREETINGS[currentLanguage] || INITIAL_GREETINGS.km,
-            time: nowTime(currentLanguage),
+            timestamp: Date.now(),
+          },
+        ],
+        isDefaultTitle: true,
+        createdAt: Date.now(),
+      };
+      return [...prevTabs, newTab];
+    }, newId);
+  };
+
+  const handleSwitchTab = (tabId) => {
+    if (tabId === activeTabIdRef.current) return;
+    updateTabs((prevTabs) => prevTabs, tabId);
+  };
+
+  const handleCloseTab = (tabId, e) => {
+    e?.stopPropagation();
+    updateTabs((prevTabs) => {
+      if (prevTabs.length <= 1) {
+        return [
+          {
+            ...prevTabs[0],
+            title: currentLanguage === 'km' ? 'ការជជែក ១' : 'Chat 1',
+            isDefaultTitle: true,
+            messages: [
+              {
+                role: 'assistant',
+                content: INITIAL_GREETINGS[currentLanguage] || INITIAL_GREETINGS.km,
+                timestamp: Date.now(),
+              },
+            ],
           },
         ];
-        if (typeof chrome !== 'undefined' && chrome.storage) {
-           chrome.storage.local.set({ guideme_chat_messages: updated });
-        }
-        return updated;
       }
-      return prev;
+      const idx = prevTabs.findIndex((t) => t.id === tabId);
+      if (idx === -1) return prevTabs;
+      const updated = prevTabs.filter((t) => t.id !== tabId);
+      let nextActiveId = activeTabIdRef.current;
+      if (activeTabIdRef.current === tabId) {
+        nextActiveId = updated[Math.max(0, idx - 1)]?.id || updated[0]?.id;
+        setActiveTabId(nextActiveId);
+        activeTabIdRef.current = nextActiveId;
+      }
+      return updated;
     });
-  }, [currentLanguage]);
+  };
+
+  const appendUserMessage = (text) => {
+    const tabIdToUse = activeTabIdRef.current || 'tab-1';
+    const newMsg = {
+      role: 'user',
+      content: text,
+      timestamp: Date.now(),
+    };
+
+    updateTabs((prevTabs) => {
+      return prevTabs.map((t) => {
+        if (t.id === tabIdToUse) {
+          let updatedTitle = t.title;
+          let isDefault = t.isDefaultTitle;
+          if (t.isDefaultTitle && text) {
+            const clean = text.trim();
+            updatedTitle = clean.length > 18 ? clean.slice(0, 16) + '...' : clean;
+            isDefault = false;
+          }
+          return {
+            ...t,
+            title: updatedTitle,
+            isDefaultTitle: isDefault,
+            messages: [...t.messages, newMsg],
+          };
+        }
+        return t;
+      });
+    });
+
+    return tabIdToUse;
+  };
+
+  const appendAiMessage = (text, targetTabId) => {
+    const tabIdToUse = targetTabId || activeTabIdRef.current || 'tab-1';
+    const newMsg = {
+      role: 'assistant',
+      content: text,
+      timestamp: Date.now(),
+    };
+
+    updateTabs((prevTabs) => {
+      return prevTabs.map((t) => {
+        if (t.id === tabIdToUse) {
+          return {
+            ...t,
+            messages: [...t.messages, newMsg],
+          };
+        }
+        return t;
+      });
+    });
+  };
 
   const isChromeInternalUrl =
     (currentTab?.url || '').startsWith('chrome://') ||
@@ -100,10 +229,12 @@ export default function App() {
           STORAGE_KEY_HISTORY,
           STORAGE_KEY_AUTH_TOKEN,
           STORAGE_KEY_USER_PROFILE,
+          'guideme_chat_tabs',
+          'guideme_active_chat_tab_id',
           'guideme_chat_messages',
         ]);
 
-        // First time open: Launch in-page onboarding overlay on active tab
+        // First time open: Launch in-page onboarding overlay on active tab if not done
         if (!stored.guideme_onboarding_done) {
           if (tab?.id && !tab.url?.startsWith('chrome://') && !tab.url?.startsWith('chrome-extension://')) {
             const payload = { action: 'OPEN_ONBOARDING_OVERLAY' };
@@ -114,13 +245,10 @@ export default function App() {
                     target: { tabId: tab.id },
                     files: ['content-scripts/content.js'],
                   });
-                  setTimeout(() => chrome.tabs.sendMessage(tab.id, payload, () => window.close()), 300);
-                  return;
+                  setTimeout(() => chrome.tabs.sendMessage(tab.id, payload, () => {}), 300);
                 } catch { }
               }
-              window.close();
             });
-            return;
           }
         }
 
@@ -135,19 +263,38 @@ export default function App() {
         if (stored[STORAGE_KEY_AUTH_TOKEN]) setAuthToken(stored[STORAGE_KEY_AUTH_TOKEN]);
         if (stored[STORAGE_KEY_USER_PROFILE]) setUserProfile(stored[STORAGE_KEY_USER_PROFILE]);
 
-        // Restore unified chat history or create default
-        if (stored.guideme_chat_messages && stored.guideme_chat_messages.length > 0) {
-          setMessages(stored.guideme_chat_messages);
-        } else {
-          const defaultGreeting = [
-            {
-              role: 'assistant',
-              content: INITIAL_GREETINGS[stored[STORAGE_KEY_LANG] || 'km'] || INITIAL_GREETINGS.km,
-              time: nowTime(stored[STORAGE_KEY_LANG] || 'km'),
-            },
-          ];
-          updateMessages(defaultGreeting);
+        // Restore unified multi-tab chat history or create default
+        let initialTabs = stored.guideme_chat_tabs;
+        let initialActiveId = stored.guideme_active_chat_tab_id;
+        if (!Array.isArray(initialTabs) || initialTabs.length === 0) {
+          const defaultTab = {
+            id: 'tab-' + Date.now(),
+            title: (stored[STORAGE_KEY_LANG] || 'km') === 'km' ? 'ការជជែក ១' : 'Chat 1',
+            messages: stored.guideme_chat_messages && stored.guideme_chat_messages.length > 0
+              ? stored.guideme_chat_messages
+              : [
+                  {
+                    role: 'assistant',
+                    content: INITIAL_GREETINGS[stored[STORAGE_KEY_LANG] || 'km'] || INITIAL_GREETINGS.km,
+                    timestamp: Date.now(),
+                  },
+                ],
+            isDefaultTitle: true,
+            createdAt: Date.now(),
+          };
+          initialTabs = [defaultTab];
+          initialActiveId = defaultTab.id;
+          chrome.storage.local.set({
+            guideme_chat_tabs: initialTabs,
+            guideme_active_chat_tab_id: initialActiveId,
+            guideme_chat_messages: defaultTab.messages,
+          });
         }
+        setChatTabs(initialTabs);
+        tabsRef.current = initialTabs;
+        const resolvedActiveId = initialActiveId || initialTabs[0]?.id;
+        setActiveTabId(resolvedActiveId);
+        activeTabIdRef.current = resolvedActiveId;
 
         if (tab?.id && !tab.url?.startsWith('chrome://')) {
           chrome.tabs.sendMessage(tab.id, { action: ExtensionMessageAction.GET_TUTORIAL_STATUS }, (res) => {
@@ -161,7 +308,7 @@ export default function App() {
       }
     })();
 
-    // Listen for storage changes from in-page overlays and PiP
+    // Listen for storage changes from in-page overlays and other contexts
     const storageListener = (changes, areaName) => {
       if (areaName === 'local') {
         if (changes[STORAGE_KEY_THEME]) {
@@ -176,8 +323,17 @@ export default function App() {
         if (changes[STORAGE_KEY_USER_PROFILE]) {
           setUserProfile(changes[STORAGE_KEY_USER_PROFILE].newValue || null);
         }
-        if (changes.guideme_chat_messages) {
-          setMessages(changes.guideme_chat_messages.newValue || []);
+        if (changes.guideme_chat_tabs && changes.guideme_chat_tabs.newValue) {
+          const incomingTabs = changes.guideme_chat_tabs.newValue;
+          if (Array.isArray(incomingTabs) && incomingTabs.length > 0) {
+            setChatTabs(incomingTabs);
+            tabsRef.current = incomingTabs;
+          }
+        }
+        if (changes.guideme_active_chat_tab_id && changes.guideme_active_chat_tab_id.newValue) {
+          const incomingActiveId = changes.guideme_active_chat_tab_id.newValue;
+          setActiveTabId(incomingActiveId);
+          activeTabIdRef.current = incomingActiveId;
         }
       }
     };
@@ -237,9 +393,18 @@ export default function App() {
 
   // ── Extract UI (PiP Launcher) ────────────────────────────────────────────────
   const handleExtractUI = () => {
-    chrome.runtime.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }, () => {
-      window.close();
-    });
+    chrome.runtime.sendMessage(
+      {
+        action: 'GUIDEME_POPOUT_LAUNCHER',
+        payload: {
+          tabId: currentTab?.id,
+          windowId: currentTab?.windowId,
+        },
+      },
+      () => {
+        window.close();
+      }
+    );
   };
 
   // ── Send message to host webpage tab with auto-injection fallback ───────────
@@ -261,7 +426,6 @@ export default function App() {
           setTimeout(() => {
             chrome.tabs.sendMessage(currentTab.id, payload, (fallbackRes) => {
               if (onComplete) onComplete(fallbackRes);
-              window.close();
             });
           }, 300);
           return;
@@ -270,7 +434,6 @@ export default function App() {
         }
       }
       if (onComplete) onComplete(res);
-      window.close();
     });
   };
 
@@ -284,7 +447,28 @@ export default function App() {
     const defaultProdUrl = 'https://guideme-lac.vercel.app';
     const baseUrl = import.meta.env.WXT_SITE_URL || (isDev ? 'http://localhost:3000' : defaultProdUrl);
     const loginUrl = `${baseUrl}/login?source=extension`;
-    chrome.tabs.create({ url: loginUrl });
+
+    const openTab = (originTabId, originWinId) => {
+      chrome.storage?.local?.set({
+        guideme_auth_origin_tab_id: originTabId || null,
+        guideme_auth_origin_window_id: originWinId || null,
+      }, () => {
+        chrome.tabs.create({ url: loginUrl });
+      });
+    };
+
+    if (currentTab?.id && !currentTab.url?.startsWith('chrome://') && !currentTab.url?.startsWith('chrome-extension://')) {
+      openTab(currentTab.id, currentTab.windowId);
+    } else {
+      // If user opened popup while on chrome://extensions, locate normal web tab to return to
+      chrome.windows?.getAll?.({ populate: true, windowTypes: ['normal'] }, (windows) => {
+        const normalWin = (windows || []).find((w) => w.focused) || (windows || [])[0];
+        const webTab = normalWin?.tabs?.find(
+          (t) => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://')
+        );
+        openTab(webTab?.id, normalWin?.id);
+      });
+    }
   };
 
   const handleLogout = () => {
@@ -305,34 +489,15 @@ export default function App() {
     setHistory(newHistory);
     chrome.storage.local.set({ [STORAGE_KEY_HISTORY]: newHistory });
 
-    // Add user message to chat immediately
-    const userMsg = { role: 'user', content: prompt, time: nowTime(currentLanguage) };
-    const nextMessages = [...messages, userMsg];
-    updateMessages(nextMessages);
+    const targetTabId = appendUserMessage(prompt);
     setCustomPrompt('');
-
-    // Classify the prompt to determine response type
-    const classification = classifyPrompt(prompt);
 
     setIsProcessing(true);
     
     try {
       let reply;
 
-      if (classification.type === 'greeting') {
-        // Greetings → greet back warmly
-        reply = classification.responses[currentLanguage] || classification.responses.en;
-        updateMessages([...nextMessages, { role: 'assistant', content: reply, time: nowTime(currentLanguage) }]);
-        return;
-      }
-
-      if (classification.type === 'unclear') {
-        reply = classification.responses[currentLanguage] || classification.responses.en;
-        updateMessages([...nextMessages, { role: 'assistant', content: reply, time: nowTime(currentLanguage) }]);
-        return;
-      }
-
-      // For actionable prompts or general AI queries:
+      // Query Backend AI API (Provider-Agnostic Option 1 Architecture)
       let aiResponded = false;
       const isDev = import.meta.env.DEV || process.env.NODE_ENV === 'development';
       const defaultProdUrl = 'https://guideme-lac.vercel.app';
@@ -340,7 +505,7 @@ export default function App() {
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
         const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/ai/assistant-chat`, {
           method: 'POST',
@@ -354,14 +519,14 @@ export default function App() {
           const data = await res.json();
           reply = data.answer || data.message;
           if (reply) {
-            updateMessages([...nextMessages, { role: 'assistant', content: reply, time: nowTime(currentLanguage) }]);
+            appendAiMessage(reply, targetTabId);
             aiResponded = true;
 
             if (data.triggerGuide) {
               const intentPrompt = data.intentPrompt || prompt;
               sendMessageToContentScript({
                 action: 'GUIDEME_START_DYNAMIC_GUIDE',
-                payload: { prompt: intentPrompt },
+                payload: { prompt: intentPrompt, intent: data.intent || null },
               });
             }
           }
@@ -372,29 +537,24 @@ export default function App() {
 
       // If backend was unreachable or offline, provide smart seamless fallback
       if (!aiResponded) {
+        const classification = classifyPrompt(prompt);
         if (classification.type === 'actionable') {
           const startingMsg = currentLanguage === 'km'
             ? 'ខ្ញុំយល់ហើយ! កំពុងចាប់ផ្តើមការណែនាំជាជំហានៗលើទំព័រនេះ...'
             : "Got it! Starting a step-by-step walkthrough on this page...";
-          updateMessages([...nextMessages, { role: 'assistant', content: startingMsg, time: nowTime(currentLanguage) }]);
+          appendAiMessage(startingMsg, targetTabId);
 
           sendMessageToContentScript({
             action: 'GUIDEME_START_DYNAMIC_GUIDE',
-            payload: { prompt },
+            payload: { prompt, intent: null },
           });
         } else {
           const fallbackReply = classification.responses?.[currentLanguage] || classification.responses?.en || "Hello! How can I help you on this page?";
-          updateMessages([...nextMessages, { role: 'assistant', content: fallbackReply, time: nowTime(currentLanguage) }]);
+          appendAiMessage(fallbackReply, targetTabId);
         }
       }
     } catch (err) {
       console.error("[GuideMe Popup] Error in handleCustomSubmit:", err);
-      if (classification.type === 'actionable') {
-        sendMessageToContentScript({
-          action: 'GUIDEME_START_DYNAMIC_GUIDE',
-          payload: { prompt },
-        });
-      }
     } finally {
       setIsProcessing(false);
     }
@@ -420,6 +580,9 @@ export default function App() {
       startSpeech(currentLanguage);
     }
   };
+
+  const activeTab = (chatTabs || []).find((t) => t.id === activeTabId) || chatTabs[0];
+  const currentMessages = activeTab?.messages || [];
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -457,9 +620,51 @@ export default function App() {
         onOpenLogin={handleOpenLogin}
       />
 
+      {/* Multi-Tab AI Chat Bar */}
+      <div className="flex items-center gap-1.5 px-3 pt-2 pb-1.5 bg-gray-50/70 dark:bg-[#151421]/70 border-b border-gray-200/60 dark:border-[#282541] overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+          {chatTabs.map((tab) => {
+            const isActive = tab.id === activeTabId;
+            return (
+              <div
+                key={tab.id}
+                onClick={() => handleSwitchTab(tab.id)}
+                className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer select-none max-w-[130px] shrink-0 ${
+                  isActive
+                    ? 'bg-purple-600 text-white shadow-sm font-semibold shadow-purple-500/30'
+                    : 'bg-white/90 dark:bg-[#1f1d33] text-gray-600 dark:text-zinc-300 hover:bg-purple-50 dark:hover:bg-[#2a2745] border border-gray-200/70 dark:border-[#2f2c4b]'
+                }`}
+              >
+                <span className="truncate">{tab.title}</span>
+                {chatTabs.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleCloseTab(tab.id, e)}
+                    className={`w-3.5 h-3.5 rounded flex items-center justify-center border-0 bg-transparent cursor-pointer p-0 opacity-60 hover:opacity-100 transition-opacity ${
+                      isActive ? 'text-white hover:bg-purple-700' : 'text-gray-400 hover:text-gray-700 dark:hover:text-white'
+                    }`}
+                  >
+                    <FiX className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleCreateNewTab}
+          title={getUIString('newChatTab', currentLanguage)}
+          className="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900 border border-purple-200/80 dark:border-purple-800/60 flex items-center justify-center shrink-0 cursor-pointer transition-all"
+        >
+          <FiPlus className="w-3 h-3" />
+        </button>
+      </div>
+
       {/* Body — chat messages */}
       <div className="popup-body">
-        <ChatArea messages={messages} />
+        <ChatArea messages={currentMessages} language={currentLanguage} />
 
         {/* Bottom action bar */}
         <div className="popup-bottom">

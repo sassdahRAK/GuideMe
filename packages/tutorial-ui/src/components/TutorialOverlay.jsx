@@ -3,8 +3,8 @@ import { FiAward, FiThumbsUp, FiThumbsDown, FiCheckCircle } from 'react-icons/fi
 import { Spotlight } from './Spotlight.jsx';
 import { Tooltip } from './Tooltip.jsx';
 import { FloatingAssistantButton } from './FloatingAssistantButton.jsx';
+import { ChatBoxWidgetOverlay } from './ChatBoxWidgetOverlay.jsx';
 
-import { CaptureOverlay } from './CaptureOverlay.jsx';
 import { DashboardOverlay } from './DashboardOverlay.jsx';
 import { OnboardingOverlay } from './OnboardingOverlay.jsx';
 import { getUIString } from '../i18n/ui-strings.js';
@@ -34,10 +34,6 @@ export function TutorialOverlay({
   onThemeChange,
   onDismiss,
   availableTutorials = [],
-  isCaptureMode = false,
-  captureTargetBoundingBox,
-  onStartCapture,
-  onCancelCapture,
 }) {
   const [rating, setRating] = useState(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
@@ -73,7 +69,28 @@ export function TutorialOverlay({
       />
     </>
   );
-  const captureOverlay = <CaptureOverlay isActive={isCaptureMode} targetBoundingBox={captureTargetBoundingBox} language={lang} onCancel={onCancelCapture} />;
+
+  // ── In-Page Chat Box Widget Overlay ──
+  const chatOverlay = (
+    <ChatBoxWidgetOverlay
+      isOpen={isPromptOpen}
+      onToggleOpen={onTogglePrompt}
+      onStartDynamicGuide={onStartDynamicGuide}
+      onStartTutorial={onStartTutorial}
+      availableTutorials={availableTutorials}
+      language={lang}
+      onLanguageChange={onLanguageChange}
+      theme={theme}
+      onThemeChange={onThemeChange}
+      engineState={state}
+      onNext={onNext}
+      onPrev={onPrev}
+      onReplayAudio={onReplayAudio}
+      onToggleMute={onToggleMute}
+      onVolumeChange={onVolumeChange}
+      onClose={onClose}
+    />
+  );
 
   if (!state || !state.isActive) {
     // ── Completion Screen ──
@@ -81,7 +98,7 @@ export function TutorialOverlay({
       return (
         <>
           {modalOverlays}
-          {captureOverlay}
+          {chatOverlay}
           <div
             className={`fixed inset-0 w-screen h-screen flex items-center justify-center z-[999999] pointer-events-none ${
               isKhmer ? 'font-kantumruy' : 'font-sans'
@@ -161,13 +178,12 @@ export function TutorialOverlay({
 
           {/* Floating Assistant Button — always persistent */}
           <FloatingAssistantButton
-            onClick={() => { try { chrome.runtime?.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }); } catch {} }}
+            onClick={() => onTogglePrompt && onTogglePrompt(!isPromptOpen)}
             onDismiss={() => {
               if (isPromptOpen && onTogglePrompt) onTogglePrompt(false);
               if (onDismiss) onDismiss();
             }}
             onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
-            onStartCapture={onStartCapture}
             isActive={true}
             isOpen={isPromptOpen}
             language={lang}
@@ -180,19 +196,16 @@ export function TutorialOverlay({
     return (
       <>
         {modalOverlays}
-        {captureOverlay}
-
-
+        {chatOverlay}
 
         {/* Floating Assistant Button */}
         <FloatingAssistantButton
-          onClick={() => { try { chrome.runtime?.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }); } catch {} }}
+          onClick={() => onTogglePrompt && onTogglePrompt(!isPromptOpen)}
           onDismiss={() => {
             if (isPromptOpen && onTogglePrompt) onTogglePrompt(false);
             if (onDismiss) onDismiss();
           }}
           onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
-          onStartCapture={onStartCapture}
           isActive={true}
           isOpen={isPromptOpen}
           language={lang}
@@ -219,7 +232,7 @@ export function TutorialOverlay({
   return (
     <div className="guideme-root-overlay pointer-events-none">
       {modalOverlays}
-      {captureOverlay}
+      {chatOverlay}
 
       {/* 1. Target Spotlight */}
       <Spotlight
@@ -265,18 +278,15 @@ export function TutorialOverlay({
         onVolumeChange={onVolumeChange}
       />
 
-
-
-      {/* 4. Floating "Ask GuideMe" button */}
-        <FloatingAssistantButton
-          onClick={() => { try { chrome.runtime?.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }); } catch {} }}
-          onDismiss={onDismiss || onClose}
-          onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
-          onStartCapture={onStartCapture}
-          isActive={true}
-          isOpen={isPromptOpen}
-          language={lang}
-        />
+      {/* 3. Floating Assistant Button */}
+      <FloatingAssistantButton
+        onClick={() => onTogglePrompt && onTogglePrompt(!isPromptOpen)}
+        onDismiss={onDismiss || onClose}
+        onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
+        isActive={true}
+        isOpen={isPromptOpen}
+        language={lang}
+      />
     </div>
   );
 }

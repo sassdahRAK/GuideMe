@@ -429,4 +429,60 @@ describe('GuideMe Tutorial Engine & Bilingual / Audio Tests', () => {
     assert.strictEqual(parseResult.tutorial.steps[0].id, 'step_click_insert');
     assert.strictEqual(parseResult.tutorial.steps[0].action.coachTitle.km, 'GuideMe - AI Live Coach');
   });
+
+  test('TutorialEngine deduplicates rapid identical playVoicePrompt invocations to prevent echo', async () => {
+    let playCallCount = 0;
+    class SpyingTtsProvider extends BaseTtsProvider {
+      async speak({ onStart, onEnd }) {
+        playCallCount++;
+        if (onStart) onStart();
+        if (onEnd) onEnd();
+      }
+    }
+
+    const customEngine = new TutorialEngine({
+      adapter: new MockAdapter(),
+      ttsProvider: new SpyingTtsProvider(),
+    });
+
+    await customEngine.start(sampleBilingualTutorial, 0);
+    // The initial step activation called playVoicePrompt once
+    assert.strictEqual(playCallCount, 1);
+
+    // Rapid immediate re-triggers of the exact same step voice prompt (e.g. within 200ms)
+    await customEngine.playVoicePrompt(customEngine.currentStep, Language.KM);
+    await customEngine.playVoicePrompt(customEngine.currentStep, Language.KM);
+    await customEngine.playVoicePrompt(customEngine.currentStep, Language.KM);
+
+    // Deduplication should suppress redundant duplicate playbacks
+    assert.strictEqual(playCallCount, 1);
+  });
+
+  test('AudioEngine playback tokens guarantee only the latest active speech updates status', async () => {
+    const callLog = [];
+    class DelayedTtsProvider extends BaseTtsProvider {
+      async speak({ text, onStart, onEnd }) {
+        if (onStart) onStart();
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        callLog.push(text);
+        if (onEnd) onEnd();
+      }
+    }
+
+    const audio = new AudioEngine({ ttsProvider: new DelayedTtsProvider() });
+    let endedCount = 0;
+    audio.onStatusChange((status) => {
+      if (status === AudioPlaybackStatus.ENDED) endedCount++;
+    });
+
+    // Launch two consecutive speech prompts rapidly
+    const p1 = audio.play(null, Language.KM, 'First Speech');
+    const p2 = audio.play(null, Language.KM, 'Second Speech');
+
+    await Promise.all([p1, p2]);
+
+    // Only the second/latest speech should have reported ENDED to AudioEngine
+    assert.strictEqual(endedCount, 1);
+    assert.strictEqual(audio.getStatus(), AudioPlaybackStatus.ENDED);
+  });
 });

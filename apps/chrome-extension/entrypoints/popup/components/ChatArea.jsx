@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { GuideMeLogo } from '@guideme/tutorial-ui';
+import { GuideMeLogo, formatMessageTime } from '@guideme/tutorial-ui';
 
 /**
  * ChatMessage — Sharp, contrasty chat bubbles for both light and dark mode.
  */
-function ChatMessage({ role, content, time }) {
-  const isUser = role === 'user';
+function ChatMessage({ msg, language = 'km' }) {
+  const isUser = msg.role === 'user';
+  const displayTime = formatMessageTime(msg, language);
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} items-start gap-2`}>
@@ -23,14 +24,23 @@ function ChatMessage({ role, content, time }) {
             : 'bg-[#f5f0fc] dark:bg-[#1e1e2f] text-gray-800 dark:text-[#f3f4f6] dark:border dark:border-[#2d2d44] rounded-tl-sm'
         }`}
       >
-        <p className="break-words font-normal">{content}</p>
-        {time && (
+        {msg.image && (
+          <div className="mb-2 overflow-hidden rounded-lg border border-white/20">
+            <img
+              src={msg.image}
+              alt="Attached screenshot"
+              className="w-full max-h-[140px] object-cover rounded-lg"
+            />
+          </div>
+        )}
+        <p className="break-words font-normal">{msg.content}</p>
+        {displayTime && (
           <div
             className={`text-right mt-1 text-[9.5px] ${
               isUser ? 'text-white/80' : 'text-gray-400 dark:text-purple-300/60'
             }`}
           >
-            {time}
+            {displayTime}
           </div>
         )}
       </div>
@@ -41,7 +51,7 @@ function ChatMessage({ role, content, time }) {
 /**
  * ChatArea — Scrollable list of chat messages.
  */
-export function ChatArea({ messages }) {
+export function ChatArea({ messages = [], language = 'km' }) {
   const bottomRef = useRef(null);
 
   // Auto-scroll to newest message
@@ -54,9 +64,8 @@ export function ChatArea({ messages }) {
       {messages.map((msg, i) => (
         <ChatMessage
           key={i}
-          role={msg.role}
-          content={msg.content}
-          time={msg.time}
+          msg={msg}
+          language={language}
         />
       ))}
       <div ref={bottomRef} />

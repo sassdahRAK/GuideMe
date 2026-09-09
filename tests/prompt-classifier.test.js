@@ -19,6 +19,7 @@ describe('Prompt Classifier Unit Tests', () => {
       // Khmer greetings
       'សួស្ដី', 'ជំរាបសួរ', 'ហេឡូ', 'ហាយ',
       'សួស្ដី!', 'សួស្ដីបង', 'សួស្តី bro', 'ជំរាបសួរបងប្រុស',
+      'heeloo brooo', 'heeloo bro', 'helo bro', 'heyyy bro',
     ];
 
     for (const greeting of greetings) {

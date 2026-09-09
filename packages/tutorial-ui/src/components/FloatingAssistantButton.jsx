@@ -19,7 +19,6 @@ function ContextMenu({
   onResetPosition,
   onDismiss,
   onOpenDashboard,
-  onStartCapture,
   onGoToExtension,
 }) {
   return (
@@ -104,7 +103,6 @@ export function FloatingAssistantButton({
   onClick,
   onDismiss,
   onOpenDashboard,
-  onStartCapture,
   isOpen = false,
   isActive = true,
   language = 'km',
@@ -237,11 +235,6 @@ export function FloatingAssistantButton({
     onOpenDashboard?.();
   };
 
-  const handleStartCapture = () => {
-    setContextMenu(null);
-    onStartCapture?.();
-  };
-
   const handleGoToExtension = () => {
     setContextMenu(null);
     try {
@@ -319,7 +312,6 @@ export function FloatingAssistantButton({
           onResetPosition={handleResetPosition}
           onDismiss={handleDismiss}
           onOpenDashboard={handleOpenDashboard}
-          onStartCapture={handleStartCapture}
           onGoToExtension={handleGoToExtension}
         />
       )}

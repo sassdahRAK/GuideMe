@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { DomObserver } from '../packages/chrome-adapter/src/dom-observer.js';
+import { DomObserver, safeIdSelector, sanitizeCssSelector } from '../packages/chrome-adapter/src/dom-observer.js';
+import { DomEventListener } from '../packages/chrome-adapter/src/event-listener.js';
 
 function createButton(label) {
   return {
@@ -186,6 +187,108 @@ test('DomObserver.findElement respects container scoping to disambiguate identic
       container: 'dialog[open], [role="dialog"], .modal',
     });
     assert.strictEqual(found, modalButton);
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test('safeIdSelector and sanitizeCssSelector handle colon IDs and invalid CSS identifiers', () => {
+  assert.strictEqual(safeIdSelector(':6j'), '[id=":6j"]');
+  assert.strictEqual(safeIdSelector(':a7'), '[id=":a7"]');
+  assert.strictEqual(safeIdSelector('123'), '[id="123"]');
+  assert.strictEqual(safeIdSelector('normal-id'), '#normal-id');
+  assert.strictEqual(safeIdSelector('btn_save'), '#btn_save');
+
+  assert.strictEqual(sanitizeCssSelector('#:6j'), '[id=":6j"]');
+  assert.strictEqual(sanitizeCssSelector('#:a7'), '[id=":a7"]');
+  assert.strictEqual(sanitizeCssSelector('div #:6j button'), 'div [id=":6j"] button');
+  assert.strictEqual(sanitizeCssSelector('#safe-id'), '#safe-id');
+});
+
+test('DomObserver.createTargetSelector generates safe selector for elements with colon ID (:6j, :a7)', () => {
+  const el = {
+    tagName: 'DIV',
+    id: ':6j',
+    textContent: 'Send message',
+    value: '',
+    getAttribute: () => null,
+  };
+
+  const target = DomObserver.createTargetSelector(el);
+  assert.strictEqual(target.css, '[id=":6j"]');
+});
+
+test('DomObserver.findElement heals invalid selector string like #:6j without throwing', () => {
+  const originalDocument = globalThis.document;
+  const targetElement = createButton('Compose');
+  targetElement.id = ':6j';
+
+  globalThis.document = {
+    querySelectorAll(selector) {
+      if (selector === '#:6j') {
+        throw new Error("Failed to execute 'querySelectorAll' on 'Document': '#:6j' is not a valid selector.");
+      }
+      if (selector === '[id=":6j"]') {
+        return [targetElement];
+      }
+      return [];
+    },
+    querySelector() { return null; },
+  };
+
+  try {
+    const found = DomObserver.findElement({ css: '#:6j' });
+    assert.strictEqual(found, targetElement);
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test('DomEventListener safely handles invalid selector like #:6j without throwing SyntaxError', () => {
+  const originalDocument = globalThis.document;
+  let registeredListener = null;
+
+  const targetElement = {
+    tagName: 'BUTTON',
+    id: ':6j',
+    isConnected: true,
+    matches(sel) {
+      if (sel === '#:6j') {
+        throw new Error("Failed to execute 'matches' on 'Element': '#:6j' is not a valid selector.");
+      }
+      return sel === '[id=":6j"]';
+    },
+    contains() { return false; },
+  };
+
+  globalThis.document = {
+    addEventListener(evt, handler) {
+      registeredListener = handler;
+    },
+    removeEventListener() {},
+    querySelectorAll(sel) {
+      if (sel === '#:6j') throw new Error("invalid selector");
+      if (sel === '[id=":6j"]') return [targetElement];
+      return [];
+    },
+    querySelector() { return null; },
+  };
+
+  try {
+    let triggered = false;
+    const unsub = DomEventListener.listen({ css: '#:6j' }, 'click', () => {
+      triggered = true;
+    });
+
+    assert.doesNotThrow(() => {
+      registeredListener({
+        target: targetElement,
+        key: undefined,
+      });
+    });
+
+    assert.strictEqual(triggered, true);
+    unsub();
   } finally {
     globalThis.document = originalDocument;
   }

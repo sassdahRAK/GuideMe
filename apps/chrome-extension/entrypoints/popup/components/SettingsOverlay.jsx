@@ -172,6 +172,7 @@ export function SettingsOverlay({
   const [nvidiaApiKeyInput, setNvidiaApiKeyInput] = useState('');
   const [nvidiaModelInput, setNvidiaModelInput] = useState('moonshotai/kimi-k3');
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('');
+  const [geminiModelInput, setGeminiModelInput] = useState('gemini-3.6-flash');
   const [isKeySaved, setIsKeySaved] = useState(false);
 
   useEffect(() => {
@@ -182,12 +183,14 @@ export function SettingsOverlay({
           'guideme_nvidia_api_key',
           'guideme_nvidia_model',
           'guideme_gemini_api_key',
+          'guideme_gemini_model',
         ],
         (res) => {
           if (res?.guideme_ai_provider) setAiProvider(res.guideme_ai_provider);
           if (res?.guideme_nvidia_api_key) setNvidiaApiKeyInput(res.guideme_nvidia_api_key);
           if (res?.guideme_nvidia_model) setNvidiaModelInput(res.guideme_nvidia_model);
           if (res?.guideme_gemini_api_key) setGeminiApiKeyInput(res.guideme_gemini_api_key);
+          if (res?.guideme_gemini_model) setGeminiModelInput(res.guideme_gemini_model);
         }
       );
     }
@@ -201,6 +204,7 @@ export function SettingsOverlay({
           guideme_nvidia_api_key: nvidiaApiKeyInput.trim(),
           guideme_nvidia_model: nvidiaModelInput.trim() || 'moonshotai/kimi-k3',
           guideme_gemini_api_key: geminiApiKeyInput.trim(),
+          guideme_gemini_model: geminiModelInput.trim() || 'gemini-3.6-flash',
         },
         () => {
           setIsKeySaved(true);
@@ -425,17 +429,31 @@ export function SettingsOverlay({
 
             {/* Gemini Configuration */}
             {aiProvider === 'gemini' && (
-              <div className="flex flex-col gap-1.5">
-                <label className="font-semibold text-gray-800 dark:text-zinc-200">
-                  {getUIString('geminiApiKey', currentLanguage)}
-                </label>
-                <input
-                  type="password"
-                  value={geminiApiKeyInput}
-                  onChange={(e) => setGeminiApiKeyInput(e.target.value)}
-                  placeholder={getUIString('geminiApiKeyPlaceholder', currentLanguage)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#38384f] bg-white dark:bg-[#101018] text-gray-900 dark:text-white outline-none focus:border-purple-500 text-xs box-border"
-                />
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold text-gray-800 dark:text-zinc-200">
+                    {getUIString('geminiApiKey', currentLanguage)}
+                  </label>
+                  <input
+                    type="password"
+                    value={geminiApiKeyInput}
+                    onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+                    placeholder={getUIString('geminiApiKeyPlaceholder', currentLanguage)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#38384f] bg-white dark:bg-[#101018] text-gray-900 dark:text-white outline-none focus:border-purple-500 text-xs box-border"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold text-gray-800 dark:text-zinc-200">
+                    {isKhmer ? 'ម៉ូដែល Gemini' : 'Gemini Model'}
+                  </label>
+                  <input
+                    type="text"
+                    value={geminiModelInput}
+                    onChange={(e) => setGeminiModelInput(e.target.value)}
+                    placeholder="gemini-3.6-flash"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#38384f] bg-white dark:bg-[#101018] text-gray-900 dark:text-white outline-none focus:border-purple-500 text-xs box-border"
+                  />
+                </div>
               </div>
             )}
 

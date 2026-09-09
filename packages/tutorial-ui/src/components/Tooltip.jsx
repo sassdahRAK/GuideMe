@@ -142,6 +142,7 @@ export function Tooltip({
 
   const dragStartRef = useRef({
     active: false,
+    hasMoved: false,
     startX: 0,
     startY: 0,
     initialLeft: 0,
@@ -169,6 +170,7 @@ export function Tooltip({
     const rect = el.getBoundingClientRect();
     dragStartRef.current = {
       active: true,
+      hasMoved: false,
       startX: e.clientX,
       startY: e.clientY,
       initialLeft: rect.left,
@@ -193,6 +195,10 @@ export function Tooltip({
     const deltaX = e.clientX - startX;
     const deltaY = e.clientY - startY;
 
+    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+      dragStartRef.current.hasMoved = true;
+    }
+
     const cardEl = containerRef.current;
     const w = cardEl?.offsetWidth || cardSize.width || 410;
     const h = cardEl?.offsetHeight || cardSize.height || 240;
@@ -207,7 +213,9 @@ export function Tooltip({
 
   const handlePointerUp = (e) => {
     if (!dragStartRef.current.active) return;
+    const wasMoved = dragStartRef.current.hasMoved;
     dragStartRef.current.active = false;
+    dragStartRef.current.hasMoved = false;
     setIsDragging(false);
 
     try {
@@ -216,6 +224,18 @@ export function Tooltip({
       }
     } catch {
       // ignore
+    }
+
+    if (wasMoved) {
+      // Suppress any stray click events immediately following drag release
+      const suppressClick = (clickEvent) => {
+        clickEvent.stopPropagation();
+        clickEvent.preventDefault();
+      };
+      window.addEventListener('click', suppressClick, { capture: true, once: true });
+      setTimeout(() => {
+        window.removeEventListener('click', suppressClick, { capture: true });
+      }, 100);
     }
   };
 

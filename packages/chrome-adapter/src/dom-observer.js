@@ -1,7 +1,44 @@
 /**
+ * Generates a safe CSS ID selector.
+ * If the ID contains characters that make direct #id invalid in CSS (e.g. colons like ':6j',
+ * dots, spaces, slashes, brackets, or starting with digits), it formats as an attribute
+ * selector [id="..."], which is universally valid across all CSS engines.
+ * @param {string} id
+ * @returns {string}
+ */
+export function safeIdSelector(id) {
+  if (!id || typeof id !== 'string') return '';
+  if (/^[^a-zA-Z_]|[^a-zA-Z0-9_-]/.test(id)) {
+    return `[id="${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
+  }
+  return `#${id}`;
+}
+
+/**
+ * Sanitizes potentially invalid CSS selector strings (such as '#:6j' or '#:a7').
+ * Converts invalid ID syntax into robust attribute selectors.
+ * @param {string} selector
+ * @returns {string}
+ */
+export function sanitizeCssSelector(selector) {
+  if (!selector || typeof selector !== 'string') return selector;
+  return selector
+    .replace(/#([^\s>+~.[\]:]*(?::[^\s>+~.[\]:]*)+)/g, (match, id) => `[id="${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`)
+    .replace(/#([0-9][^\s>+~.[\]]*)/g, (match, id) => `[id="${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`);
+}
+
+/**
  * Resilient DOM Query and MutationObserver Utilities.
  */
 export class DomObserver {
+  static safeIdSelector(id) {
+    return safeIdSelector(id);
+  }
+
+  static sanitizeCssSelector(selector) {
+    return sanitizeCssSelector(selector);
+  }
+
   static normalizeText(value) {
     return String(value || '')
       .replace(/[^\p{L}\p{N}\s]/gu, '')
@@ -27,12 +64,9 @@ export class DomObserver {
     const ariaLabel = getAttribute?.('aria-label') || getAttribute?.('title') || '';
     const text = (element.textContent || element.value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
     const escape = (value) => String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    const escapeId = (value) => typeof CSS !== 'undefined' && CSS.escape
-      ? CSS.escape(value)
-      : String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
 
     const target = {};
-    if (element.id) target.css = `#${escapeId(element.id)}`;
+    if (element.id) target.css = safeIdSelector(element.id);
     else if (testId) target.css = getAttribute?.('data-testid')
       ? `[data-testid="${escape(testId)}"]`
       : `[data-cy="${escape(testId)}"]`;
@@ -91,24 +125,32 @@ export class DomObserver {
     if (!root || !selector) return results;
 
     const seen = new Set();
+    const cleanSelector = sanitizeCssSelector(selector);
 
     const traverse = (node) => {
       if (!node) return;
 
       if (typeof node.querySelectorAll === 'function') {
+        let nodeMatches = [];
         try {
-          const matches = node.querySelectorAll(selector);
-          for (let i = 0; i < matches.length; i++) {
-            const m = matches[i];
-            if (!seen.has(m)) {
-              seen.add(m);
-              results.push(m);
-            }
+          nodeMatches = node.querySelectorAll(selector);
+        } catch {
+          if (cleanSelector && cleanSelector !== selector) {
+            try {
+              nodeMatches = node.querySelectorAll(cleanSelector);
+            } catch {}
           }
-        } catch {}
+        }
+        for (let i = 0; i < nodeMatches.length; i++) {
+          const m = nodeMatches[i];
+          if (!seen.has(m)) {
+            seen.add(m);
+            results.push(m);
+          }
+        }
       }
 
-      // Check all children for open shadow roots
+      // Check all children for open shadow roots and accessible iframes
       if (typeof node.querySelectorAll === 'function') {
         try {
           const allChildren = node.querySelectorAll('*');
@@ -117,12 +159,38 @@ export class DomObserver {
             if (child && child.shadowRoot) {
               traverse(child.shadowRoot);
             }
+            if (child && (child.tagName === 'IFRAME' || child.tagName === 'FRAME')) {
+              try {
+                const subDoc = child.contentDocument || child.contentWindow?.document;
+                if (subDoc && subDoc.body && !seen.has(subDoc)) {
+                  seen.add(subDoc);
+                  traverse(subDoc);
+                }
+              } catch {}
+            }
           }
         } catch {}
       }
     };
 
     traverse(root);
+
+    // If no results and cleanSelector differs, attempt fallback query
+    if (results.length === 0 && cleanSelector && cleanSelector !== selector) {
+      if (typeof root.querySelectorAll === 'function') {
+        try {
+          const fallbackMatches = root.querySelectorAll(cleanSelector);
+          for (let i = 0; i < fallbackMatches.length; i++) {
+            const m = fallbackMatches[i];
+            if (!seen.has(m)) {
+              seen.add(m);
+              results.push(m);
+            }
+          }
+        } catch {}
+      }
+    }
+
     return results;
   }
 
@@ -135,27 +203,24 @@ export class DomObserver {
   static querySelectorDeep(root, selector) {
     if (!root || !selector) return null;
 
+    const cleanSelector = sanitizeCssSelector(selector);
+
     if (typeof root.querySelector === 'function') {
       try {
         const direct = root.querySelector(selector);
         if (direct) return direct;
-      } catch {}
-    }
-
-    if (typeof root.querySelectorAll === 'function') {
-      try {
-        const allChildren = root.querySelectorAll('*');
-        for (let i = 0; i < allChildren.length; i++) {
-          const child = allChildren[i];
-          if (child && child.shadowRoot) {
-            const shadowMatch = this.querySelectorDeep(child.shadowRoot, selector);
-            if (shadowMatch) return shadowMatch;
-          }
+      } catch {
+        if (cleanSelector && cleanSelector !== selector) {
+          try {
+            const direct = root.querySelector(cleanSelector);
+            if (direct) return direct;
+          } catch {}
         }
-      } catch {}
+      }
     }
 
-    return null;
+    const matches = this.querySelectorAllDeep(root, selector);
+    return matches.length > 0 ? matches[0] : null;
   }
 
   /**
@@ -192,7 +257,7 @@ export class DomObserver {
 
         const idMatch = xpath.match(/@id\s*=\s*['"]([^'"]+)['"]/);
         if (idMatch) {
-          const el = this.querySelectorDeep(sr, `#${idMatch[1]}`);
+          const el = this.querySelectorDeep(sr, safeIdSelector(idMatch[1]));
           if (el) return el;
         }
 
@@ -300,6 +365,29 @@ export class DomObserver {
   }
 
   /**
+   * Identifies the currently active/topmost modal or dialog in the DOM.
+   * Recognizes standard <dialog>, ARIA modals, Material UI, Bootstrap, and Google Docs dialogs.
+   * @param {Document|Element} [doc]
+   * @returns {HTMLElement|null}
+   */
+  static getActiveModal(doc = (typeof document !== 'undefined' ? document : null)) {
+    if (!doc || typeof doc.querySelectorAll !== 'function') return null;
+    const MODAL_SELECTORS = 'dialog[open], [role="dialog"], [aria-modal="true"], .modal.show, .apps-share-dialog, .modal-dialog, .MuiDialog-root';
+    try {
+      const modals = this.querySelectorAllDeep(doc, MODAL_SELECTORS);
+      for (let i = modals.length - 1; i >= 0; i--) {
+        const m = modals[i];
+        if (!m || (m.getAttribute && m.getAttribute('aria-hidden') === 'true')) continue;
+        if (typeof m.offsetParent !== 'undefined' && m.offsetParent === null && typeof m.getClientRects === 'function' && m.getClientRects().length === 0) {
+          continue;
+        }
+        return m;
+      }
+    } catch {}
+    return null;
+  }
+
+  /**
    * Find an element immediately using fallback strategies.
    * @param {Object} selector - { css, xpath, text, testId, ariaLabel, hoverTrigger, container }
    * @returns {HTMLElement|null}
@@ -312,6 +400,11 @@ export class DomObserver {
     const isGenericCss = /^(button|div|a|input|span|select|p)$/i.test((selector.css || '').trim());
     const allowPartialText = Boolean(selector.css && !isGenericCss);
 
+    // Active Modal Primacy: Detect if an interactive dialog/modal overlay is currently open
+    const activeModal = selector.container
+      ? (this.querySelectorDeep(document, selector.container) || this.getActiveModal(document))
+      : this.getActiveModal(document);
+
     // Handle hover-triggered target resolution if specified
     if (selector.hoverTrigger) {
       const triggerEl = this.findElement(selector.hoverTrigger);
@@ -321,23 +414,27 @@ export class DomObserver {
     }
 
     // Handle container scoping to prioritize active dialog or specific containers
-    if (selector.container) {
+    if (selector.container || activeModal) {
       try {
-        const containerEl = this.querySelectorDeep(document, selector.container);
+        const containerEl = selector.container ? this.querySelectorDeep(document, selector.container) : activeModal;
         if (containerEl) {
           if (selector.css) {
-            const cleanSubCss = selector.css.replace(selector.container, '').trim();
+            const cleanSubCss = selector.container ? selector.css.replace(selector.container, '').trim() : selector.css;
             const innerMatch = this.querySelectorDeep(containerEl, cleanSubCss || selector.css);
             if (innerMatch && (innerMatch.offsetParent !== null || innerMatch.getClientRects().length > 0)) {
-              if (!targetText || this.normalizeText(innerMatch.textContent) === targetText || this.normalizeText(innerMatch.value) === targetText) {
+              if (!targetText || this.normalizeText(innerMatch.textContent) === targetText || this.normalizeText(innerMatch.value) === targetText || allowPartialText) {
                 return innerMatch;
               }
             }
           }
-          if (targetText) {
-            const containerButtons = this.querySelectorAllDeep(containerEl, 'button, [role="button"], input[type="submit"], a, input');
+          if (targetText || targetAria) {
+            const containerButtons = this.querySelectorAllDeep(containerEl, 'button, [role="button"], input, a, [contenteditable="true"]');
             for (const btn of containerButtons) {
-              if (this.normalizeText(btn.textContent) === targetText || this.normalizeText(btn.value) === targetText) {
+              const bText = this.normalizeText(btn.textContent);
+              const bAria = (btn.getAttribute?.('aria-label') || btn.getAttribute?.('title') || '').trim().toLowerCase();
+              const bVal = this.normalizeText(btn.value || '');
+              if ((targetText && (bText === targetText || bVal === targetText || bText.includes(targetText))) ||
+                  (targetAria && (bAria === targetAria || bAria.includes(targetAria)))) {
                 if (btn.offsetParent !== null || btn.getClientRects().length > 0) {
                   return btn;
                 }
@@ -348,19 +445,33 @@ export class DomObserver {
       } catch {}
     }
 
-    // 1. Direct CSS Selector Strategy (Traverses Open Shadow Roots)
+    // 1. Direct CSS Selector Strategy (Traverses Open Shadow Roots & Modal Primacy)
     if (selector.css) {
       try {
-        const matches = this.querySelectorAllDeep(document, selector.css);
+        let matches = [];
+        try {
+          matches = this.querySelectorAllDeep(document, selector.css);
+        } catch {
+          const sanitized = sanitizeCssSelector(selector.css);
+          if (sanitized && sanitized !== selector.css) {
+            matches = this.querySelectorAllDeep(document, sanitized);
+          }
+        }
         if (matches.length > 0) {
+          // Modal Primacy: If an active modal is open and has matching elements, filter out background elements
+          const hasModalMatches = Boolean(activeModal && typeof activeModal.contains === 'function' && matches.some((el) => activeModal.contains(el)));
+          const eligibleMatches = hasModalMatches
+            ? matches.filter((el) => activeModal.contains(el))
+            : matches;
+
           // If no text or aria constraint, return the first visible match immediately
           if (!targetText && !targetAria) {
-            const firstVisible = Array.from(matches).find((el) => el.offsetParent !== null || el.getClientRects().length > 0);
-            return firstVisible || matches[0];
+            const firstVisible = Array.from(eligibleMatches).find((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+            return firstVisible || eligibleMatches[0];
           }
 
           // Prioritize exact or substring accessible-name/text matches
-          for (const el of matches) {
+          for (const el of eligibleMatches) {
             const elText = this.normalizeText(el.textContent);
             const elAria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || el.getAttribute?.('data-tooltip') || '').trim().toLowerCase();
             const elVal = this.normalizeText(el.value || el.getAttribute?.('value') || '');
@@ -375,9 +486,9 @@ export class DomObserver {
             }
           }
 
-          // If CSS was specific (not a bare generic tag), return first visible match
-          if (!isGenericCss && !targetText && !targetAria) {
-            const visibleMatch = Array.from(matches).find((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+          // If CSS was specific (not a bare generic tag), fallback to first visible match
+          if (!isGenericCss) {
+            const visibleMatch = Array.from(eligibleMatches).find((el) => el.offsetParent !== null || el.getClientRects().length > 0);
             if (visibleMatch) return visibleMatch;
           }
         }

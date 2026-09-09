@@ -86,18 +86,6 @@ export const UI_STRINGS = {
     km: 'ផ្ញើសំណួរ',
     en: 'Send prompt',
   },
-  captureStep: {
-    km: 'ជ្រើសរើសធាតុសម្រាប់ជំហាន',
-    en: 'Capture a step target',
-  },
-  captureStepInstruction: {
-    km: 'ចលនាកណ្ដុរលើធាតុ ហើយចុចដើម្បីជ្រើសរើស',
-    en: 'Hover an element, then click to select it',
-  },
-  cancelCapture: {
-    km: 'បោះបង់ការជ្រើសរើស',
-    en: 'Cancel selection',
-  },
 
   // Navigation, Theme & Settings
   settings: {
@@ -391,6 +379,58 @@ export const UI_STRINGS = {
   aiLocal: {
     km: 'ផ្គូផ្គងតាម Selectors ផ្ទាល់',
     en: 'Direct Selectors Mode',
+  },
+  guideInProgressOnOtherTab: {
+    km: 'ការណែនាំកំពុងដំណើរការលើផ្ទាំងផ្សេងទៀត',
+    en: 'Walkthrough in progress on another tab',
+  },
+  pleaseReturnToPreviousTab: {
+    km: 'សូមត្រឡប់ទៅផ្ទាំងមុនវិញ ដើម្បីបន្តជំហាននេះ ឬចុចបិទ (X) ដើម្បីចាប់ផ្តើមមេរៀនថ្មី។',
+    en: 'Please return to previous tab to continue this step, or click (X) to end and start a new guide.',
+  },
+  goToPreviousTab: {
+    km: 'ត្រឡប់ទៅផ្ទាំងមុន',
+    en: 'Return to Previous Tab',
+  },
+  endAndStartNew: {
+    km: 'បញ្ចប់ការណែនាំនេះ',
+    en: 'End This Walkthrough',
+  },
+  uploadImage: {
+    km: 'ផ្ទុករូបភាពឡើង',
+    en: 'Upload Image',
+  },
+  captureTab: {
+    km: 'ថតផ្ទាំងបច្ចុប្បន្ន',
+    en: 'Capture Tab',
+  },
+  newChatTab: {
+    km: 'ផ្ទាំងជជែកថ្មី',
+    en: 'New Chat Tab',
+  },
+  clickToPreview: {
+    km: 'ចុចដើម្បីមើលរូបភាពធំ',
+    en: 'Click to preview',
+  },
+  removeAttachment: {
+    km: 'លុបរូបភាពចេញ',
+    en: 'Remove attachment',
+  },
+  minimize: {
+    km: 'បង្រួមតូច',
+    en: 'Minimize',
+  },
+  guiding: {
+    km: 'កំពុងណែនាំ',
+    en: 'Guiding',
+  },
+  startingWalkthrough: {
+    km: 'កំពុងចាប់ផ្តើមការណែនាំ...',
+    en: 'Starting walkthrough...',
+  },
+  walkthroughEnded: {
+    km: 'បានបញ្ចប់ការណែនាំ!',
+    en: 'Walkthrough ended!',
   },
 };
 

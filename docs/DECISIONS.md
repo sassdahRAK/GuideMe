@@ -18,7 +18,8 @@ This document tracks all foundational architectural choices, scope definitions, 
 10. [ADR-010: Robust Input Field Validation & Dynamic Entity Extraction](#adr-010-input-field-validation)
 11. [ADR-011: Coherent Step Sequence & Duplicate Input Elimination](#adr-011-coherent-step-sequence)
 12. [ADR-012: Extension AI Client vs. Backend Service Boundary](#adr-012-ai-client-backend-boundary)
-13. [ADR-013: Central Background Session Orchestration & Floating PiP Launcher](#adr-013-background-session-pip-launcher)
+13. [ADR-013: Central Background Session Orchestration & In-Page Shadow DOM Overlay](#adr-013-background-session-pip-launcher)
+14. [ADR-014: AI-First Intent Pipeline with Fuse.js Grounded DOM Scanner](#adr-014-ai-first-intent-fuse-dom-scanner)
 
 ---
 
@@ -91,5 +92,15 @@ This document tracks all foundational architectural choices, scope definitions, 
   1. **Background Session Store (`chrome.storage.session`):** Active tutorial state (`tutorial`, `currentStepIndex`, `targetUrl`, `tabId`) is centrally managed in the Background Service Worker using fast in-memory session storage.
   2. **Auto-Restoration on Navigation:** When a tab finishes reloading (`chrome.tabs.onUpdated`) or mounts, it queries `GUIDEME_GET_SESSION` and auto-resumes the active tutorial at the exact step.
   3. **Standalone PiP Launcher Window:** A lightweight, non-blocking floating window (`entrypoints/pip/index.html` + `main.js`) opened via `chrome.windows.create({ type: 'popup' })` allows searching and commanding walkthroughs from anywhere across the browser without being tied to a single tab's DOM lifecycle.
+- **Status:** **APPROVED & IMPLEMENTED**
+
+### ADR-014: AI-First Intent Pipeline with Fuse.js Grounded DOM Scanner
+- **Context:** Premature client-side regex heuristics (e.g. `classifyPrompt`) intercepted and blocked conversational inputs, typos, and slang (such as "heeloo brooo"), returning hardcoded error messages without contacting the AI model. Conversely, dumping large raw DOM trees (80+ elements) to LLMs caused token bloat, latency (3-5s), and severe CSS selector hallucination.
+- **Decision:**
+  1. **Direct AI Routing (No Premature Regex Blocking):** Every user prompt routes directly to the AI assistant (`/api/ai/assistant-chat`). The LLM naturally handles greetings, typos, slang, and contextual inquiries without rigid regex gatekeeping.
+  2. **Provider-Agnostic Structured Intent Contract:** When actionable guidance is detected (`triggerGuide: true`), the AI (whether NVIDIA NIM, Gemini, or fallback) outputs semantic search criteria (`targetQuery`, `action`, `role`, `category`) rather than guessing raw CSS selectors.
+  3. **Local Fuse.js Grounded DOM Grounding:** The Content Script extracts visible interactive elements on the active page via `harvestInteractiveElements()` and uses `Fuse.js` (`matchDomElementWithFuse`) to match against actual DOM nodes in memory (<5ms).
+  4. **Zero Hallucination:** The final spotlight CSS selector is derived directly from the verified physical DOM element, completely eliminating selector hallucination.
+  5. **Offline Fallback:** `classifyPrompt` is retained strictly as an offline/network-error fallback when the backend service is unreachable.
 - **Status:** **APPROVED & IMPLEMENTED**
 

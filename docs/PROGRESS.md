@@ -71,7 +71,51 @@
   - Added AI Provider selector (NVIDIA NIM vs Google Gemini vs Cloud Proxy).
   - Added live status indicators, Khmer diacritic-safe Kantumruy typography, and full Khmer (`km`) / English (`en`) bilingual strings in `ui-strings.js`.
 - [x] **Automated Test Coverage:**
-  - Added unit test suites verifying `NvidiaDomAnalyzer`, think token stripping, backend proxy dispatch, and `LlmReranker` NVIDIA provider preset. Total test count increased to **119 passing tests** (100% pass rate).
+### Phase 4.5: AI-First Intent Pipeline & Fuse.js Grounded DOM Scanner (ADR-014)
+- [x] **Direct AI Routing & Zero Premature Interception:**
+  - Removed premature client-side regex blocking from `ChatBoxWidgetOverlay.jsx` and `App.jsx`. All user prompts route directly to the AI model (`/api/ai/assistant-chat`).
+  - Colloquial greetings, typos, and phonetic variations (such as "heeloo brooo", "helo bro", "yo wassup") are naturally handled by the AI in both Khmer and English.
+- [x] **Provider-Agnostic Structured Intent Contract:**
+  - Standardized the assistant output schema to return `{ answer, triggerGuide, intentPrompt, intent: { targetQuery, action, role, category } }`.
+  - Works seamlessly across NVIDIA AI NIM (Kimi-K3), Google Gemini, and offline heuristics without requiring provider-specific branching.
+- [x] **Zero-Hallucination Local DOM Grounding:**
+  - Implemented `harvestInteractiveElements` in `dom-harvester.js` with light DOM & Shadow Root traversal, visibility checks, and identifier harvesting.
+  - Implemented `matchDomElementWithFuse` in `fuse-dom-matcher.js` combining Fuse.js fuzzy text scoring with modal primacy (+40), viewport visibility (+25), and action-role affinity (+30).
+  - Derived concrete CSS selectors directly from verified in-memory DOM nodes via `deriveConcreteSelector` and `safeIdSelector`.
+- [x] **Automated Test Coverage:**
+  - Added unit test suite `tests/fuse-dom-matcher.test.js` and expanded `tests/prompt-classifier.test.js`.
+  - Total automated test count increased to **166 passing tests across 12 test suites** (100% pass rate).
+
+### Phase 4.6: Gemini Sub-Second Primary Engine & Modal Primacy Hardening
+- [x] **Gemini Sub-Second AI Integration (Option 2B):**
+  - Configured Google Gemini (`gemini-3.6-flash`) as the primary fast LLM engine in `GuideMe-Backend/src/services/ai.service.ts` across `askContextualAssistant`, `generateDomGuideSteps`, `generateGuideSteps`, and `rerankIntentCandidates`.
+  - Replaced high-latency reasoning token generation with sub-second structured JSON responses (<500ms).
+  - Maintained NVIDIA NIM (`moonshotai/kimi-k3` / `meta/llama-3.3-70b-instruct`) as the robust secondary fallback tier.
+- [x] **DOM Observer Modal Primacy & Backdrop Isolation (Option 1A):**
+  - Added `DomObserver.getActiveModal()` detecting open `<dialog>`, `[role="dialog"]`, `[aria-modal="true"]`, and Google Docs dialogs.
+  - Enforced active modal scoping in `DomObserver.findElement`: elements behind active modal backdrops are filtered out, locking spotlights directly onto foreground dialog targets.
+  - Added accessible same-origin `iframe.contentDocument` traversal in `querySelectorAllDeep`.
+- [x] **Google Docs Tutorial Catalog Hardening (Option 1B):**
+  - Tightened `share-document-guide.json` Step 2 selectors by scoping inputs to `[role='dialog']` and removing collisions with Google Docs top-left toolbar combobox (`docs-material-menu-search-input`).
+- [x] **Automated Test Coverage:**
+  - All 35 backend tests passing (`vitest run`).
+  - All 166 engine and extension tests passing (`pnpm test`).
+  - Clean extension build (`994.6 kB`).
+
+### Phase 4.7: Conversational AI Greeting & Resilient Fallback Engine
+- [x] **Conversational Greeting & Non-Actionable Heuristic:**
+  - Replaced rigid `"For help regarding '...': Please check the highlighted element"` template in `ai.service.ts` with conversational intent recognition (greetings, gratitude, identity/bot capabilities, general questions).
+  - Bilingual parity: Greetings naturally respond in Khmer (`"សួស្ដី! ខ្ញុំជា GuideMe AI Assistant..."`) and English (`"Hello! I am your GuideMe AI Assistant..."`).
+- [x] **Zod Intent Schema Tolerance:**
+  - Added `z.preprocess` to `ContextualAssistantResponseSchema` in `ai-schema.validator.ts` so non-object LLM intent values (such as `"greeting"` or `null`) gracefully normalize to `null` instead of causing validation failures that discard valid AI answers.
+- [x] **Fast Timeout & Model Availability:**
+  - Configured `GEMINI_MODEL="gemini-3-flash-preview"` with 2500ms timeout for rapid sub-second responses without Google 503 high-demand stalls.
+- [x] **Multi-Key Round-Robin & Quota Resilience:**
+  - Added multi-key pool resolution in `ai.service.ts` supporting `GEMINI_API_KEY`, `GEMINI_API_KEY_2`, and `GEMINI_API_KEYS`.
+  - Implemented `getOrderedGeminiApiKeys()` to alternate which key is tried first on every request (50/50 round-robin load distribution).
+  - Automatically fails over to the alternate key if any key encounters HTTP 429 (quota exceeded) or 503 errors, doubling rate capacity.
+- [x] **Test Verification:**
+  - Added unit test cases for greeting, gratitude, identity, and round-robin key rotation in `services.test.ts`. 36/36 backend tests and 166/166 monorepo tests passing.
 
 ---
 

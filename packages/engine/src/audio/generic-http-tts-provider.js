@@ -51,6 +51,7 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
     this.volume = 1.0;
     this.isMuted = false;
     this._abortController = null;
+    this._currentSpeechId = 0;
     this.fallbackProvider = new PlaceholderTtsProvider();
   }
 
@@ -76,6 +77,7 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
    */
   async speak({ text, lang = Language.KM, audioUrl, rate = 1.0, onStart, onEnd, onError }) {
     this.stop();
+    const speechId = ++this._currentSpeechId;
 
     if (this.isMuted) {
       if (onStart) onStart();
@@ -85,16 +87,17 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
 
     // 1. Direct audio clip if provided
     if (audioUrl) {
-      return this._playAudioUrl(audioUrl, rate, onStart, onEnd, onError);
+      return this._playAudioUrl(audioUrl, rate, onStart, onEnd, onError, false, speechId);
     }
 
     // 2. Check Client-Side Audio Cache (L1 Memory / L2 IndexedDB)
     if (text) {
       try {
         const cachedBlob = await globalAudioCache.get(text, { voice: this.voice, lang, rate });
+        if (this._currentSpeechId !== speechId) return;
         if (cachedBlob && typeof window !== 'undefined' && typeof URL !== 'undefined') {
           this.currentBlobUrl = URL.createObjectURL(cachedBlob);
-          return this._playAudioUrl(this.currentBlobUrl, rate, onStart, onEnd, onError, true);
+          return this._playAudioUrl(this.currentBlobUrl, rate, onStart, onEnd, onError, true, speechId);
         }
       } catch {}
     }
@@ -105,12 +108,12 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
       (this.endpoint && (this.endpoint.includes('{{API_KEY}}') || this.endpoint.includes('api.openai.com') || this.endpoint.includes('api.elevenlabs.io')));
 
     if (!this.endpoint || !text || (requiresKey && !this.apiKey)) {
+      if (this._currentSpeechId !== speechId) return;
       return this.fallbackProvider.speak({ text, lang, audioUrl, rate, onStart, onEnd, onError });
     }
 
     try {
       this._abortController = new AbortController();
-      if (onStart) onStart();
 
       const { url, requestHeaders, requestBody } = this._buildRequest({ text, lang, rate });
 
@@ -125,26 +128,32 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
       }
 
       const response = await fetch(url, fetchOptions);
+      if (this._currentSpeechId !== speechId) return;
       if (!response.ok) {
         throw new Error(`TTS HTTP ${response.status}: ${response.statusText}`);
       }
 
       // Extract playable audio (Blob or Audio URL)
       const audioSource = await this._extractAudio(response);
+      if (this._currentSpeechId !== speechId) return;
 
       if (typeof audioSource === 'string') {
-        return this._playAudioUrl(audioSource, rate, null, onEnd, onError, false);
+        return this._playAudioUrl(audioSource, rate, onStart, onEnd, onError, false, speechId);
       } else if (audioSource instanceof Blob && typeof window !== 'undefined' && typeof URL !== 'undefined') {
         await globalAudioCache.set(text, { voice: this.voice, lang, rate }, audioSource);
+        if (this._currentSpeechId !== speechId) return;
         this.currentBlobUrl = URL.createObjectURL(audioSource);
-        return this._playAudioUrl(this.currentBlobUrl, rate, null, onEnd, onError, true);
+        return this._playAudioUrl(this.currentBlobUrl, rate, onStart, onEnd, onError, true, speechId);
       } else {
-        if (onEnd) onEnd();
+        if (this._currentSpeechId === speechId) {
+          if (onStart) onStart();
+          if (onEnd) onEnd();
+        }
       }
     } catch (err) {
-      if (err?.name === 'AbortError') return;
+      if (err?.name === 'AbortError' || this._currentSpeechId !== speechId) return;
       console.warn('[GuideMe GenericHttpTtsProvider] API synthesis failed, activating fallback:', err?.message || err);
-      return this.fallbackProvider.speak({ text, lang, audioUrl, rate, onStart: null, onEnd, onError });
+      return this.fallbackProvider.speak({ text, lang, audioUrl, rate, onStart, onEnd, onError });
     }
   }
 
@@ -303,38 +312,68 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
    * Play audio from an accessible URL or Object URL.
    * @private
    */
-  _playAudioUrl(url, rate, onStart, onEnd, onError, isRevocable = false) {
+  _playAudioUrl(url, rate, onStart, onEnd, onError, isRevocable = false, speechId = undefined) {
     if (typeof window === 'undefined' || typeof Audio === 'undefined') {
+      if (onStart) onStart();
       if (onEnd) onEnd();
+      return;
+    }
+
+    if (this.currentAudio) {
+      try {
+        this.currentAudio.pause();
+        this.currentAudio.src = '';
+        this.currentAudio.onplay = null;
+        this.currentAudio.onended = null;
+        this.currentAudio.onerror = null;
+      } catch {}
+      this.currentAudio = null;
+    }
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch {}
+    }
+
+    if (speechId !== undefined && this._currentSpeechId !== speechId) {
       return;
     }
 
     try {
       const audio = new Audio(url);
       audio.playbackRate = rate || 1.0;
+      audio.volume = this.isMuted ? 0 : this.volume;
+      audio.muted = this.isMuted;
       this.currentAudio = audio;
 
       audio.onplay = () => {
-        if (onStart) onStart();
+        if (speechId === undefined || this._currentSpeechId === speechId) {
+          if (onStart) onStart();
+        }
       };
 
       const cleanup = () => {
         if (isRevocable && this.currentBlobUrl) {
-          URL.revokeObjectURL(this.currentBlobUrl);
+          try { URL.revokeObjectURL(this.currentBlobUrl); } catch {}
           this.currentBlobUrl = null;
         }
-        this.currentAudio = null;
+        if (this.currentAudio === audio) {
+          this.currentAudio = null;
+        }
       };
 
       audio.onended = () => {
         cleanup();
-        if (onEnd) onEnd();
+        if (speechId === undefined || this._currentSpeechId === speechId) {
+          if (onEnd) onEnd();
+        }
       };
 
       audio.onerror = (e) => {
         cleanup();
-        if (onError) onError(new Error(`Audio playback error: ${e?.message || 'unknown'}`));
-        if (onEnd) onEnd();
+        if (speechId === undefined || this._currentSpeechId === speechId) {
+          if (onError) onError(new Error(`Audio playback error: ${e?.message || 'unknown'}`));
+          if (onEnd) onEnd();
+        }
       };
 
       const playPromise = audio.play();
@@ -342,16 +381,22 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
         playPromise.catch((err) => {
           console.warn('[GuideMe GenericHttpTtsProvider] Autoplay blocked by browser policy:', err);
           cleanup();
-          if (onEnd) onEnd();
+          if (speechId === undefined || this._currentSpeechId === speechId) {
+            if (onStart) onStart();
+            if (onEnd) onEnd();
+          }
         });
       }
     } catch (err) {
-      if (onError) onError(err);
-      if (onEnd) onEnd();
+      if (speechId === undefined || this._currentSpeechId === speechId) {
+        if (onError) onError(err);
+        if (onEnd) onEnd();
+      }
     }
   }
 
   stop() {
+    this._currentSpeechId++;
     if (this._abortController) {
       try {
         this._abortController.abort();
@@ -359,7 +404,13 @@ export class GenericHttpTtsProvider extends BaseTtsProvider {
       this._abortController = null;
     }
     if (this.currentAudio) {
-      this.currentAudio.pause();
+      try {
+        this.currentAudio.pause();
+        this.currentAudio.src = '';
+        this.currentAudio.onplay = null;
+        this.currentAudio.onended = null;
+        this.currentAudio.onerror = null;
+      } catch {}
       this.currentAudio = null;
     }
     if (this.currentBlobUrl) {

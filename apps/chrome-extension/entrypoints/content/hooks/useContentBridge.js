@@ -3,7 +3,50 @@ import { TutorialEngine, DynamicPageAnalyzer, TtsRegistry } from '@guideme/engin
 import { ChromeAdapter } from '@guideme/chrome-adapter';
 import { ExtensionMessageAction, Language, EngineEvent } from '@guideme/core-types';
 import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../../src/catalog.js';
-import { getCapturedStepStorageKey, createCapturedTutorial } from './useCaptureMode.js';
+
+/**
+ * CSP-safe fetch wrapper: Routes HTTP requests through background service worker
+ * to bypass host-page CSP (e.g. Google Docs connect-src).
+ */
+async function proxyFetchFn(url, options = {}) {
+  if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+    try {
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          {
+            action: 'GUIDEME_PROXY_FETCH_JSON',
+            payload: {
+              url,
+              method: options.method || 'GET',
+              headers: options.headers || {},
+              body: options.body,
+            },
+          },
+          (res) => {
+            if (chrome.runtime?.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else if (!res || !res.success) {
+              reject(new Error(res?.error || `HTTP proxy error ${res?.status || 'unknown'}`));
+            } else {
+              resolve(res.data);
+            }
+          }
+        );
+      });
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => response,
+        text: async () => (typeof response === 'string' ? response : JSON.stringify(response)),
+      };
+    } catch (err) {
+      console.warn('[GuideMe Content Bridge] Background proxy fetch failed, falling back to direct fetch:', err);
+    }
+  }
+
+  return fetch(url, options);
+}
 
 /**
  * Resolves AI provider credentials and options dynamically from storage or environment variables.
@@ -13,7 +56,14 @@ async function resolveAiOptions(engineInstance) {
   let nvidiaApiKey = import.meta.env?.WXT_NVIDIA_API_KEY || '';
   let nvidiaModel = import.meta.env?.WXT_NVIDIA_MODEL || 'moonshotai/kimi-k3';
   let geminiKey = import.meta.env?.WXT_GEMINI_API_KEY || import.meta.env?.VITE_GEMINI_API_KEY || '';
-  let backendUrl = import.meta.env?.WXT_API_URL || 'http://localhost:4000';
+  let geminiModel = import.meta.env?.WXT_GEMINI_MODEL || 'gemini-3.6-flash';
+  let aiPreset = import.meta.env?.WXT_AI_PRESET || '';
+  let aiEndpoint = import.meta.env?.WXT_AI_ENDPOINT || '';
+  let aiApiKey = import.meta.env?.WXT_AI_API_KEY || '';
+  let aiModel = import.meta.env?.WXT_AI_MODEL || '';
+  const isDev = import.meta.env?.DEV || process.env?.NODE_ENV === 'development';
+  const defaultProdUrl = 'https://guideme-lac.vercel.app';
+  let backendUrl = import.meta.env?.WXT_API_URL || (isDev ? 'http://localhost:4000' : defaultProdUrl);
 
   if (typeof chrome !== 'undefined' && chrome.storage?.local) {
     const stored = await chrome.storage.local.get([
@@ -21,12 +71,22 @@ async function resolveAiOptions(engineInstance) {
       'guideme_nvidia_api_key',
       'guideme_nvidia_model',
       'guideme_gemini_api_key',
+      'guideme_gemini_model',
+      'guideme_ai_preset',
+      'guideme_ai_endpoint',
+      'guideme_ai_api_key',
+      'guideme_ai_model',
       'guideme_backend_url',
     ]);
     if (stored?.guideme_ai_provider) provider = stored.guideme_ai_provider;
     if (stored?.guideme_nvidia_api_key) nvidiaApiKey = stored.guideme_nvidia_api_key;
     if (stored?.guideme_nvidia_model) nvidiaModel = stored.guideme_nvidia_model;
     if (stored?.guideme_gemini_api_key) geminiKey = stored.guideme_gemini_api_key;
+    if (stored?.guideme_gemini_model) geminiModel = stored.guideme_gemini_model;
+    if (stored?.guideme_ai_preset) aiPreset = stored.guideme_ai_preset;
+    if (stored?.guideme_ai_endpoint) aiEndpoint = stored.guideme_ai_endpoint;
+    if (stored?.guideme_ai_api_key) aiApiKey = stored.guideme_ai_api_key;
+    if (stored?.guideme_ai_model) aiModel = stored.guideme_ai_model;
     if (stored?.guideme_backend_url) backendUrl = stored.guideme_backend_url;
   }
 
@@ -35,8 +95,14 @@ async function resolveAiOptions(engineInstance) {
     nvidiaApiKey,
     nvidiaModel,
     geminiApiKey: geminiKey,
+    geminiModel,
+    preset: aiPreset,
+    endpoint: aiEndpoint,
+    apiKey: aiApiKey || nvidiaApiKey || geminiKey,
+    model: aiModel || nvidiaModel || geminiModel,
     backendUrl,
     language: engineInstance?.getLanguage ? engineInstance.getLanguage() : 'km',
+    fetchFn: proxyFetchFn,
   };
 }
 
@@ -50,7 +116,6 @@ export function useContentBridge({
   setIsOnboardingOpen,
   setIsDashboardOpen,
   setIsFullPopupOpen,
-  setIsCaptureMode,
   setIsDismissed,
 }) {
   const [engineState, setEngineState] = useState(() => ({
@@ -255,20 +320,15 @@ export function useContentBridge({
           break;
         }
 
+        case 'GUIDEME_TOGGLE_CHAT_OVERLAY':
         case ExtensionMessageAction.OPEN_FLOATING_PROMPT: {
           setIsDismissed(false);
+          const nextState = message.payload?.open !== undefined ? Boolean(message.payload.open) : true;
+          setIsPromptOpen(nextState);
           try {
-            chrome.runtime?.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }, (res) => {
-              if (chrome.runtime?.lastError || !res?.success) {
-                setIsPromptOpen(true);
-              } else {
-                setIsPromptOpen(false);
-              }
-            });
-          } catch {
-            setIsPromptOpen(true);
-          }
-          sendResponse({ success: true });
+            chrome.storage?.local?.set({ guideme_is_chat_open: nextState });
+          } catch { }
+          sendResponse({ success: true, isOpen: nextState });
           break;
         }
 
@@ -293,22 +353,58 @@ export function useContentBridge({
           break;
         }
 
+        case 'GUIDEME_START_DYNAMIC_GUIDE':
         case ExtensionMessageAction.START_DYNAMIC_GUIDE: {
           (async () => {
             try {
               const prompt = message.payload?.prompt || message.payload?.userPrompt || '';
+              const intent = message.payload?.intent || null;
+
+              setIsDismissed(false);
+              setIsPromptOpen(false);
+              setIsFullPopupOpen(false);
+
+              // 1. Check if an available curated tutorial on this page matches the intent or prompt
+              const rawQuery = (intent?.targetQuery || intent?.category || prompt || '').toLowerCase();
+              const isShare = /\b(share|collaborat|permission|invite|ចែករំលែក|អញ្ជើញ)\b/i.test(rawQuery);
+
+              const matchedCurated = availableTutorials.find((tut) => {
+                const id = (tut.id || '').toLowerCase();
+                const enName = (typeof tut.name === 'object' ? tut.name.en : tut.name || '').toLowerCase();
+                const kmName = (typeof tut.name === 'object' ? tut.name.km : '').toLowerCase();
+
+                if (isShare && (id.includes('share') || enName.includes('share') || kmName.includes('ចែករំលែក'))) {
+                  return true;
+                }
+                if (intent?.targetQuery) {
+                  const tq = intent.targetQuery.toLowerCase();
+                  if (enName.includes(tq) || id.includes(tq) || kmName.includes(tq)) return true;
+                }
+                return false;
+              });
+
+              if (matchedCurated) {
+                console.log('[GuideMe] Found matching curated tutorial for message request:', matchedCurated.id);
+                const fullTutorial = TUTORIAL_CATALOG.find((t) => t.id === matchedCurated.id) || matchedCurated;
+                engine.start(fullTutorial, 0);
+                sendResponse({ success: true, tutorialId: matchedCurated.id, curated: true });
+                return;
+              }
+
+              // 2. Dynamic zero-hallucination scan
               const aiOptions = await resolveAiOptions(engine);
               const dynamicTutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
                 document,
                 window.location.href,
                 prompt,
-                aiOptions
+                { ...aiOptions, intent }
               );
-              setIsDismissed(false);
-              setIsPromptOpen(false);
-              setIsFullPopupOpen(false);
-              engine.start(dynamicTutorial, 0);
-              sendResponse({ success: true, tutorialId: dynamicTutorial.id, dynamic: true });
+              if (dynamicTutorial && Array.isArray(dynamicTutorial.steps) && dynamicTutorial.steps.length > 0) {
+                engine.start(dynamicTutorial, 0);
+                sendResponse({ success: true, tutorialId: dynamicTutorial.id, dynamic: true });
+              } else {
+                sendResponse({ success: false, error: 'No matching interactive elements found' });
+              }
             } catch (err) {
               console.error('[GuideMe] Dynamic guide generation failed:', err);
               sendResponse({ success: false, error: err.message });
@@ -319,14 +415,6 @@ export function useContentBridge({
 
         case ExtensionMessageAction.STOP_TUTORIAL:
           engine.stop();
-          sendResponse({ success: true });
-          break;
-
-        case 'GUIDEME_START_CAPTURE_MODE':
-          engine.stop();
-          setIsPromptOpen(false);
-          setIsDashboardOpen(false);
-          setIsCaptureMode(true);
           sendResponse({ success: true });
           break;
 
@@ -434,16 +522,9 @@ export function useContentBridge({
             }
           } catch { /* ignore */ }
         }
-
-        // If no active session, check for captured target fallback
-        const captureKey = getCapturedStepStorageKey(window.location.href);
-        chrome.storage?.local?.get(captureKey, (stored) => {
-          const target = stored?.[captureKey]?.target;
-          if (isMounted && target) engine.start(createCapturedTutorial(target), 0);
-        });
       });
     } catch {
-      // Storage is optional; live capture remains available.
+      // Storage is optional.
     }
 
     return () => {
@@ -457,18 +538,52 @@ export function useContentBridge({
     };
   }, []);
 
-  const handleStartDynamicGuide = async (prompt) => {
+  const handleStartDynamicGuide = async (prompt, imageToSend, intent) => {
     try {
+      // 1. Immediately dismiss chat prompt so user sees page and spotlight
+      setIsPromptOpen(false);
+      setIsFullPopupOpen(false);
+      try {
+        chrome.storage?.local?.set({ guideme_is_chat_open: false });
+      } catch {}
+
+      // 2. Check if an available curated tutorial on this page matches the intent or prompt
+      const rawQuery = (intent?.targetQuery || intent?.category || prompt || '').toLowerCase();
+      const isShare = /\b(share|collaborat|permission|invite|ចែករំលែក|អញ្ជើញ)\b/i.test(rawQuery);
+
+      const matchedCurated = availableTutorials.find((tut) => {
+        const id = (tut.id || '').toLowerCase();
+        const enName = (typeof tut.name === 'object' ? tut.name.en : tut.name || '').toLowerCase();
+        const kmName = (typeof tut.name === 'object' ? tut.name.km : '').toLowerCase();
+
+        if (isShare && (id.includes('share') || enName.includes('share') || kmName.includes('ចែករំលែក'))) {
+          return true;
+        }
+        if (intent?.targetQuery) {
+          const tq = intent.targetQuery.toLowerCase();
+          if (enName.includes(tq) || id.includes(tq) || kmName.includes(tq)) return true;
+        }
+        return false;
+      });
+
+      if (matchedCurated) {
+        console.log('[GuideMe] Found matching curated tutorial for intent:', matchedCurated.id);
+        const fullTutorial = TUTORIAL_CATALOG.find((t) => t.id === matchedCurated.id) || matchedCurated;
+        engineRef.current?.start(fullTutorial, 0);
+        return;
+      }
+
+      // 3. Fallback: Dynamic Zero-Hallucination Fuse.js DOM Scanner
       const aiOptions = await resolveAiOptions(engineRef.current);
       const dynamicTutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
         document,
         window.location.href,
         prompt,
-        aiOptions
+        { ...aiOptions, intent }
       );
-      setIsPromptOpen(false);
-      setIsFullPopupOpen(false);
-      engineRef.current?.start(dynamicTutorial, 0);
+      if (dynamicTutorial && Array.isArray(dynamicTutorial.steps) && dynamicTutorial.steps.length > 0) {
+        engineRef.current?.start(dynamicTutorial, 0);
+      }
     } catch (err) {
       console.error('[GuideMe] Dynamic guide generation failed:', err);
     }

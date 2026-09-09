@@ -13,7 +13,14 @@ function normalizeText(text) {
   return text
     .toLowerCase()
     .trim()
-    // Collapse 3+ repeating characters (e.g., "broooo" -> "bro", "hiiiii" -> "hi", "heyyyy" -> "hey", "helloooo" -> "hello", "suuuup" -> "sup")
+    // Specifically normalize stretched greeting vowels and vocatives (e.g., "heeloo" -> "hello", "broooo" -> "bro")
+    .replace(/\bhe+l+o+\b/gi, 'hello')
+    .replace(/\bhe+y+\b/gi, 'hey')
+    .replace(/\bhi+\b/gi, 'hi')
+    .replace(/\byo+\b/gi, 'yo')
+    .replace(/\bbro+\b/gi, 'bro')
+    .replace(/\bsu+p+\b/gi, 'sup')
+    // Collapse 3+ repeating characters
     .replace(/(.)\1{2,}/g, '$1')
     // Remove leading/trailing punctuation and symbols
     .replace(/^[\s!.,?~#@$%^&*()_\-+=\[\]{}|\\:;"'<>\/]+|[\s!.,?~#@$%^&*()_\-+=\[\]{}|\\:;"'<>\/]+$/g, '')

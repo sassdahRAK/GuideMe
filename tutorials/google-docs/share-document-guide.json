@@ -1,13 +1,13 @@
 {
   "id": "google-docs-share-guide",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "name": {
-    "km": "ចែករំលែក និងកំណត់សិទ្ធិក្នុង Google Docs",
-    "en": "Share & Manage Permissions in Google Docs"
+    "km": "ចែករំលែក និងកំណត់សិទ្ធិកែប្រែក្នុង Google Docs",
+    "en": "Share Document with Edit Permissions in Google Docs"
   },
   "description": {
-    "km": "រៀនពីរបៀបចែករំលែក Google Doc របស់អ្នក អញ្ជើញសហការី និងចម្លងតំណភ្ជាប់ចែករំលែក។",
-    "en": "Learn how to share your Google Doc, invite teammates with editor/viewer access, or copy sharing links."
+    "km": "រៀនពីរបៀបចែករំលែក Google Doc របស់អ្នក ប្តូរសិទ្ធិទូទៅទៅជា 'Anyone with the link' កំណត់សិទ្ធិជា 'Editor' និងចម្លងតំណភ្ជាប់ចែករំលែក។",
+    "en": "Learn how to share your Google Doc, set general access to 'Anyone with the link', assign 'Editor' permissions, and copy the shareable link."
   },
   "matchUrls": [
     "https://docs.google.com/document/*",
@@ -18,12 +18,12 @@
     {
       "id": "step_open_share",
       "title": {
-        "km": "បើកការកំណត់ការចែករំលែក",
-        "en": "Open Sharing Settings"
+        "km": "ចុចប៊ូតុងចែករំលែក (Share)",
+        "en": "Click Share"
       },
       "description": {
-        "km": "ចុចប៊ូតុងពណ៌ខៀវ 'Share' នៅជ្រុងខាងស្តាំខាងលើដើម្បីបើកផ្ទាំងចែករំលែក។",
-        "en": "Click the blue 'Share' button in the top-right corner to open document permissions."
+        "km": "ចុចប៊ូតុងពណ៌ខៀវ 'Share' នៅជ្រុងខាងស្តាំខាងលើដើម្បីបើកផ្ទាំងចែករំលែកឯកសារ។",
+        "en": "Click the blue 'Share' button in the top-right corner to open the sharing dialog."
       },
       "target": {
         "css": "#docs-action-bar-share, #docs-share-button, [aria-label*='Share' i], [data-tooltip*='Share' i], div[role='button'][aria-label*='Share' i], #demo-share-btn",
@@ -33,12 +33,12 @@
       "action": {
         "type": "spotlight",
         "title": {
-          "km": "ចែករំលែកឯកសារ",
-          "en": "Share Document"
+          "km": "ចុចប៊ូតុង Share",
+          "en": "Click Share"
         },
         "content": {
-          "km": "សូមចុចលើប៊ូតុង 'Share' ដើម្បីបើកការកំណត់សិទ្ធិចែករំលែក។",
-          "en": "Click the highlighted 'Share' button to open document permissions."
+          "km": "សូមចុចលើប៊ូតុង 'Share' នៅខាងលើដើម្បីបើកផ្ទាំងកំណត់សិទ្ធិចែករំលែក។",
+          "en": "Click the blue 'Share' button to open document permissions."
         },
         "placement": "bottom"
       },
@@ -47,63 +47,176 @@
       }
     },
     {
-      "id": "step_share_collaborators_or_link",
+      "id": "step_modify_general_access",
       "title": {
-        "km": "អញ្ជើញសហការី ឬចម្លងតំណភ្ជាប់",
-        "en": "Add Collaborators or Copy Link"
+        "km": "កែប្រែសិទ្ធិចូលប្រើប្រាស់ទូទៅ (General Access)",
+        "en": "Modify General Access"
       },
       "description": {
-        "km": "វាយបញ្ចូលអ៊ីមែលដើម្បីអញ្ជើញសហការី ឬចុច 'Copy link' ដើម្បីចែករំលែកតាមតំណភ្ជាប់។",
-        "en": "Type a teammate's email to invite them directly, OR click 'Copy link' to share via direct link."
+        "km": "ចុចលើបញ្ជីទម្លាក់ចុះ 'General access' ដើម្បីប្តូរពី 'Restricted' ទៅជា 'Anyone with the link'។",
+        "en": "Click the 'General access' dropdown to change from 'Restricted' to 'Anyone with the link'."
       },
       "target": {
-        "css": "input[aria-label*='Add' i], input[aria-autocomplete='list'], input[type='email'], input[placeholder*='people' i], input[placeholder*='email' i], [role='combobox'], input#demo-email-input, [aria-label*='Copy link' i], button[aria-label*='Copy link' i], #demo-copy-link-btn",
-        "ariaLabel": "Add people",
-        "text": "Add people"
+        "css": "[role='dialog'] div[role='button'][aria-label*='Anyone with the link' i], [role='dialog'] div[role='button'][aria-label*='General access' i], [role='dialog'] div[role='button'][aria-label*='Restricted' i], [role='dialog'] [aria-label*='Anyone with the link' i], [role='dialog'] [aria-label*='General access' i], [role='dialog'] [aria-label*='Restricted' i], [data-target='general-access'], #demo-general-access-btn",
+        "container": "[role='dialog'], [aria-modal='true'], .apps-share-dialog, .modal-dialog"
       },
       "action": {
         "type": "spotlight",
         "title": {
-          "km": "បញ្ចូលអ៊ីមែល ឬចម្លងតំណភ្ជាប់",
-          "en": "Invite by Email or Copy Link"
+          "km": "ប្តូរសិទ្ធិចូលប្រើប្រាស់ទូទៅ",
+          "en": "Modify General Access"
         },
         "content": {
-          "km": "វាយបញ្ចូលអ៊ីមែលដើម្បីអញ្ជើញសហការី ឬចុច 'Copy link' ដើម្បីចែករំលែក។ បន្ទាប់មកចុច Done ឬ Send ដើម្បីបញ្ចប់។",
-          "en": "Type a teammate's email to invite them directly, OR click 'Copy link' to share. Then click Done or Send."
+          "km": "ចុចលើប្រអប់ General access ហើយជ្រើសរើស 'Anyone with the link' ដើម្បីឱ្យអ្នកដទៃអាចបើកមើលបាន។",
+          "en": "Click General access and change the default 'Restricted' setting to 'Anyone with the link'."
         },
         "placement": "bottom"
       },
       "validation": {
-        "type": "input",
+        "type": "click",
         "alternativeTargets": [
           {
-            "css": "[aria-label*='Copy link' i], button[aria-label*='Copy link' i], #demo-copy-link-btn"
+            "css": "[role='menuitem'], .goog-menuitem, [role='option'], [aria-label*='Anyone with the link' i], [aria-label*='Restricted' i], [data-value='anyoneWithLink']"
           },
           {
-            "css": "button[aria-label*='Done' i], button[aria-label*='Send' i], [data-mdc-dialog-action='ok'], .docs-material-gm-dialog button"
+            "text": "Anyone with the link"
+          },
+          {
+            "text": "Restricted"
+          },
+          {
+            "css": "[role='dialog'] [aria-label*='Viewer' i], [role='dialog'] [aria-label*='Editor' i], [role='dialog'] [aria-label*='Role' i], [role='dialog'] [aria-label*='Copy link' i]"
           }
         ]
       }
     },
     {
-      "id": "step_done",
+      "id": "step_set_role_editor",
+      "title": {
+        "km": "កំណត់តួនាទីជាអ្នកកែប្រែ (Editor)",
+        "en": "Set Role to Editor"
+      },
+      "description": {
+        "km": "ចុចលើបញ្ជីតួនាទី (Role) ហើយជ្រើសរើស 'Editor' ដើម្បីឱ្យមិត្តរបស់អ្នកអាចកែប្រែឯកសារបាន។",
+        "en": "Click the role dropdown menu next to 'Anyone with the link' and select 'Editor' so your friend can edit content."
+      },
+      "target": {
+        "css": "[role='dialog'] div[role='button'][aria-label*='Viewer' i], [role='dialog'] div[role='button'][aria-label*='Editor' i], [role='dialog'] div[role='button'][aria-label*='Commenter' i], [role='dialog'] [aria-label*='Viewer' i], [role='dialog'] [aria-label*='Editor' i], [role='dialog'] [aria-label*='Role' i], [role='dialog'] [aria-label*='Permission' i], #demo-role-dropdown",
+        "container": "[role='dialog'], [aria-modal='true'], .apps-share-dialog, .modal-dialog"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើសរើសសិទ្ធិជា Editor",
+          "en": "Set Role to Editor"
+        },
+        "content": {
+          "km": "ជ្រើសរើស 'Editor' ជំនួសឱ្យ 'Viewer' ដើម្បីអនុញ្ញាតឱ្យអ្នកទទួលអាចកែប្រែខ្លឹមសារឯកសារបាន។",
+          "en": "Select 'Editor' instead of 'Viewer' so the recipient has permission to modify content."
+        },
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "click",
+        "alternativeTargets": [
+          {
+            "css": "[role='menuitem'], .goog-menuitem, [role='option'], [aria-label*='Editor' i], [aria-label*='Viewer' i], [aria-label*='Commenter' i], div[data-value='editor']"
+          },
+          {
+            "text": "Editor"
+          },
+          {
+            "text": "Viewer"
+          },
+          {
+            "css": "[role='dialog'] [aria-label*='Copy link' i], button[aria-label*='Copy link' i]"
+          }
+        ]
+      }
+    },
+    {
+      "id": "step_copy_link",
+      "title": {
+        "km": "ចម្លងតំណភ្ជាប់ (Copy link)",
+        "en": "Copy Link"
+      },
+      "description": {
+        "km": "ចុចលើប៊ូតុង 'Copy link' ដើម្បីចម្លងតំណភ្ជាប់ចែករំលែកទៅកាន់ Clipboard របស់អ្នក។",
+        "en": "Click the 'Copy link' button to place the shareable URL onto your clipboard."
+      },
+      "target": {
+        "css": "[role='dialog'] [aria-label*='Copy link' i], [aria-label*='Copy link' i], button[aria-label*='Copy link' i], [data-tooltip*='Copy link' i], #demo-copy-link-btn",
+        "ariaLabel": "Copy link",
+        "text": "Copy link",
+        "container": "[role='dialog'], [aria-modal='true'], .apps-share-dialog, .modal-dialog"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចម្លងតំណភ្ជាប់",
+          "en": "Copy Link"
+        },
+        "content": {
+          "km": "សូមចុច 'Copy link' ដើម្បីទទួលបានតំណភ្ជាប់ចែករំលែកសម្រាប់ផ្ញើទៅមិត្តរបស់អ្នក។",
+          "en": "Click 'Copy link' to copy the document URL with edit permissions."
+        },
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_complete_done",
+      "title": {
+        "km": "ចុចប៊ូតុងរួចរាល់ (Done)",
+        "en": "Complete and Send"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Done' ដើម្បីបិទផ្ទាំងចែករំលែក រួចបិទភ្ជាប់ (Paste) តំណភ្ជាប់ទៅកាន់ការជជែក ឬអ៊ីមែល។",
+        "en": "Click 'Done' to close the dialog, then paste the link into a chat or email for your friend."
+      },
+      "target": {
+        "css": "[role='dialog'] button[aria-label*='Done' i], button[aria-label*='Done' i], button[aria-label*='Send' i], [data-mdc-dialog-action='ok'], .docs-material-gm-dialog button, #demo-done-btn",
+        "ariaLabel": "Done",
+        "text": "Done",
+        "container": "[role='dialog'], [aria-modal='true'], .apps-share-dialog, .modal-dialog"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "បញ្ចប់ការចែករំលែក",
+          "en": "Click Done"
+        },
+        "content": {
+          "km": "ចុច 'Done' ដើម្បីបញ្ចប់។ ឥឡូវនេះអ្នកអាច Paste (Ctrl+V) តំណភ្ជាប់ផ្ញើទៅកាន់មិត្តរបស់អ្នកបានហើយ!",
+          "en": "Click 'Done' and paste the copied link to your friend so they can edit."
+        },
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_all_set",
       "title": {
         "km": "រួចរាល់ហើយ!",
         "en": "All Set!"
       },
       "description": {
-        "km": "អ្នកបានបញ្ចប់ការចែករំលែកឯកសារដោយជោគជ័យ។",
-        "en": "You've successfully mastered sharing in Google Docs. Collaborators can now access your document securely."
+        "km": "អ្នកបានបង្កើត និងចម្លងតំណភ្ជាប់ចែករំលែកដោយជោគជ័យជាមួយសិទ្ធិកែប្រែ (Editor)។",
+        "en": "You have successfully generated and copied a shareable Google Docs link with edit permissions."
       },
       "action": {
         "type": "modal",
         "title": {
           "km": "ការចែករំលែកជោគជ័យ!",
-          "en": "Sharing Complete!"
+          "en": "Sharing with Edit Access Complete!"
         },
         "content": {
-          "km": "អ្នកឥឡូវនេះដឹងពីរបៀបអញ្ជើញសមាជិកក្រុម និងចែករំលែកតំណភ្ជាប់ក្នុង Google Docs ហើយ។",
-          "en": "You now know how to invite team members and generate sharing links in Google Docs."
+          "km": "តំណភ្ជាប់ត្រូវបានចម្លងរួចរាល់ហើយ។ អ្នកអាចផ្ញើតំណភ្ជាប់នេះទៅមិត្តរបស់អ្នកដើម្បីឱ្យគាត់អាចចូលកែប្រែឯកសារជាមួយគ្នាបាន។",
+          "en": "Your shareable edit link is ready on your clipboard. Paste and send it to your friend so they can collaborate and edit."
         }
       },
       "validation": {

@@ -1,7 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { TutorialOverlay } from '@guideme/tutorial-ui';
-import { useCaptureMode } from '../hooks/useCaptureMode.js';
 import { useContentBridge } from '../hooks/useContentBridge.js';
+
+/**
+ * Defensive ErrorBoundary to ensure any child component error never unmounts
+ * or crashes the in-page Shadow DOM tutorial root.
+ */
+class TutorialErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[GuideMe Content Script] ErrorBoundary caught tutorial UI error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
 
 /**
  * Pure presentation component orchestrating GuideMe's in-page tutorial overlays.
@@ -24,17 +49,25 @@ export function TutorialApp({ uiContainer }) {
   // Load preferences from storage on mount & listen to live changes
   useEffect(() => {
     try {
-      chrome.storage?.local?.get(['guideme_theme'], (result) => {
+      chrome.storage?.local?.get(['guideme_theme', 'guideme_is_chat_open'], (result) => {
         if (result?.guideme_theme) {
           setTheme(result.guideme_theme);
         } else if (window.matchMedia?.('(prefers-color-scheme: dark)')?.matches) {
           setTheme('dark');
         }
+        if (typeof result?.guideme_is_chat_open === 'boolean') {
+          setIsPromptOpen(result.guideme_is_chat_open);
+        }
       });
 
       const storageListener = (changes, areaName) => {
-        if (areaName === 'local' && changes.guideme_theme) {
-          setTheme(changes.guideme_theme.newValue);
+        if (areaName === 'local') {
+          if (changes.guideme_theme) {
+            setTheme(changes.guideme_theme.newValue);
+          }
+          if (changes.guideme_is_chat_open !== undefined) {
+            setIsPromptOpen(Boolean(changes.guideme_is_chat_open.newValue));
+          }
         }
       };
       chrome.storage?.onChanged?.addListener(storageListener);
@@ -57,46 +90,21 @@ export function TutorialApp({ uiContainer }) {
     setIsOnboardingOpen,
     setIsDashboardOpen,
     setIsFullPopupOpen,
-    setIsCaptureMode: (active) => {
-      if (active) startCapture();
-      else cancelCapture();
-    },
     setIsDismissed,
   });
-
-  // ── 2. Element Capture Mode Logic ──
-  const {
-    isCaptureMode,
-    captureTargetBoundingBox,
-    startCapture,
-    cancelCapture,
-  } = useCaptureMode(engineRef);
 
   // The Floating Assistant Button stays permanently visible on screen (never unmounts)
   return (
     <div className={theme === 'dark' ? 'dark' : ''}>
-      <TutorialOverlay
+      <TutorialErrorBoundary>
+        <TutorialOverlay
         state={engineState}
         isPromptOpen={isPromptOpen}
         onTogglePrompt={(isOpen) => {
-          if (isOpen === false) {
-            setIsPromptOpen(false);
-            return;
-          }
-          // Launch / focus PiP companion window; if unavailable/fails, fallback to in-page prompt widget
+          setIsPromptOpen(isOpen);
           try {
-            chrome.runtime?.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }, (res) => {
-              if (chrome.runtime?.lastError || !res?.success) {
-                // Fallback to in-page floating prompt widget
-                setIsPromptOpen(true);
-              } else {
-                // PiP opened successfully; in-page prompt stays closed, assistant button remains visible!
-                setIsPromptOpen(false);
-              }
-            });
-          } catch {
-            setIsPromptOpen(true);
-          }
+            chrome.storage?.local?.set({ guideme_is_chat_open: isOpen });
+          } catch { }
         }}
         isOnboardingOpen={isOnboardingOpen}
         onToggleOnboarding={(isOpen) => {
@@ -114,14 +122,6 @@ export function TutorialApp({ uiContainer }) {
         onToggleDashboard={(isOpen) => setIsDashboardOpen(isOpen)}
         isFullPopupOpen={isFullPopupOpen}
         onToggleFullPopup={(isOpen) => setIsFullPopupOpen(isOpen)}
-        isCaptureMode={isCaptureMode}
-        captureTargetBoundingBox={captureTargetBoundingBox}
-        onStartCapture={() => {
-          startCapture();
-          setIsPromptOpen(false);
-          setIsDashboardOpen(false);
-        }}
-        onCancelCapture={cancelCapture}
         onDismiss={() => {
           setIsPromptOpen(false);
           setIsOnboardingOpen(false);
@@ -136,7 +136,7 @@ export function TutorialApp({ uiContainer }) {
         onReplayAudio={() => engineRef.current?.getAudioEngine()?.replay()}
         onToggleMute={() => engineRef.current?.toggleMute()}
         onVolumeChange={(vol) => engineRef.current?.setVolume(vol)}
-        onNext={() => engineRef.current?.nextStep()}
+        onNext={() => engineRef.current?.nextStep(true)}
         onPrev={() => engineRef.current?.prevStep()}
         onSkip={() => engineRef.current?.skipStep()}
         onClose={() => engineRef.current?.stop()}
@@ -148,6 +148,7 @@ export function TutorialApp({ uiContainer }) {
           } catch { }
         }}
       />
+      </TutorialErrorBoundary>
     </div>
   );
 }

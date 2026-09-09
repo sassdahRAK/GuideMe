@@ -316,14 +316,9 @@ export function StepCard({
           <button
             type="button"
             onClick={onNext}
-              disabled={!canAdvanceNext}
             title={isLastStep ? getUIString('finish', lang) : getUIString('next', lang)}
             aria-label={isLastStep ? getUIString('finish', lang) : getUIString('next', lang)}
-              className={`w-8 h-8 rounded-full text-white flex items-center justify-center border border-purple-400/40 shadow-[0_2px_12px_rgba(139,92,246,0.5)] transition-all ${
-                canAdvanceNext
-                  ? 'bg-[#8b5cf6] hover:bg-[#7c3aed] active:bg-[#6d28d9] cursor-pointer hover:scale-105 active:scale-95'
-                  : 'bg-gray-400 dark:bg-gray-600 opacity-60 cursor-not-allowed'
-              }`}
+            className="w-8 h-8 rounded-full text-white flex items-center justify-center border border-purple-400/40 shadow-[0_2px_12px_rgba(139,92,246,0.5)] transition-all bg-[#8b5cf6] hover:bg-[#7c3aed] active:bg-[#6d28d9] cursor-pointer hover:scale-105 active:scale-95"
           >
             {isLastStep ? (
               <FiCheck className="w-4 h-4 stroke-[2.5]" />

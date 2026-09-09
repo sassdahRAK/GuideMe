@@ -727,5 +727,121 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     assert.ok(step.target.hoverTrigger);
     assert.strictEqual(step.target.hoverTrigger.css, '#user-profile-toggle');
   });
+
+  test('DynamicPageAnalyzer generates safe CSS selectors for elements with colon IDs (:6j, :a7)', () => {
+    const parentContainer = {
+      tagName: 'DIV',
+      id: ':a7',
+      closest: () => null,
+      getAttribute: () => null,
+    };
+
+    const colonBtn = {
+      tagName: 'BUTTON',
+      id: ':6j',
+      textContent: 'Compose New Email',
+      value: '',
+      closest: (sel) => {
+        if (sel === '[id]') return parentContainer;
+        return null;
+      },
+      getAttribute: () => null,
+    };
+
+    const mockDoc = {
+      title: 'Email Web App',
+      querySelectorAll: (sel) => {
+        if (sel.includes('button')) return [colonBtn];
+        return [];
+      },
+      querySelector: () => null,
+    };
+
+    colonBtn.ownerDocument = mockDoc;
+    parentContainer.ownerDocument = mockDoc;
+
+    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(
+      mockDoc,
+      'https://mail.google.com',
+      'click compose'
+    );
+
+    assert.ok(tutorial.steps.length > 0);
+    const step = tutorial.steps[0];
+    // Must be safe attribute selector [id=":6j"] instead of invalid syntax #:6j
+    assert.strictEqual(step.target.css, '[id=":6j"]');
+    assert.ok(!step.target.css.includes('#:'));
+  });
+
+  test('GeminiDomAnalyzer defaults to gemini-3.6-flash and retries with fallback model on 404', async () => {
+    const mockDoc = createMockDoc({
+      title: 'Store Front',
+      buttons: [
+        { textContent: 'Checkout Now', id: 'btn-checkout' },
+      ],
+    });
+
+    const attemptedEndpoints = [];
+    const mockFetch = async (url) => {
+      attemptedEndpoints.push(url);
+      if (url.includes('gemini-3.6-flash')) {
+        // Simulate Google API returning 404 for deprecated / unavailable model
+        return {
+          ok: false,
+          status: 404,
+          text: async () => JSON.stringify({ error: { code: 404, message: 'Model not found' } }),
+        };
+      }
+      // Fallback model succeeds
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      id: 'gemini-fallback-guide',
+                      name: { km: 'ការណែនាំ', en: 'Guide' },
+                      description: { km: 'ការណែនាំ', en: 'Guide' },
+                      matchUrls: ['<all_urls>'],
+                      steps: [
+                        {
+                          id: 'step_checkout',
+                          title: { km: 'បង់ប្រាក់', en: 'Checkout' },
+                          description: { km: 'ចុចបង់ប្រាក់', en: 'Click checkout' },
+                          target: { css: '#btn-checkout' },
+                          action: {
+                            type: 'spotlight',
+                            title: { km: 'បង់ប្រាក់', en: 'Checkout' },
+                            placement: 'bottom',
+                          },
+                          validation: { type: 'click' },
+                        },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      };
+    };
+
+    const tutorial = await GeminiDomAnalyzer.analyzeWithGemini({
+      prompt: 'Proceed to checkout',
+      doc: mockDoc,
+      apiKey: 'test-key',
+      fetchFn: mockFetch,
+    });
+
+    assert.strictEqual(tutorial.id, 'gemini-fallback-guide');
+    assert.ok(attemptedEndpoints.length >= 2);
+    assert.ok(attemptedEndpoints[0].includes('gemini-3.6-flash'));
+    assert.ok(attemptedEndpoints[1].includes('gemini-1.5-flash'));
+  });
 });
 
