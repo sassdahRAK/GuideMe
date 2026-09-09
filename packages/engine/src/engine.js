@@ -1,4 +1,4 @@
-import { EngineStatus, EngineEvent, Language, AlertState } from '@guideme/core-types';
+import { EngineStatus, EngineEvent, Language, AlertState, ValidationType } from '@guideme/core-types';
 import { StateMachine } from './state-machine/state-machine.js';
 import { TutorialParser } from './parser/parser.js';
 import { StepResolver } from './resolver/step-resolver.js';
@@ -39,6 +39,7 @@ export class TutorialEngine {
     this.currentStepIndex = 0;
     this.targetBoundingBox = null;
     this.targetMissing = false;
+    this.validationSatisfied = true;
     this.alertState = AlertState.NORMAL;
     this._alertResetTimer = null;
 
@@ -187,9 +188,10 @@ export class TutorialEngine {
   /**
    * Advance to the next step.
    */
-  async nextStep() {
+  async nextStep(bypassValidation = false) {
     this.audio.stop();
     if (!this.activeTutorial || !this.currentStep) return;
+    if (!bypassValidation && !this.validationSatisfied) return;
 
     const nextIndex = this.stepResolver.resolveNextStepIndex(
       this.currentStep,
@@ -224,7 +226,7 @@ export class TutorialEngine {
    */
   async skipStep() {
     this.audio.stop();
-    await this.nextStep();
+    await this.nextStep(true);
   }
 
   /**
@@ -362,6 +364,7 @@ export class TutorialEngine {
       isLastStep: this.currentStep?.isLast ?? false,
       alertState: this.alertState,
       targetMissing: this.targetMissing,
+      canAdvanceNext: this.validationSatisfied,
       boundingBox: this.targetBoundingBox,
       actionPayload: ActionEngine.getActionUiPayload(this.currentStep, this.targetBoundingBox, this.i18n),
       variables: this.variables.toObject(),
@@ -387,6 +390,7 @@ export class TutorialEngine {
 
     this.currentStep = step;
     this.currentStepIndex = stepIndex;
+    this.validationSatisfied = !step.validation || step.validation.type === ValidationType.MANUAL_NEXT;
 
     // Execute pre-step actions (e.g. scroll into view)
     await ActionEngine.executeStepActions(step, this.adapter);
@@ -424,6 +428,7 @@ export class TutorialEngine {
       this.adapter,
       async (result) => {
         if (result.valid) {
+          this.validationSatisfied = true;
           this._clearAlertState();
           this.events.emit(EngineEvent.STEP_SUCCESS, { step, eventData: result.eventData });
           await this.nextStep();

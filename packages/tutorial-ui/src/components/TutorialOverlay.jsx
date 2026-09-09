@@ -213,6 +213,7 @@ export function TutorialOverlay({
     isPlayingAudio,
     alertState,
     targetMissing,
+    canAdvanceNext,
   } = state;
 
   return (
@@ -252,6 +253,7 @@ export function TutorialOverlay({
         isMuted={state?.isMuted ?? false}
         volume={state?.volume ?? 1.0}
         targetMissing={targetMissing}
+        canAdvanceNext={canAdvanceNext}
         onRetry={onRetryLocateTarget}
         onLanguageChange={onLanguageChange}
         onNext={onNext}

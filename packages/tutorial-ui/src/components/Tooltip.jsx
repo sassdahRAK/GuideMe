@@ -40,6 +40,7 @@ export function Tooltip({
   isFirstStep,
   isLastStep,
   canSkip,
+  canAdvanceNext = true,
   isPlayingAudio,
   isMuted = false,
   volume = 1.0,
@@ -271,6 +272,7 @@ export function Tooltip({
         isFirstStep={isFirstStep}
         isLastStep={isLastStep}
         canSkip={canSkip}
+        canAdvanceNext={canAdvanceNext}
         isPlayingAudio={isPlayingAudio}
         isMuted={isMuted}
         volume={volume}

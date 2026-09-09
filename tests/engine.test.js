@@ -397,6 +397,22 @@ describe('GuideMe Tutorial Engine & Bilingual / Audio Tests', () => {
     assert.strictEqual(latestState.isActive, false);
   });
 
+  test('Engine blocks Next until click validation and still allows Back navigation', async () => {
+    await engine.start(sampleBilingualTutorial, 0);
+
+    await engine.nextStep();
+    assert.strictEqual(engine.getStateSnapshot().currentStepIndex, 0);
+    assert.strictEqual(engine.getStateSnapshot().canAdvanceNext, false);
+
+    adapter.triggerElementEvent('#btn-1', 'click');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.strictEqual(engine.getStateSnapshot().currentStepIndex, 1);
+    assert.strictEqual(engine.getStateSnapshot().canAdvanceNext, false);
+
+    await engine.prevStep();
+    assert.strictEqual(engine.getStateSnapshot().currentStepIndex, 0);
+  });
+
   test('Engine replaces an active tutorial without an invalid loading transition', async () => {
     await engine.start(sampleBilingualTutorial, 0);
     const restarted = await engine.start(sampleBilingualTutorial, 0);
