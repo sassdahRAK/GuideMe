@@ -4,6 +4,7 @@ import { triggerQueueSync } from '../src/lib/progress-sync';
 
 // Session storage key for active tutorial state
 const STORAGE_KEY_ACTIVE_SESSION = 'guideme_active_tutorial_session';
+const STORAGE_KEY_MULTI_PAGE_PLAN = 'guideme_multi_page_plan';
 
 /**
  * Get the storage area for active session (session storage with local fallback)
@@ -37,7 +38,8 @@ export default defineBackground(() => {
     triggerQueueSync();
   });
 
-  // Session storage sync ready
+  // Track active PiP window ID
+  let activePipWindowId = null;
 
   // ── Tab Navigation & Tab Activation Handlers for Seamless Session Sync ──
   chrome.tabs.onUpdated?.addListener((tabId, changeInfo, tab) => {
@@ -46,6 +48,37 @@ export default defineBackground(() => {
       const storage = getSessionStorage();
       if (!storage) return;
 
+      // First check for multi-page plan (Stage 1 planned navigation)
+      storage.get([STORAGE_KEY_MULTI_PAGE_PLAN], (planResult) => {
+        const plan = planResult?.[STORAGE_KEY_MULTI_PAGE_PLAN];
+        if (plan && plan.pages && Array.isArray(plan.pages)) {
+          const currentIdx = plan.currentPageIndex || 0;
+          const nextIdx = currentIdx + 1;
+          const nextPage = plan.pages[nextIdx];
+          if (nextPage && nextPage.route !== 'current') {
+            try {
+              const tabUrl = new URL(tab.url);
+              const plannedPath = nextPage.route;
+              // Check if the user navigated to the planned route
+              if (tabUrl.pathname === plannedPath || tabUrl.pathname.startsWith(plannedPath)) {
+                plan.currentPageIndex = nextIdx;
+                storage.set({ [STORAGE_KEY_MULTI_PAGE_PLAN]: plan });
+
+                // Notify content script to generate steps for this new page
+                chrome.tabs.sendMessage(tabId, {
+                  action: 'GUIDEME_MULTI_PAGE_NEXT',
+                  payload: { prompt: plan.prompt, page: nextPage },
+                }, () => {
+                  if (chrome.runtime.lastError) { /* ignore */ }
+                });
+                return;
+              }
+            } catch { /* ignore invalid URLs */ }
+          }
+        }
+      });
+
+      // Then check for active tutorial session (existing logic)
       storage.get([STORAGE_KEY_ACTIVE_SESSION], (result) => {
         const session = result?.[STORAGE_KEY_ACTIVE_SESSION];
         if (!session || !session.tutorial) return;
@@ -79,19 +112,8 @@ export default defineBackground(() => {
     }
   });
 
-  chrome.tabs.onActivated?.addListener(({ tabId, windowId }) => {
-    // 1. Keep track of active webpage tab for PiP companion routing
-    chrome.tabs.get(tabId, (tab) => {
-      if (chrome.runtime?.lastError || !tab?.url) return;
-      if (!tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-        chrome.storage?.local?.set({
-          guideme_target_tab_id: tabId,
-          guideme_target_window_id: windowId,
-        });
-      }
-    });
-
-    // 2. When user switches to another tab, check if a global session should sync
+  chrome.tabs.onActivated?.addListener(({ tabId }) => {
+    // When user switches to another tab, check if a global session should sync
     const storage = getSessionStorage();
     if (!storage) return;
 
@@ -119,15 +141,15 @@ export default defineBackground(() => {
     });
   });
 
-  // Keep target tab updated when user focuses a normal browser window
-  chrome.windows.onFocusChanged?.addListener((windowId) => {
-    if (windowId !== chrome.windows.WINDOW_ID_NONE) {
-      chrome.tabs.query({ active: true, windowId }, ([tab]) => {
-        if (tab?.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-          chrome.storage?.local?.set({
-            guideme_target_tab_id: tab.id,
-            guideme_target_window_id: windowId,
-          });
+  // Track window closures to clean up PiP reference
+  chrome.windows.onRemoved?.addListener((windowId) => {
+    if (windowId === activePipWindowId) {
+      activePipWindowId = null;
+      chrome.storage?.local?.remove('guideme_pip_window_id');
+      // Notify active tab that PiP window was closed/docked
+      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+        if (tab?.id) {
+          chrome.tabs.sendMessage(tab.id, { action: 'GUIDEME_LAUNCHER_DOCKED' }, () => {});
         }
       });
     }
@@ -194,6 +216,76 @@ export default defineBackground(() => {
       return false;
     }
 
+    // ── Multi-Page Plan: Store from popup ──
+    if (message.action === 'GUIDEME_MULTI_PAGE_PLAN') {
+      const plan = message.payload;
+      if (plan && plan.pages) {
+        const storage = getSessionStorage();
+        if (storage) {
+          storage.set({ [STORAGE_KEY_MULTI_PAGE_PLAN]: plan }, () => {
+            sendResponse({ success: true });
+          });
+          return true;
+        }
+      }
+      sendResponse({ success: false });
+      return false;
+    }
+
+    // ── Multi-Page Plan: Advance to next page ──
+    if (message.action === 'GUIDEME_MULTI_PAGE_NEXT' || message.action === 'GUIDEME_MULTI_PAGE_COMPLETE') {
+      const storage = getSessionStorage();
+      if (!storage) {
+        sendResponse({ success: false });
+        return false;
+      }
+
+      storage.get([STORAGE_KEY_MULTI_PAGE_PLAN], (result) => {
+        const plan = result?.[STORAGE_KEY_MULTI_PAGE_PLAN];
+        if (!plan || !plan.pages) {
+          sendResponse({ success: false, error: 'No multi-page plan' });
+          return;
+        }
+
+        const currentIdx = plan.currentPageIndex || 0;
+        const nextIdx = currentIdx + 1;
+
+        if (message.action === 'GUIDEME_MULTI_PAGE_COMPLETE' || nextIdx >= plan.pages.length) {
+          // Plan complete — clean up
+          storage.remove(STORAGE_KEY_MULTI_PAGE_PLAN);
+          sendResponse({ success: true, completed: true });
+          return;
+        }
+
+        const nextPage = plan.pages[nextIdx];
+        if (nextPage.route === 'current') {
+          // Same page — just notify content to generate steps for this page
+          plan.currentPageIndex = nextIdx;
+          storage.set({ [STORAGE_KEY_MULTI_PAGE_PLAN]: plan }, () => {
+            if (sender.tab?.id) {
+              chrome.tabs.sendMessage(sender.tab.id, {
+                action: 'GUIDEME_MULTI_PAGE_NEXT',
+                payload: { prompt: plan.prompt, page: nextPage },
+              });
+            }
+            sendResponse({ success: true, page: nextPage });
+          });
+          return true;
+        } else {
+          // Different route — navigate the tab
+          plan.currentPageIndex = nextIdx;
+          storage.set({ [STORAGE_KEY_MULTI_PAGE_PLAN]: plan }, () => {
+            if (sender.tab?.id) {
+              chrome.tabs.update(sender.tab.id, { url: nextPage.route });
+            }
+            sendResponse({ success: true, navigating: true, url: nextPage.route });
+          });
+          return true;
+        }
+      });
+      return true;
+    }
+
     // ── Tutorial step badge updates ──
     if (
       message.action === ExtensionMessageAction.TUTORIAL_STATE_UPDATED ||
@@ -240,75 +332,144 @@ export default defineBackground(() => {
       }
     }
 
-    // ── Open In-Page Chat Box Overlay on Active Webpage ──
-    if (message.action === 'GUIDEME_POPOUT_LAUNCHER' || message.action === 'GUIDEME_OPEN_CHAT_OVERLAY') {
-      const openOnTab = (tabId) => {
-        if (!tabId) {
-          sendResponse({ success: false, error: 'No active web tab' });
-          return;
-        }
-        chrome.storage?.local?.set({ guideme_is_chat_open: true });
-        chrome.tabs.sendMessage(tabId, { action: 'GUIDEME_TOGGLE_CHAT_OVERLAY', payload: { open: true } }, (res) => {
-          if (chrome.runtime?.lastError || !res?.success) {
-            // Auto inject content script if tab doesn't have it yet
-            if (chrome.scripting?.executeScript) {
-              Promise.all([
-                chrome.scripting.executeScript({
-                  target: { tabId },
-                  files: ['content-scripts/content.js'],
-                }),
-                chrome.scripting.insertCSS
-                  ? chrome.scripting.insertCSS({
-                      target: { tabId },
-                      files: ['content-scripts/content.css'],
-                    }).catch(() => {})
-                  : Promise.resolve(),
-              ]).then(() => {
-                setTimeout(() => {
-                  chrome.tabs.sendMessage(tabId, { action: 'GUIDEME_TOGGLE_CHAT_OVERLAY', payload: { open: true } }, (retryRes) => {
-                    sendResponse(retryRes || { success: true });
-                  });
-                }, 300);
-              }).catch((err) => {
-                sendResponse({ success: false, error: err?.message });
-              });
-              return;
-            }
-          }
-          sendResponse(res || { success: true });
-        });
-      };
+    // ── Extract Separate UI / Popout PiP Launcher Window ──
+    if (message.action === 'GUIDEME_POPOUT_LAUNCHER') {
+      try {
+        const pipUrl = chrome.runtime.getURL('pip.html');
 
-      const explicitTabId = message.payload?.tabId;
-      if (explicitTabId) {
-        openOnTab(explicitTabId);
-      } else if (sender.tab?.id) {
-        openOnTab(sender.tab.id);
-      } else {
-        chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-          if (tab?.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-            openOnTab(tab.id);
+        const storeAndLaunch = (tabId, windowId, tabUrl) => {
+          const openPip = () => {
+            if (activePipWindowId) {
+              chrome.windows.get(activePipWindowId, (existing) => {
+                if (existing && !chrome.runtime.lastError) {
+                  chrome.windows.update(activePipWindowId, { focused: true });
+                  sendResponse({ success: true, windowId: activePipWindowId });
+                } else {
+                  createPipWindow(pipUrl, sendResponse);
+                }
+              });
+            } else {
+              createPipWindow(pipUrl, sendResponse);
+            }
+          };
+
+          if (tabId) {
+            chrome.storage?.local?.set(
+              { guideme_target_tab_id: tabId, guideme_target_window_id: windowId, guideme_target_tab_url: tabUrl || '' },
+              () => openPip()
+            );
           } else {
-            findNormalWebTab((tabId) => openOnTab(tabId));
+            openPip();
           }
-        });
+        };
+
+        // Track caller tab & window so PiP messages route directly to the active webpage
+        if (sender.tab?.id) {
+          storeAndLaunch(sender.tab.id, sender.tab.windowId, sender.tab.url || '');
+        } else {
+          // Popup has no sender.tab — query the active webpage tab first
+          chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+            // Filter out chrome:// and extension pages so we get the real webpage
+            const webTab = (tabs || []).find(
+              (t) => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://')
+            );
+            storeAndLaunch(webTab?.id, webTab?.windowId, webTab?.url || '');
+          });
+        }
+      } catch (err) {
+        console.error('[GuideMe Background] GUIDEME_POPOUT_LAUNCHER error:', err);
+        sendResponse({ success: false, error: err?.message || String(err) });
       }
       return true; // async response
     }
 
-    // ── Focus Target Tab (used when returning to previous tab from cross-tab notice) ──
-    if (message.action === 'GUIDEME_FOCUS_TAB') {
-      const targetTabId = message.payload?.tabId;
-      if (targetTabId) {
-        chrome.tabs.get(targetTabId, (tab) => {
-          if (!chrome.runtime.lastError && tab?.id) {
-            chrome.tabs.update(tab.id, { active: true });
-            if (tab.windowId) {
-              chrome.windows.update(tab.windowId, { focused: true });
+    function createPipWindow(pipUrl, responseCallback) {
+      const DEFAULT_SCREEN = { left: 0, top: 0, width: 1920, height: 1080 };
+      const SCREEN_EDGE_MARGIN = 24;
+
+      const clampIntoView = (screen, left, top, width, height) => {
+        const minLeft = screen.left;
+        const minTop = screen.top;
+        const maxLeft = screen.left + screen.width - width;
+        const maxTop = screen.top + screen.height - height;
+        return {
+          left: Math.max(minLeft, Math.min(left, maxLeft)),
+          top: Math.max(minTop, Math.min(top, maxTop)),
+        };
+      };
+
+      const openPip = (screen) => {
+        // Check if existing messages or active guide are saved to open with seamless height
+        chrome.storage?.local?.get(['guideme_chat_messages', 'guideme_active_guide_state'], (res) => {
+          const hasMessages = Array.isArray(res?.guideme_chat_messages) && res.guideme_chat_messages.length > 0;
+          const hasActiveGuide = Boolean(res?.guideme_active_guide_state?.active);
+          const pipWidth = 550;
+          const initialHeight = (hasMessages || hasActiveGuide) ? 360 : 160;
+
+          let rawLeft = screen.left + screen.width - pipWidth - SCREEN_EDGE_MARGIN;
+          let rawTop = screen.top + screen.height - 160;
+          if (hasMessages || hasActiveGuide) rawTop = Math.max(screen.top + 10, rawTop - 200);
+
+          const { left, top } = clampIntoView(screen, rawLeft, rawTop, pipWidth, initialHeight);
+
+          chrome.windows.create({
+            url: pipUrl,
+            type: 'popup',
+            width: pipWidth,
+            height: initialHeight,
+            left,
+            top,
+            focused: true,
+          }, (newWindow) => {
+            if (chrome.runtime.lastError || !newWindow?.id) {
+              console.error('[GuideMe Background] PiP creation failed:', chrome.runtime.lastError?.message);
+              responseCallback({ success: false, error: chrome.runtime.lastError?.message });
+            } else {
+              activePipWindowId = newWindow.id;
+              chrome.storage.local.set({ guideme_pip_window_id: newWindow.id });
+              console.log('[GuideMe Background] PiP window created:', newWindow.id);
+              responseCallback({ success: true, windowId: newWindow.id });
             }
-          }
+          });
         });
-      }
+      };
+
+      // Service workers have no window.screen. Derive the real visible space
+      // from the target browser window's bounds (no extra permission needed).
+      chrome.storage?.local?.get({ guideme_target_window_id: null }, (stored) => {
+        const resolveFromWindow = (win) => {
+          if (win && win.width) {
+            openPip({ left: win.left || 0, top: win.top || 0, width: win.width, height: win.height });
+          } else {
+            openPip(DEFAULT_SCREEN);
+          }
+        };
+
+        const targetWindowId = stored.guideme_target_window_id;
+        if (targetWindowId && typeof chrome.windows?.get === 'function') {
+          chrome.windows.get(targetWindowId, (win) => {
+            if (chrome.runtime.lastError || !win) {
+              chrome.windows.getLastFocused({}, resolveFromWindow);
+            } else {
+              resolveFromWindow(win);
+            }
+          });
+        } else if (!targetWindowId && typeof chrome.windows?.getLastFocused === 'function') {
+          chrome.windows.getLastFocused({}, resolveFromWindow);
+        } else {
+          openPip(DEFAULT_SCREEN);
+        }
+      });
+    }
+
+    // ── PiP window docked (closed by user) — forward to content script ──
+    if (message.action === 'GUIDEME_LAUNCHER_DOCKED') {
+      activePipWindowId = null;
+      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+        if (tab?.id) {
+          chrome.tabs.sendMessage(tab.id, { action: 'GUIDEME_LAUNCHER_DOCKED' }, () => {});
+        }
+      });
       sendResponse({ success: true });
       return false;
     }
@@ -371,120 +532,6 @@ export default defineBackground(() => {
       return false;
     }
 
-    // ── Proxy Audio Fetch to bypass host-page CSP (e.g. Google Docs media-src) ──
-    if (message.action === 'GUIDEME_PROXY_FETCH_AUDIO_BASE64') {
-      const audioUrl = message.payload?.url;
-      if (!audioUrl) {
-        sendResponse({ success: false, error: 'No URL provided' });
-        return false;
-      }
-      fetch(audioUrl)
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const contentType = res.headers.get('content-type') || 'audio/mpeg';
-          return res.arrayBuffer().then((buf) => ({ buf, contentType }));
-        })
-        .then(({ buf, contentType }) => {
-          let binary = '';
-          const bytes = new Uint8Array(buf);
-          const len = bytes.byteLength;
-          for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          const base64 = btoa(binary);
-          sendResponse({ success: true, base64, contentType });
-        })
-        .catch((err) => {
-          sendResponse({ success: false, error: err?.message || String(err) });
-        });
-      return true; // async
-    }
-
-    // ── Proxy JSON Fetch to bypass host-page CSP (e.g. Google Docs connect-src) ──
-    if (message.action === 'GUIDEME_PROXY_FETCH_JSON') {
-      const { url, method = 'POST', headers = {}, body } = message.payload || {};
-      if (!url) {
-        sendResponse({ success: false, error: 'No URL provided' });
-        return false;
-      }
-
-      (async () => {
-        try {
-          const reqHeaders = { 'Content-Type': 'application/json', ...headers };
-
-          // Automatically inject stored AI key if missing on AI endpoints
-          const isAiEndpoint = typeof url === 'string' && (url.includes('openrouter.ai') || url.includes('api.openai.com'));
-          const authHeader = reqHeaders.Authorization || reqHeaders.authorization || '';
-          const hasValidBearer = authHeader.startsWith('Bearer ') && authHeader.replace(/^Bearer\s+/, '').trim().length > 0;
-
-          if (isAiEndpoint && !hasValidBearer) {
-            const stored = await chrome.storage?.local?.get(['guideme_ai_api_key']).catch?.(() => ({}));
-            const key = (stored?.guideme_ai_api_key || '').trim();
-            if (key) {
-              reqHeaders.Authorization = `Bearer ${key}`;
-            }
-          }
-
-          // Automatically inject stored backend auth token if targeting backend API
-          const isBackendEndpoint = typeof url === 'string' && (url.includes('/api/ai/') || url.includes('/api/v1/'));
-          if (isBackendEndpoint && !reqHeaders.Authorization && !reqHeaders.authorization) {
-            const stored = await chrome.storage?.local?.get(['guideme_auth_token', 'guideme_jwt_token']).catch?.(() => ({}));
-            const token = (stored?.guideme_auth_token || stored?.guideme_jwt_token || '').trim();
-            if (token) {
-              reqHeaders.Authorization = `Bearer ${token}`;
-            }
-          }
-
-          const res = await fetch(url, {
-            method,
-            headers: reqHeaders,
-            body: typeof body === 'string' ? body : (body !== undefined ? JSON.stringify(body) : undefined),
-          });
-
-          if (!res.ok) {
-            const errText = await res.text().catch(() => '');
-            return sendResponse({ success: false, status: res.status, error: errText });
-          }
-
-          const data = await res.json();
-          sendResponse({ success: true, data });
-        } catch (err) {
-          sendResponse({ success: false, error: err?.message || String(err) });
-        }
-      })();
-
-      return true; // async
-    }
-
-    // ── Capture Active Webpage Tab Screenshot ──
-    if (message.action === 'GUIDEME_CAPTURE_TAB_SCREENSHOT') {
-      const windowId = sender.tab?.windowId;
-      const capture = (targetWinId) => {
-        try {
-          chrome.tabs.captureVisibleTab(targetWinId || null, { format: 'png' }, (dataUrl) => {
-            if (chrome.runtime.lastError || !dataUrl) {
-              sendResponse({
-                success: false,
-                error: chrome.runtime.lastError?.message || 'Screenshot capture failed',
-              });
-            } else {
-              sendResponse({ success: true, dataUrl });
-            }
-          });
-        } catch (captureErr) {
-          sendResponse({ success: false, error: captureErr?.message || String(captureErr) });
-        }
-      };
-
-      if (windowId) {
-        capture(windowId);
-      } else {
-        chrome.storage?.local?.get(['guideme_target_window_id'], (stored) => {
-          capture(stored?.guideme_target_window_id || null);
-        });
-      }
-      return true; // async
-    }
 
     return false;
   });
@@ -499,6 +546,16 @@ export default defineBackground(() => {
       return false;
     }
 
+    // Token relay — content scripts call this when their own chrome.storage
+    // access fails due to an invalidated extension context. The background
+    // service-worker always has a valid context and can read storage safely.
+    if (message?.action === 'GUIDEME_GET_AUTH_TOKEN') {
+      chrome.storage.local.get(['authToken'], (result) => {
+        sendResponse({ token: result?.authToken || null });
+      });
+      return true; // keep channel open for async sendResponse
+    }
+
     // Auth success handoff from Next.js login/registration
     if (message?.type === 'GUIDEME_AUTH_SUCCESS') {
       const { token, user } = message.payload || {};
@@ -508,70 +565,11 @@ export default defineBackground(() => {
           authToken: token || null,
           userProfile: user || null,
         },
-        async () => {
+        () => {
           sendResponse({ status: 'SUCCESS' });
           triggerQueueSync();
-
-          // Retrieve origin tab & window to return smoothly to the popup
-          const stored = await chrome.storage.local.get([
-            'guideme_auth_origin_tab_id',
-            'guideme_auth_origin_window_id',
-          ]);
-
-          const originTabId = stored?.guideme_auth_origin_tab_id;
-          const originWindowId = stored?.guideme_auth_origin_window_id;
-
-          const finishReturn = (targetTabId, targetWindowId) => {
-            // 1. Close web login tab
-            if (sender.tab?.id) {
-              chrome.tabs.remove(sender.tab.id).catch(() => {});
-            }
-
-            // 2. Focus destination window and tab
-            const focusAndOpenPopup = () => {
-              if (targetWindowId) {
-                chrome.windows.update(targetWindowId, { focused: true }, () => {
-                  if (chrome.runtime.lastError) { /* ignore */ }
-                  if (targetTabId) {
-                    chrome.tabs.update(targetTabId, { active: true }, () => {
-                      if (chrome.runtime.lastError) { /* ignore */ }
-                      // 3. Open the extension popup automatically!
-                      setTimeout(() => {
-                        try {
-                          if (chrome.action?.openPopup) {
-                            chrome.action.openPopup({ windowId: targetWindowId }).catch(() => {
-                              chrome.action.openPopup().catch(() => {});
-                            });
-                          }
-                        } catch { }
-                      }, 250);
-                    });
-                  }
-                });
-              } else {
-                setTimeout(() => {
-                  try {
-                    if (chrome.action?.openPopup) {
-                      chrome.action.openPopup().catch(() => {});
-                    }
-                  } catch { }
-                }, 250);
-              }
-            };
-
-            setTimeout(focusAndOpenPopup, 100);
-          };
-
-          if (originTabId) {
-            chrome.tabs.get(originTabId, (tab) => {
-              if (!chrome.runtime.lastError && tab?.id && !tab.url?.startsWith('chrome://')) {
-                finishReturn(tab.id, originWindowId || tab.windowId);
-              } else {
-                findNormalWebTab(finishReturn);
-              }
-            });
-          } else {
-            findNormalWebTab(finishReturn);
+          if (sender.tab?.id) {
+            chrome.tabs.remove(sender.tab.id).catch(() => {});
           }
         }
       );
@@ -581,23 +579,4 @@ export default defineBackground(() => {
 
     return false;
   });
-
-  /**
-   * Resolve an active, normal webpage tab (excluding internal chrome:// pages).
-   */
-  function findNormalWebTab(callback) {
-    chrome.windows.getAll({ populate: true, windowTypes: ['normal'] }, (windows) => {
-      const normalWin = (windows || []).find((w) => w.focused) || (windows || [])[0];
-      const webTab = normalWin?.tabs?.find(
-        (t) => t.active && t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://')
-      ) || normalWin?.tabs?.find(
-        (t) => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://')
-      );
-      if (webTab && normalWin) {
-        callback(webTab.id, normalWin.id);
-      } else {
-        callback(null, null);
-      }
-    });
-  }
 });
