@@ -1,56 +1,45 @@
 import { useEffect, useState, useRef } from 'react';
-import { TutorialEngine, DynamicPageAnalyzer, TtsRegistry } from '@guideme/engine';
+import { TutorialEngine, DynamicPageAnalyzer, GeminiDomAnalyzer, TtsRegistry, IntentRegistry } from '@guideme/engine';
 import { ChromeAdapter } from '@guideme/chrome-adapter';
 import { ExtensionMessageAction, Language, EngineEvent } from '@guideme/core-types';
 import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../../src/catalog.js';
+// import { getCapturedStepStorageKey, createCapturedTutorial } from './useCaptureMode.js';
 
 /**
- * CSP-safe fetch wrapper: Routes HTTP requests through background service worker
- * to bypass host-page CSP (e.g. Google Docs connect-src).
+ * Returns a deterministic storage key for a captured step target on a given URL.
  */
-async function proxyFetchFn(url, options = {}) {
-  if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-    try {
-      const response = await new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(
-          {
-            action: 'GUIDEME_PROXY_FETCH_JSON',
-            payload: {
-              url,
-              method: options.method || 'GET',
-              headers: options.headers || {},
-              body: options.body,
-            },
-          },
-          (res) => {
-            if (chrome.runtime?.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-            } else if (!res || !res.success) {
-              const err = new Error(res?.error || `HTTP proxy error ${res?.status || 'unknown'}`);
-              err.status = res?.status;
-              reject(err);
-            } else {
-              resolve(res.data);
-            }
-          }
-        );
-      });
-
-      return {
-        ok: true,
-        status: 200,
-        json: async () => response,
-        text: async () => (typeof response === 'string' ? response : JSON.stringify(response)),
-      };
-    } catch (err) {
-      if (err?.status === 401 || err?.status === 403) {
-        throw err;
-      }
-      console.warn('[GuideMe Content Bridge] Background proxy fetch failed, falling back to direct fetch:', err);
-    }
+function getCapturedStepStorageKey(url) {
+  try {
+    const { hostname, pathname } = new URL(url);
+    const slug = (hostname + pathname).replace(/[^a-z0-9]/gi, '_').slice(0, 80);
+    return `guideme_captured_step_${slug}`;
+  } catch {
+    return 'guideme_captured_step_default';
   }
+}
 
-  return fetch(url, options);
+/**
+ * Wraps a captured DOM target into a minimal one-step tutorial object
+ * that the engine can start directly.
+ */
+function createCapturedTutorial(target) {
+  return {
+    id: 'captured_' + Date.now(),
+    name: { km: 'ជំហានដែលបានចាប់', en: 'Captured Step' },
+    description: { km: '', en: '' },
+    matchUrls: ['*'],
+    steps: [
+      {
+        id: 'captured_step_1',
+        action: {
+          type: 'click',
+          title: { km: 'ចុចទីនេះ', en: 'Click here' },
+          content: { km: 'ចុចលើធាតុដែលបានចាប់', en: 'Click on the captured element' },
+        },
+        target,
+      },
+    ],
+  };
 }
 
 /**
@@ -59,14 +48,7 @@ async function proxyFetchFn(url, options = {}) {
 async function resolveAiOptions(engineInstance) {
   let provider = import.meta.env?.WXT_AI_PROVIDER || 'openai';
   let geminiKey = import.meta.env?.WXT_GEMINI_API_KEY || import.meta.env?.VITE_GEMINI_API_KEY || '';
-  let geminiModel = import.meta.env?.WXT_GEMINI_MODEL || 'gemini-3.6-flash';
-  let aiPreset = import.meta.env?.WXT_AI_PRESET || '';
-  let aiEndpoint = import.meta.env?.WXT_AI_ENDPOINT || '';
-  let aiApiKey = import.meta.env?.WXT_AI_API_KEY || '';
-  let aiModel = import.meta.env?.WXT_AI_MODEL || '';
-  const isDev = import.meta.env?.DEV || process.env?.NODE_ENV === 'development';
-  const defaultProdUrl = 'https://guideme-lac.vercel.app';
-  let backendUrl = import.meta.env?.WXT_API_URL || (isDev ? 'http://localhost:4000' : defaultProdUrl);
+  let backendUrl = (import.meta.env?.WXT_API_URL) || '';
 
   if (typeof chrome !== 'undefined' && chrome.runtime?.id && chrome.storage?.local) {
     try {
@@ -97,15 +79,235 @@ async function resolveAiOptions(engineInstance) {
   return {
     provider,
     geminiApiKey: geminiKey,
-    geminiModel,
-    preset: aiPreset,
-    endpoint: aiEndpoint,
-    apiKey: aiApiKey || geminiKey,
-    model: aiModel || geminiModel,
     backendUrl,
     language: engineInstance?.getLanguage ? engineInstance.getLanguage() : 'km',
-    fetchFn: proxyFetchFn,
   };
+}
+
+function normalizeTargetHint(value) {
+  if (value && typeof value === 'object') {
+    value = value.en || value.km || '';
+  }
+  return String(value || '')
+    .replace(/^\s*(click|open|select|choose|press|tap)\s+/i, '')
+    .replace(/\s+(menu|button|link|item|tab|option|control)\s*$/i, '')
+    .replace(/^\s*(the|a|an)\s+/i, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Backend step generation can return a broad selector even when the DOM
+ * candidate list contains a stable selector for the same visible control.
+ * Re-bind those steps before passing them to the engine.
+ */
+function hydrateGeneratedTargets(tutorial, domElements) {
+  if (!tutorial?.steps || !Array.isArray(domElements)) return tutorial;
+
+  const isGenericSelector = (selector) => /^(button|div|a|input|span|select|textarea|p)$/i.test((selector || '').trim());
+
+  for (const step of tutorial.steps) {
+    const target = step?.target;
+    if (!target) continue;
+
+    const explicitTargetText = normalizeTargetHint(target.text);
+    const actionHint = normalizeTargetHint(step.action?.title || step.title);
+    const usableActionHint = /^(here|this|element|target|step)$/i.test(actionHint) ? '' : actionHint;
+    const targetText = usableActionHint || explicitTargetText;
+    const explicitTargetAria = normalizeTargetHint(target.ariaLabel);
+    const targetAria = explicitTargetAria;
+    const targetCss = target.css || '';
+    const cssCandidate = targetCss && domElements.find((item) => (
+      item.selector === targetCss &&
+      (!targetText || normalizeTargetHint(item.text) === targetText) &&
+      (!explicitTargetAria || normalizeTargetHint(item.ariaLabel) === explicitTargetAria)
+    ));
+    const findSemanticCandidate = (hint) => domElements.find((item) => (
+      (target.testId && item.testId === target.testId) ||
+      (targetAria && normalizeTargetHint(item.ariaLabel) === targetAria) ||
+      (hint && normalizeTargetHint(item.text) === hint)
+    ));
+    let candidate = cssCandidate || findSemanticCandidate(targetText);
+    if (!candidate && explicitTargetText && explicitTargetText !== targetText) {
+      candidate = findSemanticCandidate(explicitTargetText);
+    }
+
+    if (!candidate && targetCss && !isGenericSelector(targetCss)) {
+      candidate = domElements.find((item) => item.selector === targetCss);
+    }
+
+    if (!candidate) continue;
+    if (candidate.selector && (
+      !targetCss ||
+      isGenericSelector(targetCss) ||
+      (!isGenericSelector(candidate.selector) && candidate.selector !== targetCss)
+    )) {
+      target.css = candidate.selector;
+    }
+    if (!target.testId && candidate.testId) target.testId = candidate.testId;
+    if (!target.ariaLabel && candidate.ariaLabel) target.ariaLabel = candidate.ariaLabel;
+    if (candidate.text && (!target.text || usableActionHint)) target.text = candidate.text;
+  }
+
+  // Never allow a broad generated selector to spotlight an arbitrary visible
+  // element when the model supplied a meaningful action label.
+  for (const step of tutorial.steps) {
+    const target = step?.target;
+    if (!target || target.text) continue;
+    const inferredText = normalizeTargetHint(step.action?.title || step.title);
+    if (!inferredText || /^(this element|element|target|step)$/i.test(inferredText)) continue;
+    if (isGenericSelector(target.css)) target.text = inferredText;
+  }
+
+  return tutorial;
+}
+
+/**
+ * Click validation runs during capture phase, before the host application's
+ * own click handler has opened menus or dialogs. Give the host a chance to
+ * finish that state transition before scanning the DOM again.
+ */
+function waitForHostUiSettled() {
+  return new Promise((resolve) => {
+    const nextFrame = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (callback) => setTimeout(callback, 16);
+    let settled = false;
+    let minimumDelayComplete = false;
+    let quietTimer = null;
+    const maxTimer = setTimeout(finish, 1200);
+
+    const cleanup = () => {
+      clearTimeout(maxTimer);
+      if (quietTimer) clearTimeout(quietTimer);
+      observer?.disconnect();
+    };
+
+    function finish() {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve();
+    }
+
+    const scheduleQuietFinish = () => {
+      if (!minimumDelayComplete) return;
+      if (quietTimer) clearTimeout(quietTimer);
+      // 250ms quiet window — long enough for CSS transitions (typically 200–300ms)
+      // to finish painting before the DOM snapshot is taken for AI generation.
+      quietTimer = setTimeout(finish, 250);
+    };
+
+    const observer = typeof MutationObserver !== 'undefined' && typeof document !== 'undefined'
+      ? new MutationObserver(scheduleQuietFinish)
+      : null;
+    observer?.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+    });
+
+    nextFrame(() => {
+      nextFrame(() => {
+        // 400ms minimum gives standard CSS dropdown/menu animations (200–350ms)
+        // time to complete before we allow the quiet timer to schedule a finish.
+        // Previously 180ms — too short for animated dropdowns, causing the DOM
+        // snapshot to capture elements with opacity:0 or zero bounding boxes.
+        setTimeout(() => {
+          minimumDelayComplete = true;
+          scheduleQuietFinish();
+        }, 400);
+      });
+    });
+  });
+}
+
+/**
+ * Tries backend Stage 2 LLM first, falls back to local DynamicPageAnalyzer.
+ */
+async function generateGuideWithFallback(prompt, aiOptions, engineInstance, generationOptions = {}) {
+  const baseUrl = aiOptions.backendUrl;
+  let tutorial = null;
+  const backendTimeoutMs = 15000;
+
+  // Try backend Stage 2 LLM first
+  if (baseUrl) {
+    let timedOut = false;
+    let timeoutId;
+    try {
+      const domElements = GeminiDomAnalyzer.extractInteractiveDom(document, 100);
+      const controller = new AbortController();
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, backendTimeoutMs);
+
+      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/ai/generate-steps`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          elements: domElements,
+          language: engineInstance?.getLanguage ? engineInstance.getLanguage() : 'km',
+          currentUrl: window.location.href,
+          mode: generationOptions.mode || 'initial',
+          completedActions: generationOptions.completedActions || [],
+        }),
+        signal: controller.signal,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.done) {
+          tutorial = { id: `completed-${Date.now()}`, steps: [], done: true };
+          console.log(`[GuideMe] Backend confirmed goal completion for "${prompt}".`);
+        } else if (data?.tutorial?.steps?.length > 0) {
+          tutorial = data.tutorial;
+          hydrateGeneratedTargets(tutorial, domElements);
+          // Backend may omit matchUrls — add default so SchemaValidator passes
+          if (!tutorial.matchUrls) tutorial.matchUrls = ['<all_urls>'];
+          console.log(`[GuideMe] Backend generate-steps returned ${tutorial.steps.length} steps for "${prompt}":`, tutorial.steps.map((s) => s.title));
+        } else {
+          console.warn('[GuideMe] Backend generate-steps returned no/empty steps:', JSON.stringify(data).slice(0, 300));
+        }
+      } else {
+        console.warn(`[GuideMe] Backend generate-steps HTTP ${res.status}:`, (await res.text().catch(() => '')).slice(0, 300));
+      }
+    } catch (err) {
+      const reason = timedOut ? `timed out after ${backendTimeoutMs}ms` : (err?.message || 'unknown error');
+      console.info('[GuideMe] Backend generate-steps failed, using local fallback:', reason);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  // Fall back to local DynamicPageAnalyzer
+  if (!tutorial) {
+    // Do not immediately issue a second network request after a backend timeout.
+    // The local path must remain deterministic and available offline.
+    const fallbackOptions = baseUrl
+      ? {
+          ...aiOptions,
+          provider: 'local',
+          backendUrl: '',
+          apiKey: '',
+          nvidiaApiKey: '',
+          geminiApiKey: '',
+          reranker: null,
+        }
+      : { ...aiOptions, reranker: IntentRegistry.fromEnv(import.meta.env) };
+    tutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
+      document,
+      window.location.href,
+      prompt,
+      fallbackOptions
+    );
+    console.log(`[GuideMe] LOCAL DynamicPageAnalyzer returned ${tutorial?.steps?.length ?? 0} steps for "${prompt}"`);
+  }
+
+  return tutorial;
 }
 
 /**
@@ -118,6 +320,7 @@ export function useContentBridge({
   setIsOnboardingOpen,
   setIsDashboardOpen,
   setIsFullPopupOpen,
+  setIsCaptureMode,
   setIsDismissed,
 }) {
   const [engineState, setEngineState] = useState(() => ({
@@ -131,6 +334,7 @@ export function useContentBridge({
   );
 
   const engineRef = useRef(null);
+  const dynamicGuideRef = useRef({ prompt: '', completed: [], loading: false });
 
   useEffect(() => {
     const adapter = new ChromeAdapter();
@@ -139,8 +343,70 @@ export function useContentBridge({
     const engine = new TutorialEngine({
       adapter,
       ttsProvider,
+      beforeNextStep: async ({ step, stepIndex, tutorial }) => {
+        const context = dynamicGuideRef.current;
+        if (!context.prompt || context.loading || context.incremental === false) return;
+
+        context.loading = true;
+        const stepLabel = step?.action?.title || step?.title || `step ${stepIndex + 1}`;
+        context.completed.push(typeof stepLabel === 'object' ? (stepLabel.en || stepLabel.km || `step ${stepIndex + 1}`) : stepLabel);
+        try {
+          await waitForHostUiSettled();
+          const aiOptions = await resolveAiOptions(engineRef.current);
+          const completedText = context.completed.map((item, index) => `${index + 1}. ${item}`).join('; ');
+          const continuationPrompt = `${context.prompt}\n\nAlready completed: ${completedText}\nThe page has changed after the last action. Inspect the current DOM and generate ONLY the next remaining action. Do not repeat completed actions or plan future hidden actions.`;
+          const continuation = await generateGuideWithFallback(
+            continuationPrompt,
+            aiOptions,
+            engineRef.current,
+            { mode: 'next_action', completedActions: context.completed }
+          );
+          const existingKeys = new Set(tutorial.steps.map((item) => `${item.title}|${item.target?.text || item.target?.css || ''}`));
+          const remainingSteps = (continuation?.steps || []).filter((item) => (
+            item && !existingKeys.has(`${item.title}|${item.target?.text || item.target?.css || ''}`)
+          )).slice(0, 1);
+
+          if (remainingSteps.length > 0) {
+            engineRef.current?.appendSteps(remainingSteps);
+            console.log(`[GuideMe] Appended ${remainingSteps.length} continuation steps after step ${stepIndex + 1}.`);
+            return true;
+          }
+
+          if (continuation?.done) return true;
+
+          // No next step was generated (AI returned duplicates, empty steps, or
+          // indicated completion). Allow the guide to advance naturally — this
+          // is far better than leaving the user permanently stuck on the current
+          // step with a frozen click listener. The guide will either move to the
+          // next pre-baked step or complete if there are no more steps.
+          console.warn('[GuideMe] No next action was generated; allowing guide to advance.');
+          return undefined;
+        } catch (err) {
+          console.warn('[GuideMe] Continuation step generation failed:', err?.message);
+          // Do not block on errors — let the engine advance so the guide doesn't
+          // freeze. The user can always restart if the next step is wrong.
+          return undefined;
+        } finally {
+          context.loading = false;
+        }
+      },
     });
     engineRef.current = engine;
+
+    // Sync TTS backend URL with the same dynamic resolution used by the popup's AI chat,
+    // reading from chrome.storage.local or falling back to env/production URL.
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      chrome.storage.local.get('guideme_backend_url', (stored) => {
+        const storedUrl = stored?.guideme_backend_url;
+        if (storedUrl) {
+          ttsProvider.setBackendUrl(storedUrl);
+        } else {
+          const configuredUrl = import.meta.env.WXT_API_URL;
+          const hasApiUrl = configuredUrl && configuredUrl !== '';
+          if (hasApiUrl) ttsProvider.setBackendUrl(configuredUrl);
+        }
+      });
+    }
 
     const unsubscribe = engine.subscribe((state) => {
       setEngineState(state);
@@ -219,6 +485,13 @@ export function useContentBridge({
 
     // ── Realtime Step Progress Broadcasts (PiP and Background Sync) ──
     const onStepStart = ({ step, stepIndex }) => {
+      const resolvedTarget = engine.adapter?.describeTarget?.(step?.target);
+      console.info(`[GuideMe] Overlay target for step ${stepIndex + 1}/${engine.activeTutorial?.steps?.length || 0}:`, {
+        title: step?.title,
+        target: step?.target,
+        resolvedElement: resolvedTarget,
+      });
+
       const stepData = {
         id: step?.id,
         title: step?.action?.title || step?.title || '',
@@ -269,12 +542,23 @@ export function useContentBridge({
         chrome.storage?.local?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session']);
         chrome.storage?.session?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session']).catch?.(() => {});
       } catch {}
+
+      // Check if there's a multi-page plan to advance
+      try {
+        chrome.runtime?.sendMessage({
+          action: 'GUIDEME_MULTI_PAGE_COMPLETE',
+        }, (res) => {
+          if (res?.navigating && res?.url) {
+            // Background will navigate the tab — nothing more to do here
+          }
+        });
+      } catch {}
     };
 
     const onTutorialStop = () => {
       try {
         chrome.storage?.local?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session']);
-        chrome.storage?.session?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session']).catch?.(() => {});
+        chrome.storage?.session?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session', 'guideme_multi_page_plan']).catch?.(() => {});
       } catch {}
     };
 
@@ -291,6 +575,8 @@ export function useContentBridge({
           if (message.payload?.theme) {
             setTheme(message.payload.theme);
             sendResponse({ success: true, theme: message.payload.theme });
+          } else {
+            sendResponse({ success: false, error: 'No theme provided' });
           }
           break;
         }
@@ -322,15 +608,20 @@ export function useContentBridge({
           break;
         }
 
-        case 'GUIDEME_TOGGLE_CHAT_OVERLAY':
         case ExtensionMessageAction.OPEN_FLOATING_PROMPT: {
           setIsDismissed(false);
-          const nextState = message.payload?.open !== undefined ? Boolean(message.payload.open) : true;
-          setIsPromptOpen(nextState);
           try {
-            chrome.storage?.local?.set({ guideme_is_chat_open: nextState });
-          } catch { }
-          sendResponse({ success: true, isOpen: nextState });
+            chrome.runtime?.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }, (res) => {
+              if (chrome.runtime?.lastError || !res?.success) {
+                setIsPromptOpen(true);
+              } else {
+                setIsPromptOpen(false);
+              }
+            });
+          } catch {
+            setIsPromptOpen(true);
+          }
+          sendResponse({ success: true });
           break;
         }
 
@@ -355,57 +646,31 @@ export function useContentBridge({
           break;
         }
 
-        case 'GUIDEME_START_DYNAMIC_GUIDE':
         case ExtensionMessageAction.START_DYNAMIC_GUIDE: {
           (async () => {
             try {
               const prompt = message.payload?.prompt || message.payload?.userPrompt || '';
-              const intent = message.payload?.intent || null;
-
-              setIsDismissed(false);
-              setIsPromptOpen(false);
-              setIsFullPopupOpen(false);
-
-              // 1. Check if an available curated tutorial on this page matches the intent or prompt
-              const rawQuery = (intent?.targetQuery || intent?.category || prompt || '').toLowerCase();
-              const isShare = /\b(share|collaborat|permission|invite|ចែករំលែក|អញ្ជើញ)\b/i.test(rawQuery);
-
-              const matchedCurated = availableTutorials.find((tut) => {
-                const id = (tut.id || '').toLowerCase();
-                const enName = (typeof tut.name === 'object' ? tut.name.en : tut.name || '').toLowerCase();
-                const kmName = (typeof tut.name === 'object' ? tut.name.km : '').toLowerCase();
-
-                if (isShare && (id.includes('share') || enName.includes('share') || kmName.includes('ចែករំលែក'))) {
-                  return true;
-                }
-                if (intent?.targetQuery) {
-                  const tq = intent.targetQuery.toLowerCase();
-                  if (enName.includes(tq) || id.includes(tq) || kmName.includes(tq)) return true;
-                }
-                return false;
-              });
-
-              if (matchedCurated) {
-                console.log('[GuideMe] Found matching curated tutorial for message request:', matchedCurated.id);
-                const fullTutorial = TUTORIAL_CATALOG.find((t) => t.id === matchedCurated.id) || matchedCurated;
-                engine.start(fullTutorial, 0);
-                sendResponse({ success: true, tutorialId: matchedCurated.id, curated: true });
-                return;
-              }
-
-              // 2. Dynamic zero-hallucination scan
               const aiOptions = await resolveAiOptions(engine);
-              const dynamicTutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
-                document,
-                window.location.href,
-                prompt,
-                { ...aiOptions, intent }
-              );
-              if (dynamicTutorial && Array.isArray(dynamicTutorial.steps) && dynamicTutorial.steps.length > 0) {
-                engine.start(dynamicTutorial, 0);
-                sendResponse({ success: true, tutorialId: dynamicTutorial.id, dynamic: true });
+               const tutorial = await generateGuideWithFallback(prompt, aiOptions, engine);
+              if (tutorial) {
+                 dynamicGuideRef.current = {
+                   prompt,
+                   completed: [],
+                   loading: false,
+                   incremental: tutorial.steps.length <= 1,
+                 };
+                setIsDismissed(false);
+                setIsPromptOpen(false);
+                setIsFullPopupOpen(false);
+                const started = await engine.start(tutorial, 0);
+                if (!started) {
+                  console.error('[GuideMe] Tutorial validation failed. Tutorial received:', JSON.stringify(tutorial, null, 2).slice(0, 2000));
+                  sendResponse({ success: false, tutorialId: tutorial.id, dynamic: true, errors: ['Tutorial rejected by schema validator - check host page console'] });
+                } else {
+                  sendResponse({ success: true, tutorialId: tutorial.id, dynamic: true });
+                }
               } else {
-                sendResponse({ success: false, error: 'No matching interactive elements found' });
+                sendResponse({ success: false, error: 'No tutorial could be generated' });
               }
             } catch (err) {
               console.error('[GuideMe] Dynamic guide generation failed:', err);
@@ -417,6 +682,14 @@ export function useContentBridge({
 
         case ExtensionMessageAction.STOP_TUTORIAL:
           engine.stop();
+          sendResponse({ success: true });
+          break;
+
+        case 'GUIDEME_START_CAPTURE_MODE':
+          engine.stop();
+          setIsPromptOpen(false);
+          setIsDashboardOpen(false);
+          setIsCaptureMode(true);
           sendResponse({ success: true });
           break;
 
@@ -434,6 +707,8 @@ export function useContentBridge({
           if (message.payload?.language) {
             engine.setLanguage(message.payload.language);
             sendResponse({ success: true, language: engine.getLanguage() });
+          } else {
+            sendResponse({ success: false, error: 'No language provided' });
           }
           break;
 
@@ -445,6 +720,8 @@ export function useContentBridge({
             setIsFullPopupOpen(false);
             engine.start(session.tutorial, session.currentStepIndex || 0);
             sendResponse({ success: true });
+          } else {
+            sendResponse({ success: false, error: 'No tutorial in session' });
           }
           break;
         }
@@ -498,8 +775,49 @@ export function useContentBridge({
           });
           break;
 
-        default:
+        case 'GUIDEME_MULTI_PAGE_NEXT': {
+          const { prompt: mpPrompt, page } = message.payload || {};
+          if (mpPrompt) {
+            (async () => {
+              try {
+                const aiOptions = await resolveAiOptions(engine);
+                 const tutorial = await generateGuideWithFallback(mpPrompt, aiOptions, engine);
+                if (tutorial) {
+                   dynamicGuideRef.current = {
+                     prompt: mpPrompt,
+                     completed: [],
+                     loading: false,
+                     incremental: tutorial.steps.length <= 1,
+                   };
+                  setIsDismissed(false);
+                  setIsPromptOpen(false);
+                  setIsFullPopupOpen(false);
+                  engine.start(tutorial, 0);
+                  sendResponse({ success: true, tutorialId: tutorial.id });
+                } else {
+                  sendResponse({ success: false, error: 'No tutorial could be generated' });
+                }
+              } catch (err) {
+                sendResponse({ success: false, error: err.message });
+              }
+            })();
+            return true;
+          }
+          sendResponse({ success: false, error: 'No prompt' });
           break;
+        }
+
+        case 'GUIDEME_SHOW_FLOATING_PROMPT': {
+          // Show the floating prompt widget on the page
+          setIsPromptOpen(true);
+          setIsDismissed(false);
+          sendResponse({ success: true });
+          break;
+        }
+
+        default:
+          sendResponse({ success: false, error: 'Unknown action' });
+          return false;
       }
       return true;
     };
@@ -524,9 +842,16 @@ export function useContentBridge({
             }
           } catch { /* ignore */ }
         }
+
+        // If no active session, check for captured target fallback
+        const captureKey = getCapturedStepStorageKey(window.location.href);
+        chrome.storage?.local?.get(captureKey, (stored) => {
+          const target = stored?.[captureKey]?.target;
+          if (isMounted && target) engine.start(createCapturedTutorial(target), 0);
+        });
       });
     } catch {
-      // Storage is optional.
+      // Storage is optional; live capture remains available.
     }
 
     return () => {
@@ -540,51 +865,26 @@ export function useContentBridge({
     };
   }, []);
 
-  const handleStartDynamicGuide = async (prompt, imageToSend, intent) => {
+  const handleStartDynamicGuide = async (prompt) => {
     try {
-      // 1. Immediately dismiss chat prompt so user sees page and spotlight
-      setIsPromptOpen(false);
-      setIsFullPopupOpen(false);
-      try {
-        chrome.storage?.local?.set({ guideme_is_chat_open: false });
-      } catch {}
-
-      // 2. Check if an available curated tutorial on this page matches the intent or prompt
-      const rawQuery = (intent?.targetQuery || intent?.category || prompt || '').toLowerCase();
-      const isShare = /\b(share|collaborat|permission|invite|ចែករំលែក|អញ្ជើញ)\b/i.test(rawQuery);
-
-      const matchedCurated = availableTutorials.find((tut) => {
-        const id = (tut.id || '').toLowerCase();
-        const enName = (typeof tut.name === 'object' ? tut.name.en : tut.name || '').toLowerCase();
-        const kmName = (typeof tut.name === 'object' ? tut.name.km : '').toLowerCase();
-
-        if (isShare && (id.includes('share') || enName.includes('share') || kmName.includes('ចែករំលែក'))) {
-          return true;
-        }
-        if (intent?.targetQuery) {
-          const tq = intent.targetQuery.toLowerCase();
-          if (enName.includes(tq) || id.includes(tq) || kmName.includes(tq)) return true;
-        }
-        return false;
-      });
-
-      if (matchedCurated) {
-        console.log('[GuideMe] Found matching curated tutorial for intent:', matchedCurated.id);
-        const fullTutorial = TUTORIAL_CATALOG.find((t) => t.id === matchedCurated.id) || matchedCurated;
-        engineRef.current?.start(fullTutorial, 0);
+      // Guard: if the extension context was invalidated (e.g. after a hot-reload),
+      // bail out cleanly instead of crashing with "Extension context invalidated".
+      if (typeof chrome === 'undefined' || !chrome.runtime?.id) {
+        console.warn('[GuideMe] Extension context unavailable — reload the extension or the page.');
         return;
       }
-
-      // 3. Fallback: Dynamic Zero-Hallucination Fuse.js DOM Scanner
       const aiOptions = await resolveAiOptions(engineRef.current);
-      const dynamicTutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
-        document,
-        window.location.href,
-        prompt,
-        { ...aiOptions, intent }
-      );
-      if (dynamicTutorial && Array.isArray(dynamicTutorial.steps) && dynamicTutorial.steps.length > 0) {
-        engineRef.current?.start(dynamicTutorial, 0);
+       const tutorial = await generateGuideWithFallback(prompt, aiOptions, engineRef.current);
+      if (tutorial) {
+         dynamicGuideRef.current = {
+           prompt,
+           completed: [],
+           loading: false,
+           incremental: tutorial.steps.length <= 1,
+         };
+        setIsPromptOpen(false);
+        setIsFullPopupOpen(false);
+        engineRef.current?.start(tutorial, 0);
       }
     } catch (err) {
       console.error('[GuideMe] Dynamic guide generation failed:', err);
