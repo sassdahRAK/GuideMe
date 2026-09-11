@@ -8,6 +8,7 @@ export * from './runtime/event-bus.js';
 export * from './runtime/variable-store.js';
 export * from './runtime/session-manager.js';
 export * from './dynamic/dynamic-analyzer.js';
+export * from './dynamic/gemini-dom-analyzer.js';
 export * from './i18n/i18n-manager.js';
 export * from './audio/audio-engine.js';
 export * from './audio/audio-cache.js';

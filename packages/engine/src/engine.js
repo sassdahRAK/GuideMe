@@ -1,4 +1,4 @@
-import { EngineStatus, EngineEvent, Language, AlertState, ValidationType } from '@guideme/core-types';
+﻿import { EngineStatus, EngineEvent, Language, AlertState, ValidationType } from '@guideme/core-types';
 import { StateMachine } from './state-machine/state-machine.js';
 import { TutorialParser } from './parser/parser.js';
 import { StepResolver } from './resolver/step-resolver.js';
@@ -20,14 +20,16 @@ export class TutorialEngine {
    * @param {import('@guideme/adapter-interface').BaseTutorialAdapter} options.adapter
    * @param {string} [options.initialLanguage='km']
    * @param {import('./audio/audio-engine.js').BaseTtsProvider} [options.ttsProvider]
+   * @param {(context: Object) => Promise<boolean|void>|boolean|void} [options.beforeNextStep]
    */
-  constructor({ adapter, initialLanguage = Language.KM, ttsProvider = null }) {
+  constructor({ adapter, initialLanguage = Language.KM, ttsProvider = null, beforeNextStep = null }) {
     this.adapter = adapter;
     this.events = new EventBus();
     this.variables = new VariableStore();
     this.session = new SessionManager(adapter);
     this.i18n = new I18nManager({ initialLanguage });
     this.audio = new AudioEngine({ ttsProvider });
+    this.beforeNextStep = beforeNextStep;
 
     this.stateMachine = new StateMachine((from, to, ctx) => {
       this._emitStateChange(from, to, ctx);
@@ -346,6 +348,40 @@ export class TutorialEngine {
   }
 
   /**
+   * Append dynamically discovered steps to the active tutorial.
+   * This supports workflows whose next controls appear only after the
+   * current action opens a menu, dialog, or new application state.
+   * @param {Object[]} steps
+   */
+  appendSteps(steps = []) {
+    if (!this.activeTutorial || !Array.isArray(steps) || steps.length === 0) return 0;
+
+    const existingCount = this.activeTutorial.steps.length;
+    const appended = steps.map((step, offset) => ({
+      ...step,
+      index: existingCount + offset,
+      isFirst: false,
+      isLast: false,
+      defaultPrevStepIndex: existingCount + offset - 1,
+      defaultNextStepIndex: null,
+    }));
+
+    this.activeTutorial.steps.push(...appended);
+    for (let index = 0; index < this.activeTutorial.steps.length; index += 1) {
+      const step = this.activeTutorial.steps[index];
+      step.index = index;
+      step.isFirst = index === 0;
+      step.isLast = index === this.activeTutorial.steps.length - 1;
+      step.defaultPrevStepIndex = index > 0 ? index - 1 : null;
+      step.defaultNextStepIndex = index + 1 < this.activeTutorial.steps.length ? index + 1 : null;
+      this.activeTutorial.stepMap?.set(step.id, step);
+    }
+
+    this._notifyState();
+    return appended.length;
+  }
+
+  /**
    * Complete teardown and memory cleanup.
    */
   destroy() {
@@ -421,7 +457,7 @@ export class TutorialEngine {
 
     // Resolve target coordinates
     if (step.target && this.adapter) {
-      const { boundingBox } = await this.stepResolver.resolveTarget(step, 1500);
+      const { boundingBox } = await this.stepResolver.resolveTarget(step, 5000);
       if (startGeneration !== null && startGeneration !== this._startGeneration) return;
       this.targetBoundingBox = boundingBox;
       this.targetMissing = !boundingBox || (boundingBox.width === 0 && boundingBox.height === 0);
@@ -446,6 +482,12 @@ export class TutorialEngine {
     }
 
     // Bind validation listeners and rescue monitors
+    // Snapshot the current generation counter here. If engine.start() is called
+    // concurrently (e.g. auto-restore from background) while beforeNextStep is
+    // awaiting AI generation, _startGeneration will have incremented and
+    // activeTutorial will have been replaced. The snapshot lets us detect that
+    // and abort the stale callback before calling nextStep on the wrong tutorial.
+    const boundGeneration = this._startGeneration;
     this._activeValidationCleanup = ValidationEngine.bindValidation(
       step,
       this.adapter,
@@ -454,6 +496,19 @@ export class TutorialEngine {
           this.validationSatisfied = true;
           this._clearAlertState();
           this.events.emit(EngineEvent.STEP_SUCCESS, { step, eventData: result.eventData });
+          if (typeof this.beforeNextStep === 'function') {
+            const shouldAdvance = await this.beforeNextStep({
+              step,
+              stepIndex: this.currentStepIndex,
+              tutorial: this.activeTutorial,
+            });
+            // If a concurrent engine.start() fired during the beforeNextStep
+            // await (e.g. session restore arriving from background), the tutorial
+            // has already been replaced. Calling nextStep() here would advance
+            // the wrong tutorial's step index. Bail out silently.
+            if (this._startGeneration !== boundGeneration) return;
+            if (shouldAdvance === false) return;
+          }
           await this.nextStep();
         }
       },

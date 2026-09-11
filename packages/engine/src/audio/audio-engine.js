@@ -88,6 +88,14 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
     }
   }
 
+  /**
+   * Update the backend URL at runtime (e.g. after resolving from storage).
+   * @param {string} url
+   */
+  setBackendUrl(url) {
+    if (url) this.backendUrl = url;
+  }
+
   async speak({ text, lang, audioUrl, rate = 1.0, onStart, onEnd, onError }) {
     this.stop();
     const speechId = ++this._currentSpeechId;
@@ -142,7 +150,7 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
       try {
         this._abortController = new AbortController();
         const base = this.backendUrl.replace(/\/+$/, '');
-        const endpoints = [`${base}/api/tts/synthesize`, `${base}/api/v1/tts`];
+        const endpoints = [`${base}/api/tts/synthesize`];
 
         let data = null;
         for (const endpoint of endpoints) {
