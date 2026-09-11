@@ -15,11 +15,11 @@ export class StateMachine {
     this.transitions = {
       [EngineStatus.IDLE]: [EngineStatus.LOADING, EngineStatus.STEP_ACTIVE, EngineStatus.ERROR],
       [EngineStatus.LOADING]: [EngineStatus.STEP_ACTIVE, EngineStatus.STEP_COMPLETED, EngineStatus.IDLE, EngineStatus.ERROR],
-      [EngineStatus.STEP_ACTIVE]: [EngineStatus.STEP_ACTIVE, EngineStatus.VALIDATING, EngineStatus.PAUSED, EngineStatus.STEP_COMPLETED, EngineStatus.COMPLETED, EngineStatus.IDLE, EngineStatus.ERROR],
-      [EngineStatus.VALIDATING]: [EngineStatus.STEP_ACTIVE, EngineStatus.STEP_COMPLETED, EngineStatus.COMPLETED, EngineStatus.ERROR, EngineStatus.IDLE],
-      [EngineStatus.STEP_COMPLETED]: [EngineStatus.STEP_ACTIVE, EngineStatus.STEP_COMPLETED, EngineStatus.COMPLETED, EngineStatus.IDLE, EngineStatus.ERROR],
-      [EngineStatus.PAUSED]: [EngineStatus.STEP_ACTIVE, EngineStatus.IDLE, EngineStatus.ERROR],
-      [EngineStatus.COMPLETED]: [EngineStatus.IDLE, EngineStatus.LOADING, EngineStatus.STEP_ACTIVE],
+      [EngineStatus.STEP_ACTIVE]: [EngineStatus.STEP_ACTIVE, EngineStatus.LOADING, EngineStatus.VALIDATING, EngineStatus.PAUSED, EngineStatus.STEP_COMPLETED, EngineStatus.COMPLETED, EngineStatus.IDLE, EngineStatus.ERROR],
+      [EngineStatus.VALIDATING]: [EngineStatus.STEP_ACTIVE, EngineStatus.LOADING, EngineStatus.STEP_COMPLETED, EngineStatus.COMPLETED, EngineStatus.ERROR, EngineStatus.IDLE],
+      [EngineStatus.STEP_COMPLETED]: [EngineStatus.STEP_ACTIVE, EngineStatus.LOADING, EngineStatus.STEP_COMPLETED, EngineStatus.COMPLETED, EngineStatus.IDLE, EngineStatus.ERROR],
+      [EngineStatus.PAUSED]: [EngineStatus.STEP_ACTIVE, EngineStatus.LOADING, EngineStatus.IDLE, EngineStatus.ERROR],
+      [EngineStatus.COMPLETED]: [EngineStatus.COMPLETED, EngineStatus.IDLE, EngineStatus.LOADING, EngineStatus.STEP_ACTIVE],
       [EngineStatus.ERROR]: [EngineStatus.IDLE, EngineStatus.LOADING],
     };
   }
@@ -39,6 +39,11 @@ export class StateMachine {
    * @returns {boolean}
    */
   transition(nextState, context = {}) {
+    // Idempotent self-transitions are safe no-ops
+    if (this.currentState === nextState) {
+      return true;
+    }
+
     const allowed = this.transitions[this.currentState] || [];
     if (!allowed.includes(nextState)) {
       console.warn(`[GuideMe StateMachine] Invalid transition from '${this.currentState}' to '${nextState}'`);

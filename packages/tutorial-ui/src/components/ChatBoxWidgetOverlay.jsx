@@ -590,43 +590,89 @@ export function ChatBoxWidgetOverlay({
     let aiResponded = false;
     const isDev = Boolean(import.meta.env?.DEV);
     const defaultProdUrl = 'https://guideme-lac.vercel.app';
-    const baseUrl = import.meta.env?.WXT_API_URL || (isDev ? 'http://localhost:4000' : defaultProdUrl);
+    let baseUrl = import.meta.env?.WXT_API_URL || (isDev ? 'http://localhost:4000' : defaultProdUrl);
+
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+        const stored = await chrome.storage.local.get(['guideme_backend_url']).catch(() => ({}));
+        if (stored?.guideme_backend_url) baseUrl = stored.guideme_backend_url;
+      }
+    } catch {}
+
+    const reqBody = {
+      question: effectiveText,
+      language,
+      image: imageToSend || undefined,
+    };
+    const targetUrl = `${baseUrl.replace(/\/$/, '')}/api/ai/assistant-chat`;
 
     try {
       setProcessingPercent(65);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      let replyData = null;
 
-      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/ai/assistant-chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: effectiveText,
-          language,
-          image: imageToSend || undefined,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+      // 1. Prefer background service worker proxy (bypasses host page CSP and mixed content)
+      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+        try {
+          replyData = await new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage(
+              {
+                action: 'GUIDEME_PROXY_FETCH_JSON',
+                payload: {
+                  url: targetUrl,
+                  method: 'POST',
+                  body: reqBody,
+                },
+              },
+              (res) => {
+                if (chrome.runtime?.lastError) {
+                  reject(new Error(chrome.runtime.lastError.message));
+                } else if (!res || !res.success) {
+                  reject(new Error(res?.error || `HTTP proxy status ${res?.status}`));
+                } else {
+                  resolve(res.data);
+                }
+              }
+            );
+          });
+        } catch {
+          // Backend service proxy failed/offline, proceed to direct fetch
+        }
+      }
 
-      if (res.ok) {
-        const data = await res.json();
-        const reply = data.answer || data.message;
+      // 2. Direct fetch fallback if runtime proxy did not resolve
+      if (!replyData) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reqBody),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          replyData = await res.json();
+        }
+      }
+
+      if (replyData) {
+        const reply = replyData.answer || replyData.message;
         if (reply) {
           appendAiMessage(reply, targetTabId);
           aiResponded = true;
 
-          const shouldTrigger = Boolean(data.triggerGuide) || Boolean(imageToSend);
+          const shouldTrigger = Boolean(replyData.triggerGuide) || Boolean(imageToSend);
           if (shouldTrigger && onStartDynamicGuide) {
             setProcessingPercent(85);
-            const intentPrompt = data.intentPrompt || effectiveText;
-            onStartDynamicGuide(intentPrompt, imageToSend, data.intent || null);
+            const intentPrompt = replyData.intentPrompt || effectiveText;
+            onStartDynamicGuide(intentPrompt, imageToSend, replyData.intent || null);
             onToggleOpen?.(false);
           }
         }
       }
-    } catch (backendErr) {
-      console.warn('[GuideMe ChatBox] Backend AI unreachable, executing on-page guide fallback:', backendErr);
+    } catch {
+      // Backend is offline or unreachable; fall back cleanly to on-page zero-hallucination guide
+      console.info('[GuideMe ChatBox] Backend server offline, activating on-page guide fallback.');
     }
 
     // Local fallback if backend is unavailable or offline

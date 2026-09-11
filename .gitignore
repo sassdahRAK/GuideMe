@@ -59,6 +59,7 @@ out/
 # Chrome Extension Specific Bundle Builds
 apps/chrome-extension/dist/
 apps/chrome-extension/build/
+apps/chrome-extension/compile/
 *.crx
 *.zip
 

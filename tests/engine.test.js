@@ -16,6 +16,7 @@ import {
   TtsRegistry,
 } from '../packages/engine/src/index.js';
 import { BaseTutorialAdapter } from '../packages/adapter-interface/src/index.js';
+import { SchemaValidator } from '../packages/tutorial-schema/src/index.js';
 import { EngineStatus, Language, AudioPlaybackStatus } from '../packages/core-types/src/index.js';
 
 // Mock in-memory Adapter for testing headless engine logic
@@ -485,4 +486,109 @@ describe('GuideMe Tutorial Engine & Bilingual / Audio Tests', () => {
     assert.strictEqual(endedCount, 1);
     assert.strictEqual(audio.getStatus(), AudioPlaybackStatus.ENDED);
   });
+
+  test('StepResolver JIT Dynamic Grounding resolves target with generalized interactive fallback if primary CSS selector misses', async () => {
+    class JITMockAdapter extends BaseTutorialAdapter {
+      async findTarget(selector) {
+        // Primary specific selector fails
+        if (selector.css === '#hidden-submenu-item') return null;
+        // JIT fallback succeeds using text/aria matching
+        if (selector.text === 'Page setup') {
+          return { x: 50, y: 120, width: 90, height: 28, top: 120, left: 50, bottom: 148, right: 140 };
+        }
+        return null;
+      }
+    }
+
+    const adapter = new JITMockAdapter();
+    const resolver = new StepResolver({}, adapter);
+
+    const step = {
+      id: 'step-page-setup',
+      target: {
+        css: '#hidden-submenu-item',
+        text: 'Page setup',
+      },
+    };
+
+    const { targetFound, boundingBox } = await resolver.resolveTarget(step, 100);
+    assert.strictEqual(targetFound, true);
+    assert.ok(boundingBox);
+    assert.strictEqual(boundingBox.x, 50);
+  });
+
+  test('StateMachine allows idempotent self-transitions (COMPLETED -> COMPLETED) without warnings', () => {
+    const sm = new StateMachine();
+    assert.strictEqual(sm.getState(), EngineStatus.IDLE);
+
+    // Transition IDLE -> LOADING -> STEP_ACTIVE -> COMPLETED
+    assert.strictEqual(sm.transition(EngineStatus.LOADING), true);
+    assert.strictEqual(sm.transition(EngineStatus.STEP_ACTIVE), true);
+    assert.strictEqual(sm.transition(EngineStatus.COMPLETED), true);
+    assert.strictEqual(sm.getState(), EngineStatus.COMPLETED);
+
+    // Calling COMPLETED when already COMPLETED must succeed idempotently
+    assert.strictEqual(sm.transition(EngineStatus.COMPLETED), true);
+    assert.strictEqual(sm.getState(), EngineStatus.COMPLETED);
+  });
+
+  test('SchemaValidator self-heals steps where LLM provided action.title but omitted root step.title', () => {
+    const rawStepFromGemini = {
+      id: 'step-1-open-file-menu',
+      action: {
+        type: 'spotlight',
+        title: { km: 'បើកម៉ឺនុយឯកសារ', en: 'Open File Menu' },
+        content: { km: 'ចុចលើ File', en: 'Click File' },
+      },
+      validation: { type: 'click' },
+      target: { css: '#file-menu' },
+    };
+
+    // Before validation, step.title is undefined
+    assert.strictEqual(rawStepFromGemini.title, undefined);
+
+    // SchemaValidator should heal step.title from action.title
+    const errors = SchemaValidator.validateStep(rawStepFromGemini, 0);
+    assert.strictEqual(errors.length, 0);
+    assert.deepStrictEqual(rawStepFromGemini.title, { km: 'បើកម៉ឺនុយឯកសារ', en: 'Open File Menu' });
+  });
+
+  test('SchemaValidator self-heals complete tutorial where all steps have action.title but lack step.title', () => {
+    const geminiTutorial = {
+      id: 'gemini-guide-test',
+      version: '1.0.0',
+      name: { km: 'ការណែនាំ', en: 'Guide' },
+      description: { km: 'ការពិពណ៌នា', en: 'Description' },
+      matchUrls: ['<all_urls>'],
+      steps: [
+        {
+          id: 'step-1-open-file-menu',
+          action: {
+            type: 'spotlight',
+            title: 'Open File Menu',
+            content: 'Click on File',
+          },
+          validation: { type: 'click' },
+          target: { css: '#file-menu' },
+        },
+        {
+          id: 'step-2-page-setup',
+          action: {
+            type: 'spotlight',
+            title: 'Click Page Setup',
+            content: 'Select Page Setup from menu',
+          },
+          validation: { type: 'click' },
+          target: { css: '[role="menuitem"]', text: 'Page setup' },
+        },
+      ],
+    };
+
+    const result = SchemaValidator.validateTutorial(geminiTutorial);
+    assert.strictEqual(result.valid, true);
+    assert.strictEqual(result.errors.length, 0);
+    assert.strictEqual(geminiTutorial.steps[0].title, 'Open File Menu');
+    assert.strictEqual(geminiTutorial.steps[1].title, 'Click Page Setup');
+  });
 });
+

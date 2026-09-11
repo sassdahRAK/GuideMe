@@ -57,18 +57,18 @@
 - [x] Automatic session restoration on page navigation or reload with 0 step context loss.
 - [x] Dynamic guide triggering from detached floating launcher directly to the active webpage.
 
-### Phase 4.4: NVIDIA AI NIM (Kimi-K3) DOM & Engine Intelligence Integration
+### Phase 4.4: Universal AI Gateway & DOM Engine Intelligence Integration
 - [x] **Live DOM Engine + AI Synergy Loop:**
-  - Implemented two-stage interactive workflow: DOM Engine scans live host webpage elements (`tag`, `id`, `class`, `testId`, `ariaLabel`, `text`, `coordinates`) -> sends candidates to NVIDIA NIM -> `moonshotai/kimi-k3` reasons on user intent (Khmer/English) and maps sequential interactive steps -> Engine binds live spotlights, monitors clicks/inputs, and auto-advances.
-- [x] **Headless `NvidiaDomAnalyzer` (`@guideme/engine`):**
-  - Pure JS, Node & browser-compatible analyzer consuming NVIDIA NIM chat completions (`https://integrate.api.nvidia.com/v1/chat/completions`).
-  - Defensive extraction with `<think>...</think>` reasoning token stripping and Markdown code fence isolation for reasoning models (e.g. `moonshotai/kimi-k3`).
+  - Implemented two-stage interactive workflow: DOM Engine scans live host webpage elements (`tag`, `id`, `class`, `testId`, `ariaLabel`, `text`, `coordinates`) -> sends candidates to backend AI gateway -> LLM reasons on user intent (Khmer/English) and maps sequential interactive steps -> Engine binds live spotlights, monitors clicks/inputs, and auto-advances.
+- [x] **Headless AI Analysis & DOM Grounding (`@guideme/engine`):**
+  - Pure JS, Node & browser-compatible analyzer consuming OpenAI-compatible endpoints and Gemini REST API.
+  - Defensive extraction with `<think>...</think>` reasoning token stripping and Markdown code fence isolation for reasoning models.
   - Step candidate hydration and Zod `SchemaValidator` schema validation before passing to engine.
 - [x] **Dual-Tier Secret Management Architecture:**
-  - **Backend Layer (`GuideMe-Backend`):** Added secure proxy endpoint `POST /api/v1/ai/dom-guide` and `.env` credentials (`NVIDIA_API_KEY`, `NVIDIA_MODEL=moonshotai/kimi-k3`, `NVIDIA_BASE_URL`). Zero API key leakage into Chrome extension bundles; allows instant model/key rotation without waiting for Chrome Web Store reviews.
+  - **Backend Layer (`GuideMe-Backend`):** Added secure proxy endpoint `POST /api/v1/ai/dom-guide` and `.env` credentials (`OPENROUTER_API_KEY`, `GEMINI_API_KEY`). Zero API key leakage into Chrome extension bundles; allows instant model/key rotation without waiting for Chrome Web Store reviews.
   - **Client-Side BYOK:** Settings popup allows power users/developers to optionally supply their own personal key saved locally in `chrome.storage.local`.
 - [x] **Popup & UI Settings:**
-  - Added AI Provider selector (NVIDIA NIM vs Google Gemini vs Cloud Proxy).
+  - Added AI Provider selector (OpenAI / OpenRouter vs Google Gemini).
   - Added live status indicators, Khmer diacritic-safe Kantumruy typography, and full Khmer (`km`) / English (`en`) bilingual strings in `ui-strings.js`.
 - [x] **Automated Test Coverage:**
 ### Phase 4.5: AI-First Intent Pipeline & Fuse.js Grounded DOM Scanner (ADR-014)
@@ -77,7 +77,7 @@
   - Colloquial greetings, typos, and phonetic variations (such as "heeloo brooo", "helo bro", "yo wassup") are naturally handled by the AI in both Khmer and English.
 - [x] **Provider-Agnostic Structured Intent Contract:**
   - Standardized the assistant output schema to return `{ answer, triggerGuide, intentPrompt, intent: { targetQuery, action, role, category } }`.
-  - Works seamlessly across NVIDIA AI NIM (Kimi-K3), Google Gemini, and offline heuristics without requiring provider-specific branching.
+  - Works seamlessly across OpenRouter, Google Gemini, and offline heuristics without requiring provider-specific branching.
 - [x] **Zero-Hallucination Local DOM Grounding:**
   - Implemented `harvestInteractiveElements` in `dom-harvester.js` with light DOM & Shadow Root traversal, visibility checks, and identifier harvesting.
   - Implemented `matchDomElementWithFuse` in `fuse-dom-matcher.js` combining Fuse.js fuzzy text scoring with modal primacy (+40), viewport visibility (+25), and action-role affinity (+30).
@@ -87,10 +87,10 @@
   - Total automated test count increased to **166 passing tests across 12 test suites** (100% pass rate).
 
 ### Phase 4.6: Gemini Sub-Second Primary Engine & Modal Primacy Hardening
-- [x] **Gemini Sub-Second AI Integration (Option 2B):**
-  - Configured Google Gemini (`gemini-3.6-flash`) as the primary fast LLM engine in `GuideMe-Backend/src/services/ai.service.ts` across `askContextualAssistant`, `generateDomGuideSteps`, `generateGuideSteps`, and `rerankIntentCandidates`.
-  - Replaced high-latency reasoning token generation with sub-second structured JSON responses (<500ms).
-  - Maintained NVIDIA NIM (`moonshotai/kimi-k3` / `meta/llama-3.3-70b-instruct`) as the robust secondary fallback tier.
+- [x] **Gemini Sub-Second AI Integration:**
+  - Configured Google Gemini (`gemini-3.6-flash` / `gemini-3-flash-preview`) and OpenRouter as the unified fast LLM engines in `GuideMe-Backend/src/services/ai.service.ts` across `askContextualAssistant`, `generateDomGuideSteps`, `generateGuideSteps`, and `rerankIntentCandidates`.
+  - Replaced high-latency reasoning token generation with sub-second structured JSON responses (<800ms).
+  - Maintained Google Gemini rotating key pool as the robust high-availability secondary tier.
 - [x] **DOM Observer Modal Primacy & Backdrop Isolation (Option 1A):**
   - Added `DomObserver.getActiveModal()` detecting open `<dialog>`, `[role="dialog"]`, `[aria-modal="true"]`, and Google Docs dialogs.
   - Enforced active modal scoping in `DomObserver.findElement`: elements behind active modal backdrops are filtered out, locking spotlights directly onto foreground dialog targets.

@@ -169,8 +169,8 @@ User Prompt ("heeloo brooo" or "help me share this document")
   │
   ▼
 Cloud/Backend AI Assistant (POST /api/ai/assistant-chat)
-  ├── Primary Engine: Google Gemini (gemini-3.6-flash, sub-second latency <500ms)
-  ├── Secondary Fallback: NVIDIA AI NIM (moonshotai/kimi-k3 / Llama-3.3-70B)
+  ├── Primary Engine: OpenRouter (Google Gemini 3.5 Flash / OpenAI-compatible, <800ms)
+  ├── Redundant Tier: Google Gemini Rotating Key Pool (gemini-3-flash-preview, sub-second latency)
   ├── No Premature Regex Gatekeeper: Handles colloquial greetings, typos, and slang directly
   ├── Natural conversational reply returned to active chat tab immediately
   └── If Actionable: Returns structured intent { targetQuery: "Share", action: "click", role: "button" }

@@ -407,22 +407,52 @@ export default defineBackground(() => {
         sendResponse({ success: false, error: 'No URL provided' });
         return false;
       }
-      fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', ...headers },
-        body: typeof body === 'string' ? body : (body !== undefined ? JSON.stringify(body) : undefined),
-      })
-        .then(async (res) => {
+
+      (async () => {
+        try {
+          const reqHeaders = { 'Content-Type': 'application/json', ...headers };
+
+          // Automatically inject stored AI key if missing on AI endpoints
+          const isAiEndpoint = typeof url === 'string' && (url.includes('openrouter.ai') || url.includes('api.openai.com'));
+          const authHeader = reqHeaders.Authorization || reqHeaders.authorization || '';
+          const hasValidBearer = authHeader.startsWith('Bearer ') && authHeader.replace(/^Bearer\s+/, '').trim().length > 0;
+
+          if (isAiEndpoint && !hasValidBearer) {
+            const stored = await chrome.storage?.local?.get(['guideme_ai_api_key']).catch?.(() => ({}));
+            const key = (stored?.guideme_ai_api_key || '').trim();
+            if (key) {
+              reqHeaders.Authorization = `Bearer ${key}`;
+            }
+          }
+
+          // Automatically inject stored backend auth token if targeting backend API
+          const isBackendEndpoint = typeof url === 'string' && (url.includes('/api/ai/') || url.includes('/api/v1/'));
+          if (isBackendEndpoint && !reqHeaders.Authorization && !reqHeaders.authorization) {
+            const stored = await chrome.storage?.local?.get(['guideme_auth_token', 'guideme_jwt_token']).catch?.(() => ({}));
+            const token = (stored?.guideme_auth_token || stored?.guideme_jwt_token || '').trim();
+            if (token) {
+              reqHeaders.Authorization = `Bearer ${token}`;
+            }
+          }
+
+          const res = await fetch(url, {
+            method,
+            headers: reqHeaders,
+            body: typeof body === 'string' ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+          });
+
           if (!res.ok) {
             const errText = await res.text().catch(() => '');
             return sendResponse({ success: false, status: res.status, error: errText });
           }
+
           const data = await res.json();
           sendResponse({ success: true, data });
-        })
-        .catch((err) => {
+        } catch (err) {
           sendResponse({ success: false, error: err?.message || String(err) });
-        });
+        }
+      })();
+
       return true; // async
     }
 

@@ -168,9 +168,7 @@ export function SettingsOverlay({
   const isKhmer = currentLanguage === 'km';
   // Exclusive accordion: only one section open at a time
   const [openSection, setOpenSection] = useState(null);
-  const [aiProvider, setAiProvider] = useState('nvidia');
-  const [nvidiaApiKeyInput, setNvidiaApiKeyInput] = useState('');
-  const [nvidiaModelInput, setNvidiaModelInput] = useState('moonshotai/kimi-k3');
+  const [aiProvider, setAiProvider] = useState('openai');
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('');
   const [geminiModelInput, setGeminiModelInput] = useState('gemini-3.6-flash');
   const [isKeySaved, setIsKeySaved] = useState(false);
@@ -180,15 +178,11 @@ export function SettingsOverlay({
       chrome.storage.local.get(
         [
           'guideme_ai_provider',
-          'guideme_nvidia_api_key',
-          'guideme_nvidia_model',
           'guideme_gemini_api_key',
           'guideme_gemini_model',
         ],
         (res) => {
           if (res?.guideme_ai_provider) setAiProvider(res.guideme_ai_provider);
-          if (res?.guideme_nvidia_api_key) setNvidiaApiKeyInput(res.guideme_nvidia_api_key);
-          if (res?.guideme_nvidia_model) setNvidiaModelInput(res.guideme_nvidia_model);
           if (res?.guideme_gemini_api_key) setGeminiApiKeyInput(res.guideme_gemini_api_key);
           if (res?.guideme_gemini_model) setGeminiModelInput(res.guideme_gemini_model);
         }
@@ -201,8 +195,6 @@ export function SettingsOverlay({
       chrome.storage.local.set(
         {
           guideme_ai_provider: aiProvider,
-          guideme_nvidia_api_key: nvidiaApiKeyInput.trim(),
-          guideme_nvidia_model: nvidiaModelInput.trim() || 'moonshotai/kimi-k3',
           guideme_gemini_api_key: geminiApiKeyInput.trim(),
           guideme_gemini_model: geminiModelInput.trim() || 'gemini-3.6-flash',
         },
@@ -352,14 +344,14 @@ export function SettingsOverlay({
               <div className="grid grid-cols-2 gap-1.5 p-1 rounded-lg bg-gray-100 dark:bg-[#12121e] border border-gray-200/60 dark:border-[#2d2d44]">
                 <button
                   type="button"
-                  onClick={() => setAiProvider('nvidia')}
+                  onClick={() => setAiProvider('openai')}
                   className={`py-1 px-2 rounded-md text-[11px] font-medium border-0 cursor-pointer transition-all ${
-                    aiProvider === 'nvidia'
+                    aiProvider === 'openai'
                       ? 'bg-purple-600 text-white shadow-xs'
                       : 'bg-transparent text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
-                  NVIDIA NIM (Kimi-K3)
+                  GuideMe Cloud / OpenRouter
                 </button>
                 <button
                   type="button"
@@ -381,51 +373,11 @@ export function SettingsOverlay({
                 {isKhmer ? 'មុខងារសកម្ម' : 'Active Mode'}:
               </span>
               <span className="font-semibold text-purple-700 dark:text-purple-300">
-                {aiProvider === 'nvidia'
-                  ? (nvidiaApiKeyInput.trim() ? getUIString('aiActiveNvidia', currentLanguage) : getUIString('aiActiveBackend', currentLanguage))
+                {aiProvider === 'openai'
+                  ? getUIString('aiActiveBackend', currentLanguage)
                   : (geminiApiKeyInput.trim() ? getUIString('aiActiveGemini', currentLanguage) : getUIString('aiLocal', currentLanguage))}
               </span>
             </div>
-
-            {/* NVIDIA Configuration */}
-            {aiProvider === 'nvidia' && (
-              <div className="flex flex-col gap-2.5">
-                <div className="p-2 rounded-lg bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100/60 dark:border-purple-900/30 text-[11px] text-purple-900 dark:text-purple-200">
-                  {getUIString('nvidiaFreeNotice', currentLanguage)}
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="font-semibold text-gray-800 dark:text-zinc-200">
-                    {getUIString('nvidiaApiKey', currentLanguage)}
-                  </label>
-                  <input
-                    type="password"
-                    value={nvidiaApiKeyInput}
-                    onChange={(e) => setNvidiaApiKeyInput(e.target.value)}
-                    placeholder={getUIString('nvidiaApiKeyPlaceholder', currentLanguage)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#38384f] bg-white dark:bg-[#101018] text-gray-900 dark:text-white outline-none focus:border-purple-500 text-xs box-border"
-                  />
-                  <span className="text-[10px] text-gray-500 dark:text-zinc-400">
-                    {isKhmer
-                      ? 'ទុកទទេដើម្បីប្រើ GuideMe Cloud Proxy ដោយស្វ័យប្រវត្តិ (Key រក្សាទុកលើ Server)'
-                      : 'Leave empty to use GuideMe Cloud Proxy automatically (Key stored on Server)'}
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="font-semibold text-gray-800 dark:text-zinc-200">
-                    {getUIString('nvidiaModel', currentLanguage)}
-                  </label>
-                  <input
-                    type="text"
-                    value={nvidiaModelInput}
-                    onChange={(e) => setNvidiaModelInput(e.target.value)}
-                    placeholder={getUIString('nvidiaModelPlaceholder', currentLanguage)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#38384f] bg-white dark:bg-[#101018] text-gray-900 dark:text-white outline-none focus:border-purple-500 text-xs box-border"
-                  />
-                </div>
-              </div>
-            )}
 
             {/* Gemini Configuration */}
             {aiProvider === 'gemini' && (

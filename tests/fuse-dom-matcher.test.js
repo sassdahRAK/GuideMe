@@ -145,4 +145,67 @@ describe('Fuse.js DOM Scanner & Grounded Matcher Tests', () => {
     const validation = SchemaValidator.validateTutorial(tutorial);
     assert.strictEqual(validation.valid, true);
   });
+
+  test('harvestInteractiveElements extracts collapsed menu elements and records parentMenu', () => {
+    const triggerBtn = {
+      tagName: 'BUTTON',
+      id: 'menu-file',
+      textContent: 'File',
+      getAttribute: (attr) => (attr === 'aria-label' ? 'File' : null),
+      getBoundingClientRect: () => ({ top: 10, left: 10, bottom: 40, right: 80, width: 70, height: 30 }),
+    };
+
+    const dropdownContainer = {
+      parentElement: {
+        querySelector: (sel) => triggerBtn,
+      },
+      querySelector: (sel) => triggerBtn,
+    };
+
+    const collapsedItem = {
+      tagName: 'BUTTON',
+      id: 'page-setup-btn',
+      textContent: 'Page setup',
+      className: '',
+      closest: (sel) => (sel.includes('menu') || sel.includes('dropdown') ? dropdownContainer : null),
+      getAttribute: (attr) => (attr === 'role' ? 'menuitem' : null),
+      getBoundingClientRect: () => ({ top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 }),
+    };
+
+    const doc = createMockDoc([triggerBtn, collapsedItem]);
+    const candidates = harvestInteractiveElements(doc);
+
+    const setupCand = candidates.find((c) => c.text === 'Page setup');
+    assert.ok(setupCand, 'Collapsed item should be captured');
+    assert.strictEqual(setupCand.parentMenu, 'File');
+  });
+
+  test('synthesizeGroundedTutorial produces a valid 2-step hierarchy when item has parentMenu', () => {
+    const matched = {
+      id: 'page-setup-btn',
+      text: 'Page setup',
+      tag: 'button',
+      derivedSelector: '#page-setup-btn',
+      parentMenu: 'File',
+    };
+
+    const tutorial = synthesizeGroundedTutorial(matched, { targetQuery: 'Page setup', action: 'click' });
+    assert.ok(tutorial);
+    assert.strictEqual(tutorial.steps.length, 2, 'Should create 2 sequential steps');
+    
+    // Step 1: Open parent menu
+    assert.strictEqual(tutorial.steps[0].id, 'step-1');
+    assert.ok(tutorial.steps[0].title.en.includes('File'));
+    assert.strictEqual(tutorial.steps[0].target.text, 'File');
+    assert.strictEqual(tutorial.steps[0].validation.type, 'click');
+
+    // Step 2: Target item inside menu
+    assert.strictEqual(tutorial.steps[1].id, 'step-2');
+    assert.ok(tutorial.steps[1].title.en.includes('Page setup'));
+    assert.strictEqual(tutorial.steps[1].target.css, '#page-setup-btn');
+    assert.strictEqual(tutorial.steps[1].validation.type, 'click');
+
+    const validation = SchemaValidator.validateTutorial(tutorial);
+    assert.strictEqual(validation.valid, true, `Validation errors: ${validation.errors.join(', ')}`);
+  });
 });

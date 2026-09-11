@@ -1,0 +1,149 @@
+{
+  "id": "google-docs-page-setup-guide",
+  "version": "1.0.0",
+  "name": {
+    "km": "កំណត់ទំហំទំព័រ (Page Setup) ជា A4 ក្នុង Google Docs",
+    "en": "Set Page Setup to A4 in Google Docs"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបើកម៉ឺនុយ File ចូលទៅកាន់ Page setup និងជ្រើសរើសទំហំក្រដាស A4។",
+    "en": "Learn how to open File menu, access Page setup, and configure paper size to A4."
+  },
+  "matchUrls": [
+    "https://docs.google.com/document/*",
+    "https://docs.google.com/document/d/*",
+    "*://*/*test-demo.html*"
+  ],
+  "steps": [
+    {
+      "id": "step_open_file",
+      "title": {
+        "km": "ចុចម៉ឺនុយ ឯកសារ (File)",
+        "en": "Click File Menu"
+      },
+      "description": {
+        "km": "ចុចលើម៉ឺនុយ 'File' នៅរបារខាងលើដើម្បីបើកបញ្ជីជម្រើស។",
+        "en": "Click the 'File' menu in the top bar to open options."
+      },
+      "target": {
+        "css": "#docs-file-menu, [aria-label*='File' i], div[role='menuitem'][aria-label*='File' i], span:has-text('File')",
+        "ariaLabel": "File",
+        "text": "File"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចម៉ឺនុយ File",
+          "en": "Click File Menu"
+        },
+        "content": {
+          "km": "សូមចុចលើពាក្យ 'File' នៅជ្រុងខាងឆ្វេងខាងលើ។",
+          "en": "Click 'File' in the top-left menu bar."
+        },
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_click_page_setup",
+      "title": {
+        "km": "ចុចលើ ការកំណត់ទំព័រ (Page setup)",
+        "en": "Click Page Setup"
+      },
+      "description": {
+        "km": "ស្វែងរក និងចុចលើជម្រើស 'Page setup' ក្នុងបញ្ជីម៉ឺនុយ File។",
+        "en": "Find and click 'Page setup' in the File menu dropdown."
+      },
+      "target": {
+        "css": "[role='menuitem']:has-text('Page setup'), .goog-menuitem:has-text('Page setup'), [aria-label*='Page setup' i]",
+        "text": "Page setup",
+        "ariaLabel": "Page setup"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើសរើស Page setup",
+          "en": "Click Page setup"
+        },
+        "content": {
+          "km": "ចុចលើ 'Page setup' ដើម្បីបើកផ្ទាំងកំណត់ទំហំទំព័រ។",
+          "en": "Click 'Page setup' to open the page configuration dialog."
+        },
+        "placement": "right"
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_select_paper_size",
+      "title": {
+        "km": "ជ្រើសរើសទំហំក្រដាស A4",
+        "en": "Select Paper Size A4"
+      },
+      "description": {
+        "km": "ចុចលើប្រអប់ Paper size ហើយជ្រើសរើសទំហំ 'A4'។",
+        "en": "Click the Paper size dropdown and select 'A4'."
+      },
+      "target": {
+        "css": "[role='dialog'] .goog-flat-menu-button, [role='dialog'] [role='listbox'], [role='dialog'] [role='combobox'], .modal-dialog .goog-flat-menu-button",
+        "text": "A4",
+        "ariaLabel": "Paper size",
+        "container": "[role='dialog'], .modal-dialog"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើសរើស A4",
+          "en": "Select A4"
+        },
+        "content": {
+          "km": "ជ្រើសរើសទំហំក្រដាស «A4» (21cm x 29.7cm) សម្រាប់ឯកសាររបស់អ្នក។",
+          "en": "Select 'A4' (21cm x 29.7cm) for your document paper size."
+        },
+        "placement": "bottom"
+      },
+      "validation": {
+        "type": "click",
+        "alternativeTargets": [
+          {
+            "css": "[role='option']:has-text('A4'), .goog-menuitem:has-text('A4'), [role='menuitem']:has-text('A4')"
+          }
+        ]
+      }
+    },
+    {
+      "id": "step_confirm_ok",
+      "title": {
+        "km": "ចុចប៊ូតុង យល់ព្រម (OK)",
+        "en": "Click OK"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'OK' ដើម្បីរក្សាទុកការកំណត់ទំព័រ។",
+        "en": "Click 'OK' to save your page setup settings."
+      },
+      "target": {
+        "css": "[role='dialog'] button[name='ok'], [role='dialog'] .modal-dialog-buttons button.goog-buttonset-action, [role='dialog'] button:has-text('OK'), button[name='ok']",
+        "text": "OK",
+        "container": "[role='dialog'], .modal-dialog"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច OK",
+          "en": "Click OK"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'OK' ដើម្បីបញ្ចប់។",
+          "en": "Click the 'OK' button to finish."
+        },
+        "placement": "top"
+      },
+      "validation": {
+        "type": "click"
+      }
+    }
+  ]
+}

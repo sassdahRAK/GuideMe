@@ -28,15 +28,23 @@ const INTERACTIVE_SELECTORS = [
   'select',
   'textarea',
   '[role="button"]',
+  '[role="combobox"]',
+  '[role="listbox"]',
+  '[role="radio"]',
+  '[role="checkbox"]',
   '[role="link"]',
   '[role="tab"]',
   '[role="menuitem"]',
+  '[role="option"]',
   '[role="searchbox"]',
   '[data-testid]',
   '[tabindex="0"]',
   '[aria-label]',
   '[title]',
   '[data-tooltip]',
+  '.goog-flat-menu-button',
+  '.goog-select',
+  'summary',
 ];
 
 /**
@@ -46,6 +54,8 @@ const INTERACTIVE_SELECTORS = [
  * @param {Document|Element} doc
  * @param {Object} [options]
  * @param {number} [options.maxElements=350]
+ * @param {string} [options.targetQuery]
+ * @param {Object} [options.intent]
  * @returns {Array<Object>} Extracted candidate descriptors with direct element references
  */
 export function harvestInteractiveElements(doc, options = {}) {
@@ -144,22 +154,64 @@ export function harvestInteractiveElements(doc, options = {}) {
       } catch {}
     }
 
+    // Check if element is inside a popup/dropdown menu container (e.g. flyout submenu)
+    const menuContainer = el.closest ? el.closest('[role="menu"], .dropdown-menu, .goog-menu, details') : null;
+    let isCollapsed = false;
+    let parentMenu = undefined;
+
     if (typeof window !== 'undefined' && window.getComputedStyle) {
       try {
         const style = window.getComputedStyle(el);
         if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-          continue;
+          if (menuContainer) {
+            isCollapsed = true;
+          } else {
+            continue;
+          }
         }
       } catch {}
     }
 
+    if (menuContainer) {
+      // Find the specific trigger button for this menu container, never querying generic parent links/logos
+      let trigger = null;
+      if (menuContainer.tagName === 'DETAILS') {
+        trigger = menuContainer.querySelector('summary');
+      } else if (menuContainer.id && typeof doc.querySelector === 'function') {
+        trigger = doc.querySelector(`[aria-controls="${menuContainer.id}"], [aria-owns="${menuContainer.id}"]`);
+      }
+      if (!trigger && menuContainer.previousElementSibling?.matches?.('button, [role="button"], [role="menuitem"], [aria-haspopup]')) {
+        trigger = menuContainer.previousElementSibling;
+      }
+      if (!trigger && menuContainer.parentElement?.matches?.('button, [role="button"], [role="menuitem"], [aria-haspopup]')) {
+        trigger = menuContainer.parentElement;
+      }
+
+      if (!trigger) {
+        // Fallback for standard/mocked dropdown containers (buttons/menuitems only, never loose anchor/logo links)
+        trigger = menuContainer.parentElement?.querySelector?.('[aria-haspopup], [aria-expanded], summary, [role="menuitem"], button')
+          || menuContainer.querySelector?.('[aria-haspopup], [aria-expanded], summary');
+      }
+
+      if (trigger && trigger !== el) {
+        const label = trigger.getAttribute?.('aria-label') || trigger.getAttribute?.('title') || trigger.textContent || '';
+        const cleanLabel = label.trim().replace(/\s+/g, ' ').substring(0, 40);
+        // Exclude generic brand logos or home navigation from being treated as parent menus
+        if (cleanLabel && !/docs-homescreen|docs\s*home|brand|logo/i.test(`${cleanLabel} ${trigger.className || ''} ${trigger.id || ''}`)) {
+          parentMenu = cleanLabel;
+        }
+      }
+    }
+
+    const formEl = /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement} */ (el);
+    const textInputEl = /** @type {HTMLInputElement | HTMLTextAreaElement} */ (el);
     const tag = (el.tagName || '').toLowerCase();
     const id = (el.id || '').trim();
-    const name = (el.name || (el.getAttribute ? el.getAttribute('name') : '') || '').trim();
+    const name = (formEl.name || (el.getAttribute ? el.getAttribute('name') : '') || '').trim();
     const testId = (el.getAttribute ? (el.getAttribute('data-testid') || el.getAttribute('data-cy')) : '') || '';
     const ariaLabel = (el.getAttribute ? (el.getAttribute('aria-label') || el.getAttribute('title')) : '') || '';
-    const placeholder = (el.placeholder || (el.getAttribute ? el.getAttribute('placeholder') : '') || '').trim();
-    const type = (el.type || (el.getAttribute ? el.getAttribute('type') : '') || '').toLowerCase();
+    const placeholder = (textInputEl.placeholder || (el.getAttribute ? el.getAttribute('placeholder') : '') || '').trim();
+    const type = (formEl.type || (el.getAttribute ? el.getAttribute('type') : '') || '').toLowerCase();
     const role = (el.getAttribute ? el.getAttribute('role') : '') || tag;
 
     // Filter CSRF / Token hidden fields
@@ -201,6 +253,8 @@ export function harvestInteractiveElements(doc, options = {}) {
       isInModal,
       isInput,
       category,
+      isCollapsed: isCollapsed || undefined,
+      parentMenu: parentMenu || undefined,
     });
   }
 

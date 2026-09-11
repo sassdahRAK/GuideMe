@@ -142,7 +142,7 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
     assert.deepStrictEqual(stepIds, ['cand-1']);
   });
 
-  test('Stage 2 LlmReranker supports NVIDIA NIM provider preset and strips reasoning tokens', async () => {
+  test('Stage 2 LlmReranker supports OpenRouter / OpenAI provider and strips reasoning tokens', async () => {
     let capturedUrl = '';
     let capturedHeaders = {};
     const mockFetch = async (url, options) => {
@@ -164,13 +164,14 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
     };
 
     const reranker = new LlmReranker({
-      provider: 'nvidia',
-      apiKey: 'nvapi-kimi-key',
+      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      apiKey: 'sk-or-v1-test-key',
+      model: 'openai/gpt-4o-mini',
       fetchFn: mockFetch,
     });
 
-    assert.strictEqual(reranker.endpoint, 'https://integrate.api.nvidia.com/v1/chat/completions');
-    assert.strictEqual(reranker.model, 'moonshotai/kimi-k3');
+    assert.strictEqual(reranker.endpoint, 'https://openrouter.ai/api/v1/chat/completions');
+    assert.strictEqual(reranker.model, 'openai/gpt-4o-mini');
 
     const candidates = [
       { candidateId: 'cand-0', desc: { category: 'navigation', label: 'Overview' }, score: 0.5 },
@@ -178,8 +179,8 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
     ];
 
     const stepIds = await reranker.rerank('share project', candidates);
-    assert.strictEqual(capturedUrl, 'https://integrate.api.nvidia.com/v1/chat/completions');
-    assert.strictEqual(capturedHeaders['Authorization'], 'Bearer nvapi-kimi-key');
+    assert.strictEqual(capturedUrl, 'https://openrouter.ai/api/v1/chat/completions');
+    assert.strictEqual(capturedHeaders['Authorization'], 'Bearer sk-or-v1-test-key');
     assert.deepStrictEqual(stepIds, ['cand-1']);
   });
 

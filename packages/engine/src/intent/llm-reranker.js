@@ -128,10 +128,7 @@ export class LlmReranker extends BaseIntentReranker {
     this.endpoint = config.endpoint || '';
     this.apiKey = config.apiKey || '';
     this.provider = (config.provider || 'openai').toLowerCase();
-    if (this.provider === 'nvidia') {
-      this.endpoint = config.endpoint || 'https://integrate.api.nvidia.com/v1/chat/completions';
-      this.model = config.model || 'moonshotai/kimi-k3';
-    } else if (this.provider === 'gemini') {
+    if (this.provider === 'gemini') {
       this.endpoint = config.endpoint || '';
       this.model = config.model || 'gemini-1.5-flash';
     } else {

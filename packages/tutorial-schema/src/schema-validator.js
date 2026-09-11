@@ -82,8 +82,17 @@ export class SchemaValidator {
       errors.push(`${prefix} Missing or invalid 'id'`);
     }
 
+    // Self-healing: If step.title is missing, recover from action.title, instruction, or description
     if (!isValidLocalizedOrString(step.title)) {
-      errors.push(`${prefix} Missing or invalid 'title' (must be string or localized object)`);
+      if (isValidLocalizedOrString(step.action?.title)) {
+        step.title = step.action.title;
+      } else if (isValidLocalizedOrString(step.instruction)) {
+        step.title = step.instruction;
+      } else if (isValidLocalizedOrString(step.description)) {
+        step.title = step.description;
+      } else {
+        errors.push(`${prefix} Missing or invalid 'title' (must be string or localized object)`);
+      }
     }
 
     if (!step.action || typeof step.action !== 'object') {
@@ -91,6 +100,10 @@ export class SchemaValidator {
     } else {
       if (!step.action.type || typeof step.action.type !== 'string') {
         errors.push(`${prefix} Missing 'action.type'`);
+      }
+      // Self-healing: If action.title is missing, sync from step.title
+      if (!step.action.title && isValidLocalizedOrString(step.title)) {
+        step.action.title = step.title;
       }
       if (!step.action.content && !step.action.title && !step.action.instruction) {
         errors.push(`${prefix} 'action' must specify at least 'title', 'instruction', or 'content'`);

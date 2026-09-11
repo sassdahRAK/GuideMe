@@ -196,17 +196,34 @@ export function matchDomElementWithFuse(candidates, intent = {}, options = {}) {
     return {
       candidate: item,
       score,
+      fuseScore: rawFuseScore,
     };
   });
 
   scored.sort((a, b) => b.score - a.score);
-  const winner = scored[0]?.candidate;
+  const best = scored[0];
+  if (!best) return null;
+
+  // Never match brand/home logo navigation icons when looking for in-app commands
+  const isNavLogo = /docs-homescreen|docs\s*home|brand|logo/i.test(
+    `${best.candidate.ariaLabel || ''} ${best.candidate.selector || ''} ${best.candidate.text || ''}`
+  );
+  if (isNavLogo && !/home|logo|ទំព័រដើម/i.test(cleanTarget)) {
+    return null;
+  }
+
+  // Minimum confidence requirement: score must be at least 60
+  if (best.score < 60) {
+    return null;
+  }
+
+  const winner = best.candidate;
   if (!winner) return null;
 
   return {
     ...winner,
     derivedSelector: deriveConcreteSelector(winner),
-    matchScore: scored[0].score,
+    matchScore: best.score,
   };
 }
 
@@ -235,6 +252,11 @@ export function synthesizeGroundedTutorial(matched, intent = {}, options = {}) {
     ? `Type "${intent.expectedInput || ''}" into this field to continue.`
     : `Click the "${targetLabel}" button to proceed.`;
 
+  const hasValidParentMenu = Boolean(
+    matched.parentMenu &&
+    !/docs-homescreen|docs\s*home|brand|logo/i.test(matched.parentMenu)
+  );
+
   return {
     id: tutorialId,
     version: '1.0.0',
@@ -247,7 +269,72 @@ export function synthesizeGroundedTutorial(matched, intent = {}, options = {}) {
       en: descEn,
     },
     matchUrls: ['<all_urls>'],
-    steps: [
+    steps: hasValidParentMenu ? [
+      {
+        id: `step-1`,
+        title: {
+          km: `ចុចលើ ${matched.parentMenu}`,
+          en: `Click ${matched.parentMenu}`,
+        },
+        description: {
+          km: `ចុចលើម៉ឺនុយ "${matched.parentMenu}" ដើម្បីបើកជម្រើស។`,
+          en: `Click "${matched.parentMenu}" to open the options.`,
+        },
+        target: {
+          css: `[aria-label*="${matched.parentMenu}" i], [title*="${matched.parentMenu}" i]`,
+          text: matched.parentMenu,
+          ariaLabel: matched.parentMenu,
+        },
+        action: {
+          type: 'spotlight',
+          title: {
+            km: `ចុចលើ ${matched.parentMenu}`,
+            en: `Click ${matched.parentMenu}`,
+          },
+          content: {
+            km: `ចុចលើម៉ឺនុយ "${matched.parentMenu}" ដើម្បីបើកជម្រើស។`,
+            en: `Click "${matched.parentMenu}" to open the options.`,
+          },
+          placement: 'bottom',
+        },
+        validation: {
+          type: 'click',
+        },
+      },
+      {
+        id: `step-2`,
+        title: {
+          km: titleKm,
+          en: titleEn,
+        },
+        description: {
+          km: descKm,
+          en: descEn,
+        },
+        target: {
+          css: selector,
+          text: matched.text || undefined,
+          ariaLabel: matched.ariaLabel || undefined,
+          testId: matched.testId || undefined,
+        },
+        action: {
+          type: 'spotlight',
+          title: {
+            km: titleKm,
+            en: titleEn,
+          },
+          content: {
+            km: descKm,
+            en: descEn,
+          },
+          placement: 'bottom',
+        },
+        validation: {
+          type: actionType,
+          expectedValue: isInput ? (intent.expectedInput || undefined) : undefined,
+        },
+      },
+    ] : [
       {
         id: `step-1`,
         title: {

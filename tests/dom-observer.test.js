@@ -294,3 +294,64 @@ test('DomEventListener safely handles invalid selector like #:6j without throwin
   }
 });
 
+test('DomObserver prioritizes leaf interactive control (e.g. Paper size dropdown) over the modal dialog container itself when modal is open', () => {
+  const originalDocument = globalThis.document;
+
+  const paperSizeDropdown = {
+    tagName: 'DIV',
+    className: 'goog-inline-block goog-flat-menu-button',
+    textContent: 'A4 (21.0 cm x 29.7 cm)',
+    offsetParent: {},
+    getClientRects: () => [{ width: 180, height: 32 }],
+    getAttribute: (attr) => (attr === 'role' ? 'listbox' : null),
+    matches: (sel) => sel.includes('goog-flat-menu-button') || sel.includes('listbox'),
+    contains: () => false,
+  };
+
+  const modalDialog = {
+    tagName: 'DIV',
+    className: 'modal-dialog',
+    textContent: 'Page setup Pages Pageless Paper size A4 (21.0 cm x 29.7 cm) OK Cancel',
+    offsetParent: {},
+    getClientRects: () => [{ width: 500, height: 400 }],
+    getAttribute: (attr) => (attr === 'role' ? 'dialog' : null),
+    matches: (sel) => sel.includes('dialog') || sel.includes('modal'),
+    contains: (el) => el === paperSizeDropdown || el === modalDialog,
+    querySelectorAll: (sel) => {
+      if (sel.includes('goog-flat-menu-button') || sel.includes('listbox') || sel.includes('button')) {
+        return [paperSizeDropdown];
+      }
+      return [];
+    },
+  };
+
+  globalThis.document = {
+    querySelectorAll(sel) {
+      if (sel.includes('dialog') || sel.includes('modal')) {
+        return [modalDialog];
+      }
+      if (sel.includes('goog-flat-menu-button') || sel.includes('listbox')) {
+        return [paperSizeDropdown];
+      }
+      return [];
+    },
+    querySelector(sel) {
+      if (sel.includes('dialog') || sel.includes('modal')) {
+        return modalDialog;
+      }
+      return null;
+    },
+  };
+
+  try {
+    const found = DomObserver.findElement({
+      css: '.modal-dialog, [role="dialog"], [role="listbox"], .goog-flat-menu-button',
+      text: 'A4',
+    });
+
+    assert.strictEqual(found, paperSizeDropdown, 'Should return the dropdown control, NOT the modal dialog container');
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+

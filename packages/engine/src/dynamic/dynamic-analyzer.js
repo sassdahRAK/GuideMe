@@ -1,5 +1,5 @@
-import { GeminiDomAnalyzer } from './gemini-dom-analyzer.js';
-import { NvidiaDomAnalyzer } from './nvidia-dom-analyzer.js';
+// @ts-check
+import { SchemaValidator } from '@guideme/tutorial-schema';
 import { safeIdSelector, harvestInteractiveElements } from './dom-harvester.js';
 import { matchDomElementWithFuse, synthesizeGroundedTutorial } from './fuse-dom-matcher.js';
 
@@ -34,7 +34,8 @@ export class DynamicPageAnalyzer {
 
     const title = doc.title || '';
     const forms = Array.from(doc.querySelectorAll('form'));
-    const allInputs = Array.from(doc.querySelectorAll('input, select, textarea')).filter((el) => {
+    /** @type {HTMLInputElement[]} */
+    const allInputs = /** @type {HTMLInputElement[]} */ (Array.from(doc.querySelectorAll('input, select, textarea'))).filter((el) => {
       const type = (el.type || '').toLowerCase();
       if (type === 'hidden' || type === 'submit' || type === 'button' || type === 'image') return false;
       const ariaHidden = el.getAttribute ? el.getAttribute('aria-hidden') : null;
@@ -205,58 +206,58 @@ export class DynamicPageAnalyzer {
       }
     }
 
-    // 0. Option 1: Zero-Hallucination Fuse.js Grounded DOM Matching
-    let intent = options.intent || (typeof userPrompt === 'object' && userPrompt !== null && !Array.isArray(userPrompt) ? userPrompt : null);
-    if (!intent && typeof userPrompt === 'string' && userPrompt.trim() && !isJsonPrompt) {
-      intent = this.extractIntentFromText(userPrompt);
-    }
-
-    if (intent && (intent.targetQuery || intent.action)) {
-      const candidates = harvestInteractiveElements(doc, { targetQuery: intent.targetQuery, ...options });
-      const matched = matchDomElementWithFuse(candidates, intent, options);
-      if (matched) {
-        return synthesizeGroundedTutorial(matched, intent, options);
-      }
-    }
-
     if (typeof userPrompt === 'string' && userPrompt.trim() && !isJsonPrompt) {
       const provider = (options.provider || 'auto').toLowerCase();
-      const nvidiaKey = options.nvidiaApiKey || (provider === 'nvidia' ? options.apiKey : '');
       const geminiKey = options.geminiApiKey || (provider === 'gemini' ? options.apiKey : '');
       const backendUrl = options.backendUrl || '';
 
-      // 1. Try NVIDIA AI NIM (Direct Key or Backend Proxy)
-      if (nvidiaKey || (backendUrl && provider !== 'gemini') || provider === 'nvidia') {
+      const hasBackendUrl = Boolean(backendUrl && typeof backendUrl === 'string' && backendUrl.trim());
+      const hasGeminiKey = Boolean(
+        (geminiKey && typeof geminiKey === 'string' && geminiKey.trim()) ||
+        (options.apiKey && typeof options.apiKey === 'string' && options.apiKey.trim() && provider === 'gemini')
+      );
+
+      // 1. Primary: GuideMe Backend AI Proxy (OpenRouter / Gemini Pool)
+      if (hasBackendUrl) {
         try {
-          const aiTutorial = await NvidiaDomAnalyzer.analyzeWithNvidia({
-            prompt: userPrompt,
-            doc,
-            url,
-            apiKey: nvidiaKey,
-            model: options.nvidiaModel || options.model || 'moonshotai/kimi-k3',
-            endpoint: options.nvidiaEndpoint || options.endpoint || 'https://integrate.api.nvidia.com/v1/chat/completions',
-            backendUrl,
-            language: options.language || 'km',
-            fetchFn: options.fetchFn,
-          });
-          if (aiTutorial && Array.isArray(aiTutorial.steps) && aiTutorial.steps.length > 0) {
-            return aiTutorial;
+          const proxyEndpoint = `${backendUrl.replace(/\/$/, '')}/api/ai/dom-guide`;
+          const fetchFn = options.fetchFn || (typeof fetch !== 'undefined' ? fetch : null);
+          if (fetchFn) {
+            const candidates = harvestInteractiveElements(doc, options);
+            const serializableCandidates = candidates.map(({ element, ...rest }) => rest);
+            const proxyRes = await fetchFn(proxyEndpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: userPrompt,
+                elements: serializableCandidates,
+                url,
+                language: options.language || 'km',
+              }),
+            });
+            if (proxyRes.ok) {
+              const aiTutorial = await proxyRes.json();
+              if (aiTutorial && Array.isArray(aiTutorial.steps) && aiTutorial.steps.length > 0) {
+                return aiTutorial;
+              }
+            }
           }
         } catch (err) {
           if (typeof console !== 'undefined' && console.warn) {
-            console.warn('[DynamicPageAnalyzer] NVIDIA NIM analysis fallback:', err.message);
+            console.warn('[DynamicPageAnalyzer] Backend AI proxy analysis fallback:', err.message);
           }
         }
       }
 
-      // 2. Try Gemini API if configured
-      if (geminiKey || provider === 'gemini' || (options.apiKey && !nvidiaKey)) {
+      // 2. Client-Side Gemini API Walkthrough Generator
+      if (hasGeminiKey) {
         try {
-          const aiTutorial = await GeminiDomAnalyzer.analyzeWithGemini({
+          const effectiveGeminiKey = (geminiKey && geminiKey.trim()) || (options.apiKey && options.apiKey.trim());
+          const aiTutorial = await this.analyzeWithGemini({
             prompt: userPrompt,
             doc,
             url,
-            apiKey: geminiKey || options.apiKey,
+            apiKey: effectiveGeminiKey,
             model: options.geminiModel || options.model || 'gemini-3.6-flash',
             language: options.language || 'km',
             fetchFn: options.fetchFn,
@@ -271,6 +272,20 @@ export class DynamicPageAnalyzer {
         }
       }
     }
+
+    // 3. Fallback: Zero-Hallucination Fuse.js Grounded DOM Matching (for simple 1-step actions or offline mode)
+    let intent = options.intent || (typeof userPrompt === 'object' && userPrompt !== null && !Array.isArray(userPrompt) ? userPrompt : null);
+    if (!intent && typeof userPrompt === 'string' && userPrompt.trim() && !isJsonPrompt) {
+      intent = this.extractIntentFromText(userPrompt);
+    }
+
+    if (intent && (intent.targetQuery || intent.action)) {
+      const candidates = harvestInteractiveElements(doc, { targetQuery: intent.targetQuery, ...options });
+      const matched = matchDomElementWithFuse(candidates, intent, options);
+      if (matched) {
+        return synthesizeGroundedTutorial(matched, intent, options);
+      }
+    }
     return this.generateDynamicTutorial(doc, url, userPrompt, options);
   }
 
@@ -282,6 +297,13 @@ export class DynamicPageAnalyzer {
   static extractIntentFromText(text) {
     if (!text || typeof text !== 'string') return null;
     const clean = text.toLowerCase();
+
+    // Requests requiring multi-level menu navigation (e.g. File → Page Setup) must bypass
+    // the single-step Fuse path. Returning null routes them to the AI analyzers which
+    // now know to produce a separate step per menu level.
+    if (/page\s*setup|paper\s*size|margin|orientation|a4|a3|landscape|portrait|paragraph\s*style|line\s*spacing/.test(clean)) {
+      return null;
+    }
 
     if (/\b(share|collaborat|invite|distribut|broadcast|publish|ចែករំលែក|អញ្ជើញ|ផ្សព្វផ្សាយ)\b/i.test(clean)) {
       return { targetQuery: 'Share', action: 'click', role: 'button', category: 'share' };
@@ -432,6 +454,14 @@ export class DynamicPageAnalyzer {
 
         // 1. Strict Visibility & Interactability check
         if (!this._isInteractable(el, { isHoverRevealed })) return;
+
+        // Exclude site brand logos and home navigation buttons when user is requesting an in-app action
+        const isNavLogo = /docs-homescreen|docs\s*home|brand|logo|app-launcher/i.test(
+          `${el.className || ''} ${el.getAttribute?.('aria-label') || ''} ${el.id || ''}`
+        );
+        if (isNavLogo && !/home|logo|ទំព័រដើម/i.test(promptText)) {
+          return;
+        }
 
         const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
         const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || '').trim();
@@ -959,7 +989,8 @@ export class DynamicPageAnalyzer {
     if (!el) return false;
 
     // 1. Semantic disabled states
-    if (el.disabled || el.getAttribute?.('aria-disabled') === 'true') {
+    const formElement = /** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement} */ (el);
+    if (formElement.disabled || el.getAttribute?.('aria-disabled') === 'true') {
       return false;
     }
 
@@ -974,7 +1005,12 @@ export class DynamicPageAnalyzer {
     }
 
     // 3. CSS Classes common for hiding elements
-    const className = (typeof el.className === 'string' ? el.className : el.className?.baseVal || '').toLowerCase();
+    const className = (typeof el.className === 'string'
+      ? el.className
+      : typeof SVGElement !== 'undefined' && el instanceof SVGElement
+        ? el.className.baseVal
+        : ''
+    ).toLowerCase();
     if (className.includes('hidden') || className.includes('invisible') || className.includes('d-none') || className.includes('opacity-0')) {
       return false;
     }
@@ -1013,8 +1049,8 @@ export class DynamicPageAnalyzer {
         element.dispatchEvent(new CustomEvent('mouseover', opts));
         element.dispatchEvent(new CustomEvent('mouseenter', { ...opts, bubbles: false }));
       } else {
-        element.dispatchEvent({ type: 'mouseover', bubbles: true });
-        element.dispatchEvent({ type: 'mouseenter', bubbles: false });
+        element.dispatchEvent(new Event('mouseover', { bubbles: true }));
+        element.dispatchEvent(new Event('mouseenter', { bubbles: false }));
       }
 
       if (typeof FocusEvent !== 'undefined') {
@@ -1026,7 +1062,7 @@ export class DynamicPageAnalyzer {
   /**
    * Locates the parent trigger element for an item located inside a flyout/dropdown menu.
    * @param {HTMLElement} el
-   * @returns {HTMLElement|null}
+   * @returns {Element|null}
    * @private
    */
   static _findParentHoverTrigger(el) {
@@ -1038,7 +1074,12 @@ export class DynamicPageAnalyzer {
     while (current && depth < 6) {
       const tag = (current.tagName || '').toLowerCase();
       const role = (current.getAttribute?.('role') || '').toLowerCase();
-      const className = (typeof current.className === 'string' ? current.className : current.className?.baseVal || '').toLowerCase();
+      const className = (typeof current.className === 'string'
+        ? current.className
+        : typeof SVGElement !== 'undefined' && current instanceof SVGElement
+          ? current.className.baseVal
+          : ''
+      ).toLowerCase();
 
       const isMenuContainer = (
         role === 'menu' ||
@@ -1153,7 +1194,7 @@ export class DynamicPageAnalyzer {
       }
 
       if (matches) {
-        const trigger = this._findParentHoverTrigger(item);
+        const trigger = /** @type {HTMLElement|null} */ (this._findParentHoverTrigger(item));
         if (trigger) {
           this.dispatchHoverEvents(trigger);
           revealedMap.set(item, trigger);
@@ -1207,7 +1248,12 @@ export class DynamicPageAnalyzer {
       const role = (current.getAttribute?.('role') || '').toLowerCase();
       const ariaExpanded = current.getAttribute?.('aria-expanded');
       const ariaModal = current.getAttribute?.('aria-modal');
-      const className = (typeof current.className === 'string' ? current.className : current.className?.baseVal || '').toLowerCase();
+      const className = (typeof current.className === 'string'
+        ? current.className
+        : typeof SVGElement !== 'undefined' && current instanceof SVGElement
+          ? current.className.baseVal
+          : ''
+      ).toLowerCase();
 
       // 1. Modals & Dialogs (The Active Layer)
       if (tag === 'dialog' || role === 'dialog' || role === 'alertdialog' || className.includes('modal') || ariaModal === 'true') {
@@ -1480,4 +1526,418 @@ export class DynamicPageAnalyzer {
 
     return target;
   }
+
+  /**
+   * Extracts a compact list of actionable/interactive DOM elements from a document.
+   * Keeps token usage minimal while providing high context for LLM targeting.
+   * @param {Document|Object} doc
+   * @param {number} [maxElements=80]
+   * @returns {Array<Object>}
+   */
+  static extractInteractiveDom(doc, maxElements = 80) {
+    if (!doc || typeof doc.querySelectorAll !== 'function') {
+      return [];
+    }
+
+    const queries = [
+      'button',
+      'a',
+      'input',
+      'select',
+      'textarea',
+      '[role="button"]',
+      '[role="combobox"]',
+      '[role="listbox"]',
+      '[role="radio"]',
+      '[role="checkbox"]',
+      '[role="link"]',
+      '[role="menuitem"]',
+      '[role="option"]',
+      '[role="tab"]',
+      '[data-testid]',
+      '.goog-flat-menu-button',
+      '.goog-select',
+      'summary',
+      'h1',
+      'h2',
+      'h3',
+      'table',
+      'nav',
+    ];
+
+    const rawElements = [];
+    const seenSet = new Set();
+
+    // Try combined query first
+    try {
+      const combined = doc.querySelectorAll(queries.join(', '));
+      if (combined && combined.length > 0) {
+        for (const el of combined) {
+          if (!seenSet.has(el)) {
+            seenSet.add(el);
+            rawElements.push(el);
+          }
+        }
+      }
+    } catch {
+      // Ignore and proceed to per-query fallback
+    }
+
+    // Fallback: query individually
+    if (rawElements.length === 0) {
+      for (const q of queries) {
+        try {
+          const res = doc.querySelectorAll(q);
+          if (res) {
+            for (const el of res) {
+              if (!seenSet.has(el)) {
+                seenSet.add(el);
+                rawElements.push(el);
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+
+    // Traverse open shadow roots
+    try {
+      const allNodes = doc.querySelectorAll ? doc.querySelectorAll('*') : [];
+      for (let i = 0; i < allNodes.length; i++) {
+        const sr = allNodes[i].shadowRoot;
+        if (sr && typeof sr.querySelectorAll === 'function') {
+          for (const q of queries) {
+            try {
+              const shadowMatches = sr.querySelectorAll(q);
+              if (shadowMatches) {
+                for (let j = 0; j < shadowMatches.length; j++) {
+                  const el = shadowMatches[j];
+                  if (!seenSet.has(el)) {
+                    seenSet.add(el);
+                    rawElements.push(el);
+                  }
+                }
+              }
+            } catch {}
+          }
+        }
+      }
+    } catch {}
+
+    const candidates = [];
+    const seen = new Set();
+
+    for (const el of rawElements) {
+      if (candidates.length >= maxElements) break;
+      if (!el || seen.has(el)) continue;
+      seen.add(el);
+
+      const tag = (el.tagName || '').toLowerCase();
+      const id = el.id || '';
+      const name = el.name || (el.getAttribute ? el.getAttribute('name') : '') || '';
+      const testId = el.getAttribute ? (el.getAttribute('data-testid') || el.getAttribute('data-cy')) : '';
+      const ariaLabel = el.getAttribute ? (el.getAttribute('aria-label') || el.getAttribute('title')) : '';
+      const placeholder = el.placeholder || (el.getAttribute ? el.getAttribute('placeholder') : '') || '';
+      const type = el.type || (el.getAttribute ? el.getAttribute('type') : '') || '';
+      const role = el.getAttribute ? el.getAttribute('role') : '';
+
+      let text = '';
+      if (el.textContent) {
+        text = el.textContent.trim().replace(/\s+/g, ' ').substring(0, 60);
+      }
+
+      if (!id && !testId && !ariaLabel && !placeholder && !text && !name) {
+        continue;
+      }
+
+      const menuContainer = el.closest ? el.closest('[role="menu"], .dropdown-menu, .goog-menu, details') : null;
+      let isCollapsed = false;
+      let parentMenu = undefined;
+
+      if (typeof window !== 'undefined' && window.getComputedStyle) {
+        try {
+          const style = window.getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+            if (menuContainer) {
+              isCollapsed = true;
+            } else {
+              continue;
+            }
+          }
+        } catch {}
+      }
+
+      if (menuContainer) {
+        let trigger = null;
+        if (menuContainer.tagName === 'DETAILS') {
+          trigger = menuContainer.querySelector('summary');
+        } else if (menuContainer.id && typeof doc.querySelector === 'function') {
+          trigger = doc.querySelector(`[aria-controls="${menuContainer.id}"], [aria-owns="${menuContainer.id}"]`);
+        }
+        if (!trigger && menuContainer.previousElementSibling?.matches?.('button, [role="button"], [role="menuitem"], [aria-haspopup]')) {
+          trigger = menuContainer.previousElementSibling;
+        }
+        if (!trigger && menuContainer.parentElement?.matches?.('button, [role="button"], [role="menuitem"], [aria-haspopup]')) {
+          trigger = menuContainer.parentElement;
+        }
+
+        if (!trigger) {
+          trigger = menuContainer.parentElement?.querySelector?.('[aria-haspopup], [aria-expanded], summary, [role="menuitem"], button')
+            || menuContainer.querySelector?.('[aria-haspopup], [aria-expanded], summary');
+        }
+
+        if (trigger && trigger !== el) {
+          const label = trigger.getAttribute?.('aria-label') || trigger.getAttribute?.('title') || trigger.textContent || '';
+          const cleanLabel = label.trim().replace(/\s+/g, ' ').substring(0, 40);
+          if (cleanLabel && !/docs-homescreen|docs\s*home|brand|logo/i.test(`${cleanLabel} ${trigger.className || ''} ${trigger.id || ''}`)) {
+            parentMenu = cleanLabel;
+          }
+        }
+      }
+
+      let selector = '';
+      if (id) {
+        selector = safeIdSelector(id);
+      } else if (testId) {
+        selector = `[data-testid="${testId}"]`;
+      } else if (name) {
+        selector = `${tag}[name="${name}"]`;
+      } else if (ariaLabel) {
+        selector = `[aria-label="${ariaLabel}"]`;
+      } else if (el.className && typeof el.className === 'string') {
+        const firstClass = el.className.trim().split(/\s+/)[0];
+        if (firstClass && !firstClass.includes(':')) {
+          selector = `${tag}.${firstClass}`;
+        }
+      }
+      if (!selector) selector = tag;
+
+      candidates.push({
+        index: candidates.length + 1,
+        tag,
+        type: type || undefined,
+        id: id || undefined,
+        name: name || undefined,
+        testId: testId || undefined,
+        ariaLabel: ariaLabel || undefined,
+        placeholder: placeholder || undefined,
+        role: role || undefined,
+        text: text || undefined,
+        selector,
+        isCollapsed: isCollapsed || undefined,
+        parentMenu: parentMenu || undefined,
+      });
+    }
+
+    return candidates;
+  }
+
+  /**
+   * Calls Google Gemini API to analyze the interactive DOM elements and generate a valid GuideMe tutorial.
+   * @param {Object} params
+   * @param {string} params.prompt - User instruction or natural language request
+   * @param {Document|Object} params.doc - Target DOM document
+   * @param {string} [params.url=''] - Page URL
+   * @param {string} params.apiKey - Google Gemini API Key
+   * @param {string} [params.model='gemini-3.6-flash'] - Gemini model
+   * @param {string} [params.language='km'] - Primary language ('km' | 'en')
+   * @param {Function} [params.fetchFn] - Custom fetch function for testing
+   * @returns {Promise<Object>} Validated GuideMe tutorial schema
+   */
+  static async analyzeWithGemini({
+    prompt,
+    doc,
+    url = '',
+    apiKey,
+    model = 'gemini-3.6-flash',
+    language = 'km',
+    fetchFn = (typeof fetch !== 'undefined' ? fetch : null),
+  }) {
+    if (!apiKey) {
+      throw new Error('Gemini API Key is required for AI DOM Intelligence.');
+    }
+    if (!prompt || typeof prompt !== 'string') {
+      throw new Error('Prompt is required for Gemini DOM analysis.');
+    }
+    if (!fetchFn) {
+      throw new Error('Fetch API is not available in current environment.');
+    }
+
+    const interactiveDom = this.extractInteractiveDom(doc);
+    if (interactiveDom.length === 0) {
+      throw new Error('No interactive DOM elements found on the current page to analyze.');
+    }
+
+    const systemInstruction = `You are GuideMe AI, an expert web walkthrough designer.
+Your mission is to inspect the provided interactive DOM elements from a webpage and the user's request, and generate a step-by-step interactive tutorial flow adhering strictly to GuideMe's JSON schema.
+
+Requirements:
+1. Element Selection & Universal Planning:
+   - For currently visible elements, select their selectors and labels from the provided interactive DOM elements list.
+   - Some elements in the list may have "isCollapsed": true or "parentMenu": "...", indicating they are inside a dropdown/menu. When targeting these, ensure a prior step guides the user to open the parentMenu first.
+   - For nested submenu items, settings, or multi-step workflow actions that are not yet in the DOM list (because they only render after opening a menu or modal, e.g. "Page setup" inside "File", "Billing" in "Settings", or "Download PDF" in an "Actions" menu):
+     Generate the step using universal semantic targets:
+     "target": {
+       "css": "[role=\\"menuitem\\"], button, a, [role=\\"button\\"], span",
+       "text": "<Name of submenu item or button>",
+       "ariaLabel": "<Name of submenu item or button>"
+     }
+     Our Just-in-Time (JIT) runtime engine uses MutationObserver to attach to the target the millisecond the parent menu is opened.
+2. For each step:
+   - "target" MUST have "css" plus the element's "text" or "ariaLabel" whenever present.
+     When targeting controls inside a dialog or modal (e.g. paper size dropdown, radio options, inputs, confirm buttons):
+     Target the specific leaf control (e.g. "[role='listbox'], .goog-flat-menu-button, [role='combobox'], select, input, button") with its label, and set "container": "[role='dialog'], .modal-dialog". NEVER target the dialog container (".modal-dialog", "[role='dialog']") itself.
+   - "action": { "type": "spotlight", "title": { "km": "...", "en": "..." }, "content": { "km": "...", "en": "..." }, "placement": "bottom"|"top"|"left"|"right" }
+   - "validation": { "type": "click" | "input" | "change" | "submit" | "manual_next" } (choose appropriate type based on element tag/type)
+   - "title": Bilingual object { "km": "...", "en": "..." }
+   - "description": Bilingual object { "km": "...", "en": "..." }
+3. GuideMe is Khmer-First: "km" (Khmer) must be accurate, natural, and friendly. "en" (English) is secondary.
+4. Universal Multi-Step Menu Rule:
+   - If reaching the goal requires navigating through a menu, dropdown, sidebar, or dialog (e.g. File → Page Setup, Settings → General, Actions → Export):
+     You MUST generate a separate, sequential step for EACH level:
+     - Step 1: Open the parent menu/container (e.g. Click "File").
+     - Step 2: Click the nested submenu item (e.g. Click "Page setup").
+     - Step 3+: Configure options in the modal or dialog if requested (e.g. Select "A4").
+   - NEVER skip the parent menu and jump straight to a hidden submenu item.
+5. Output MUST be pure JSON matching this structure:
+{
+  "id": "gemini-guide-<timestamp>",
+  "version": "1.0.0",
+  "name": { "km": "...", "en": "..." },
+  "description": { "km": "...", "en": "..." },
+  "matchUrls": ["<all_urls>"],
+  "steps": [ ... ]
+}`;
+
+    const userContent = `Page URL: ${url || 'webpage'}
+User Request / Intent: "${prompt}"
+
+Interactive DOM Elements on the page:
+${JSON.stringify(interactiveDom, null, 2)}
+
+Generate the interactive tutorial JSON now.`;
+
+    const requestBody = {
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `${systemInstruction}\n\n${userContent}` }],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.2,
+      },
+    };
+
+    const candidateModels = [model];
+    const fallbackList = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
+    for (const fb of fallbackList) {
+      if (!candidateModels.includes(fb)) {
+        candidateModels.push(fb);
+      }
+    }
+
+    let lastErrorText = '';
+    let lastStatus = 0;
+    let data = null;
+
+    for (let i = 0; i < candidateModels.length; i++) {
+      const currentModel = candidateModels[i];
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+
+      const response = await fetchFn(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        data = await response.json();
+        break;
+      }
+
+      lastStatus = response.status;
+      lastErrorText = await response.text().catch(() => '');
+
+      if (response.status === 404 && i < candidateModels.length - 1) {
+        continue;
+      }
+
+      throw new Error(`Gemini API returned HTTP ${response.status}: ${lastErrorText.substring(0, 200)}`);
+    }
+
+    if (!data) {
+      throw new Error(`Gemini API returned HTTP ${lastStatus}: ${lastErrorText.substring(0, 200)}`);
+    }
+
+    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!candidateText) {
+      throw new Error('Gemini API did not return any generated content.');
+    }
+
+    let tutorial;
+    try {
+      tutorial = JSON.parse(candidateText);
+    } catch (parseErr) {
+      throw new Error(`Failed to parse Gemini response as JSON: ${parseErr.message}`);
+    }
+
+    if (!tutorial.id) tutorial.id = `gemini-guide-${Date.now()}`;
+    if (!tutorial.version) tutorial.version = '1.0.0';
+    if (!Array.isArray(tutorial.matchUrls)) tutorial.matchUrls = ['<all_urls>'];
+
+    if (Array.isArray(tutorial.steps)) {
+      tutorial.steps.forEach((step, idx) => {
+        if (!step.id) step.id = `gemini_step_${idx + 1}`;
+
+        if (!step.title) {
+          step.title = step.action?.title || step.instruction || step.description || {
+            km: `ជំហានទី ${idx + 1}`,
+            en: `Step ${idx + 1}`,
+          };
+        }
+
+        if (!step.action || typeof step.action !== 'object') {
+          step.action = {
+            type: 'spotlight',
+            title: step.title,
+            content: step.description || step.instruction || step.title,
+            placement: 'bottom',
+          };
+        } else {
+          if (!step.action.type) step.action.type = 'spotlight';
+          if (!step.action.title) step.action.title = step.title;
+          if (!step.action.content) step.action.content = step.description || step.instruction || step.title;
+        }
+
+        if (!step.validation || typeof step.validation !== 'object') {
+          step.validation = { type: 'click' };
+        } else if (!step.validation.type) {
+          step.validation.type = 'click';
+        }
+
+        const candidate = interactiveDom.find((item) => item.selector === step.target?.css);
+        if (candidate && step.target) {
+          if (!step.target.testId && candidate.testId) step.target.testId = candidate.testId;
+          if (!step.target.ariaLabel && candidate.ariaLabel) step.target.ariaLabel = candidate.ariaLabel;
+          if (!step.target.text && candidate.text) step.target.text = candidate.text;
+        }
+      });
+    }
+
+    const validationResult = SchemaValidator.validateTutorial(tutorial);
+    if (!validationResult.valid) {
+      throw new Error(`Gemini tutorial schema validation failed: ${validationResult.errors.join('; ')}`);
+    }
+
+    return tutorial;
+  }
 }
+
+/**
+ * Alias export for backward compatibility.
+ */
+export const GeminiDomAnalyzer = DynamicPageAnalyzer;

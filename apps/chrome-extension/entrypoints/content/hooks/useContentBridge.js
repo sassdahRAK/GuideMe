@@ -26,7 +26,9 @@ async function proxyFetchFn(url, options = {}) {
             if (chrome.runtime?.lastError) {
               reject(new Error(chrome.runtime.lastError.message));
             } else if (!res || !res.success) {
-              reject(new Error(res?.error || `HTTP proxy error ${res?.status || 'unknown'}`));
+              const err = new Error(res?.error || `HTTP proxy error ${res?.status || 'unknown'}`);
+              err.status = res?.status;
+              reject(err);
             } else {
               resolve(res.data);
             }
@@ -41,6 +43,9 @@ async function proxyFetchFn(url, options = {}) {
         text: async () => (typeof response === 'string' ? response : JSON.stringify(response)),
       };
     } catch (err) {
+      if (err?.status === 401 || err?.status === 403) {
+        throw err;
+      }
       console.warn('[GuideMe Content Bridge] Background proxy fetch failed, falling back to direct fetch:', err);
     }
   }
@@ -52,9 +57,7 @@ async function proxyFetchFn(url, options = {}) {
  * Resolves AI provider credentials and options dynamically from storage or environment variables.
  */
 async function resolveAiOptions(engineInstance) {
-  let provider = import.meta.env?.WXT_AI_PROVIDER || 'nvidia';
-  let nvidiaApiKey = import.meta.env?.WXT_NVIDIA_API_KEY || '';
-  let nvidiaModel = import.meta.env?.WXT_NVIDIA_MODEL || 'moonshotai/kimi-k3';
+  let provider = import.meta.env?.WXT_AI_PROVIDER || 'openai';
   let geminiKey = import.meta.env?.WXT_GEMINI_API_KEY || import.meta.env?.VITE_GEMINI_API_KEY || '';
   let geminiModel = import.meta.env?.WXT_GEMINI_MODEL || 'gemini-3.6-flash';
   let aiPreset = import.meta.env?.WXT_AI_PRESET || '';
@@ -65,41 +68,40 @@ async function resolveAiOptions(engineInstance) {
   const defaultProdUrl = 'https://guideme-lac.vercel.app';
   let backendUrl = import.meta.env?.WXT_API_URL || (isDev ? 'http://localhost:4000' : defaultProdUrl);
 
-  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-    const stored = await chrome.storage.local.get([
-      'guideme_ai_provider',
-      'guideme_nvidia_api_key',
-      'guideme_nvidia_model',
-      'guideme_gemini_api_key',
-      'guideme_gemini_model',
-      'guideme_ai_preset',
-      'guideme_ai_endpoint',
-      'guideme_ai_api_key',
-      'guideme_ai_model',
-      'guideme_backend_url',
-    ]);
-    if (stored?.guideme_ai_provider) provider = stored.guideme_ai_provider;
-    if (stored?.guideme_nvidia_api_key) nvidiaApiKey = stored.guideme_nvidia_api_key;
-    if (stored?.guideme_nvidia_model) nvidiaModel = stored.guideme_nvidia_model;
-    if (stored?.guideme_gemini_api_key) geminiKey = stored.guideme_gemini_api_key;
-    if (stored?.guideme_gemini_model) geminiModel = stored.guideme_gemini_model;
-    if (stored?.guideme_ai_preset) aiPreset = stored.guideme_ai_preset;
-    if (stored?.guideme_ai_endpoint) aiEndpoint = stored.guideme_ai_endpoint;
-    if (stored?.guideme_ai_api_key) aiApiKey = stored.guideme_ai_api_key;
-    if (stored?.guideme_ai_model) aiModel = stored.guideme_ai_model;
-    if (stored?.guideme_backend_url) backendUrl = stored.guideme_backend_url;
+  if (typeof chrome !== 'undefined' && chrome.runtime?.id && chrome.storage?.local) {
+    try {
+      const stored = await chrome.storage.local.get([
+        'guideme_ai_provider',
+        'guideme_gemini_api_key',
+        'guideme_gemini_model',
+        'guideme_ai_preset',
+        'guideme_ai_endpoint',
+        'guideme_ai_api_key',
+        'guideme_ai_model',
+        'guideme_backend_url',
+      ]);
+      if (stored?.guideme_ai_provider) provider = stored.guideme_ai_provider;
+      if (stored?.guideme_gemini_api_key) geminiKey = stored.guideme_gemini_api_key;
+      if (stored?.guideme_gemini_model) geminiModel = stored.guideme_gemini_model;
+      if (stored?.guideme_ai_preset) aiPreset = stored.guideme_ai_preset;
+      if (stored?.guideme_ai_endpoint) aiEndpoint = stored.guideme_ai_endpoint;
+      if (stored?.guideme_ai_api_key) aiApiKey = stored.guideme_ai_api_key;
+      if (stored?.guideme_ai_model) aiModel = stored.guideme_ai_model;
+      if (stored?.guideme_backend_url) backendUrl = stored.guideme_backend_url;
+    } catch (storageErr) {
+      // Extension context may be invalidated if extension was recently rebuilt/reloaded
+      console.warn('[GuideMe] Could not read chrome.storage (extension context reloaded). Using environment fallback.');
+    }
   }
 
   return {
     provider,
-    nvidiaApiKey,
-    nvidiaModel,
     geminiApiKey: geminiKey,
     geminiModel,
     preset: aiPreset,
     endpoint: aiEndpoint,
-    apiKey: aiApiKey || nvidiaApiKey || geminiKey,
-    model: aiModel || nvidiaModel || geminiModel,
+    apiKey: aiApiKey || geminiKey,
+    model: aiModel || geminiModel,
     backendUrl,
     language: engineInstance?.getLanguage ? engineInstance.getLanguage() : 'km',
     fetchFn: proxyFetchFn,

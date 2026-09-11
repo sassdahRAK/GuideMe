@@ -188,11 +188,9 @@ export class TutorialEngine {
     const startGeneration = ++this._startGeneration;
     this._cleanupStepSubscriptions();
 
-    // Starting a new guide replaces the current one. Reset first so a guide
-    // started from a popup/capture reload cannot request STEP_ACTIVE -> LOADING.
-    if (this.stateMachine.getState() !== EngineStatus.IDLE) {
-      this.stateMachine.reset();
-    }
+    // Starting a new guide replaces the current one. Cleanup step subscriptions
+    // so observers, audio, and validation listeners from the previous step are released.
+    this._cleanupStepSubscriptions();
 
     if (!this.loadTutorial(tutorialDefinition)) {
       return false;
@@ -338,6 +336,9 @@ export class TutorialEngine {
    * Complete the tutorial successfully.
    */
   async complete() {
+    if (this.stateMachine.getState() === EngineStatus.COMPLETED) {
+      return;
+    }
     this._cleanupStepSubscriptions();
     this.audio.stop();
     this.stateMachine.transition(EngineStatus.COMPLETED);

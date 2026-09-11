@@ -32,7 +32,7 @@ export class StepResolver {
   }
 
   /**
-   * Resolve target bounding box for a given step.
+   * Resolve target bounding box for a given step with Just-in-Time (JIT) dynamic grounding.
    * @param {Object} step
    * @param {number} [timeoutMs=5000]
    * @returns {Promise<{ targetFound: boolean, boundingBox: Object|null }>}
@@ -47,7 +47,18 @@ export class StepResolver {
       return { targetFound: false, boundingBox: null };
     }
 
-    const box = await this.adapter.findTarget(step.target, timeoutMs);
+    let box = await this.adapter.findTarget(step.target, timeoutMs);
+
+    // JIT Dynamic Grounding: If target was not found by primary selector,
+    // and target specified text or ariaLabel, attempt secondary fallback with generalized interactive tags
+    if (!box && (step.target.text || step.target.ariaLabel)) {
+      const fallbackTarget = {
+        ...step.target,
+        css: '[role="menuitem"], [role="option"], button, a, [role="button"], span, div, p',
+      };
+      box = await this.adapter.findTarget(fallbackTarget, Math.min(timeoutMs, 1000));
+    }
+
     return {
       targetFound: !!box,
       boundingBox: box,

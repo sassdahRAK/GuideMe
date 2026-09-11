@@ -49,7 +49,11 @@ export default defineContentScript({
       append: 'last',
       zIndex: 2147483647,
       onMount(uiContainer) {
-        const root = ReactDOM.createRoot(uiContainer);
+        const appContainer = document.createElement('div');
+        appContainer.id = 'guideme-root-app';
+        uiContainer.appendChild(appContainer);
+
+        const root = ReactDOM.createRoot(appContainer);
         root.render(<TutorialApp uiContainer={uiContainer} />);
         return root;
       },

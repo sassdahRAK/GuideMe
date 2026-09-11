@@ -60,9 +60,10 @@ export class DomObserver {
     const tag = (element.tagName || 'div').toLowerCase();
     const getAttribute = element.getAttribute?.bind(element);
     const testId = getAttribute?.('data-testid') || getAttribute?.('data-cy') || '';
-    const name = getAttribute?.('name') || element.name || '';
+    const formEl = /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement} */ (element);
+    const name = getAttribute?.('name') || formEl.name || '';
     const ariaLabel = getAttribute?.('aria-label') || getAttribute?.('title') || '';
-    const text = (element.textContent || element.value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    const text = (element.textContent || formEl.value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
     const escape = (value) => String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
     const target = {};
@@ -105,7 +106,7 @@ export class DomObserver {
       } else {
         element.dispatchEvent({ type: 'mouseover', bubbles: true });
         element.dispatchEvent({ type: 'mouseenter', bubbles: false });
-      }
+  }
 
       if (typeof FocusEvent !== 'undefined') {
         element.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
@@ -405,6 +406,14 @@ export class DomObserver {
       ? (this.querySelectorDeep(document, selector.container) || this.getActiveModal(document))
       : this.getActiveModal(document);
 
+    const isDialogContainer = (el) => Boolean(
+      el && (
+        el === activeModal ||
+        el.tagName === 'DIALOG' ||
+        (typeof el.matches === 'function' && el.matches('[role="dialog"], [role="alertdialog"], [aria-modal="true"], .modal, .modal-dialog, .MuiDialog-root, .apps-share-dialog'))
+      )
+    );
+
     // Handle hover-triggered target resolution if specified
     if (selector.hoverTrigger) {
       const triggerEl = this.findElement(selector.hoverTrigger);
@@ -421,15 +430,17 @@ export class DomObserver {
           if (selector.css) {
             const cleanSubCss = selector.container ? selector.css.replace(selector.container, '').trim() : selector.css;
             const innerMatch = this.querySelectorDeep(containerEl, cleanSubCss || selector.css);
-            if (innerMatch && (innerMatch.offsetParent !== null || innerMatch.getClientRects().length > 0)) {
+            if (innerMatch && !isDialogContainer(innerMatch) && (innerMatch.offsetParent !== null || innerMatch.getClientRects().length > 0)) {
               if (!targetText || this.normalizeText(innerMatch.textContent) === targetText || this.normalizeText(innerMatch.value) === targetText || allowPartialText) {
                 return innerMatch;
               }
             }
           }
           if (targetText || targetAria) {
-            const containerButtons = this.querySelectorAllDeep(containerEl, 'button, [role="button"], input, a, [contenteditable="true"]');
+            const CONTROLS_SELECTOR = 'button, [role="button"], [role="combobox"], [role="listbox"], [role="option"], [role="radio"], [role="checkbox"], [role="menuitem"], [role="tab"], select, input, a, .goog-flat-menu-button, .goog-select, summary, [tabindex="0"], [contenteditable="true"]';
+            const containerButtons = this.querySelectorAllDeep(containerEl, CONTROLS_SELECTOR);
             for (const btn of containerButtons) {
+              if (isDialogContainer(btn)) continue;
               const bText = this.normalizeText(btn.textContent);
               const bAria = (btn.getAttribute?.('aria-label') || btn.getAttribute?.('title') || '').trim().toLowerCase();
               const bVal = this.normalizeText(btn.value || '');
@@ -459,10 +470,10 @@ export class DomObserver {
         }
         if (matches.length > 0) {
           // Modal Primacy: If an active modal is open and has matching elements, filter out background elements
-          const hasModalMatches = Boolean(activeModal && typeof activeModal.contains === 'function' && matches.some((el) => activeModal.contains(el)));
+          const hasModalMatches = Boolean(activeModal && typeof activeModal.contains === 'function' && matches.some((el) => activeModal.contains(el) && !isDialogContainer(el)));
           const eligibleMatches = hasModalMatches
-            ? matches.filter((el) => activeModal.contains(el))
-            : matches;
+            ? matches.filter((el) => activeModal.contains(el) && !isDialogContainer(el))
+            : matches.filter((el) => !isDialogContainer(el) || (!targetText && !targetAria));
 
           // If no text or aria constraint, return the first visible match immediately
           if (!targetText && !targetAria) {
@@ -532,12 +543,11 @@ export class DomObserver {
     if (selector.text || targetText) {
       const searchTxt = targetText || this.normalizeText(selector.text);
 
-      // 4a. Check interactive elements first (button, a, role=button, summary, inputs)
-      const buttonCandidates = this.querySelectorAllDeep(
-        document,
-        'button, [role="button"], a, input[type="submit"], input[type="button"], summary, [role="menuitem"], [role="tab"], div[id*="share" i], div[class*="share" i]'
-      );
+      // 4a. Check interactive elements first (button, a, combobox, listbox, dropdowns, inputs)
+      const CONTROLS_SELECTOR = 'button, [role="button"], [role="combobox"], [role="listbox"], [role="option"], [role="radio"], [role="checkbox"], a, select, input[type="submit"], input[type="button"], summary, [role="menuitem"], [role="tab"], .goog-flat-menu-button, .goog-select, div[id*="share" i], div[class*="share" i]';
+      const buttonCandidates = this.querySelectorAllDeep(document, CONTROLS_SELECTOR);
       for (const el of buttonCandidates) {
+        if (isDialogContainer(el)) continue;
         const text = this.normalizeText(el.textContent);
         const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || el.getAttribute?.('data-tooltip') || '').trim().toLowerCase();
         const val = this.normalizeText(el.value || el.getAttribute?.('value') || '');
@@ -553,15 +563,18 @@ export class DomObserver {
         }
       }
 
-      // 4b. Check other text elements and ascend to parent button if nested
+      // 4b. Check other text elements and ascend to parent control if nested
       if (!isGenericCss || allowPartialText) {
         const allTextNodes = this.querySelectorAllDeep(document, 'span, div, p, label, b, strong, i');
         for (const node of allTextNodes) {
+          if (isDialogContainer(node)) continue;
+          if ((node.textContent || '').length > 500) continue;
+
           const text = this.normalizeText(node.textContent);
           if (text === searchTxt || (allowPartialText && text.includes(searchTxt))) {
-            const parentBtn = node.closest ? node.closest('button, [role="button"], a') : null;
+            const parentBtn = node.closest ? node.closest('button, [role="button"], [role="combobox"], [role="listbox"], [role="option"], .goog-flat-menu-button, .goog-select, a') : null;
             const targetEl = parentBtn || node;
-            if (targetEl.offsetParent !== null || targetEl.getClientRects().length > 0) {
+            if (!isDialogContainer(targetEl) && (targetEl.offsetParent !== null || targetEl.getClientRects().length > 0)) {
               return targetEl;
             }
           }
