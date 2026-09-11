@@ -414,6 +414,27 @@ describe('GuideMe Tutorial Engine & Bilingual / Audio Tests', () => {
     assert.strictEqual(engine.getStateSnapshot().currentStepIndex, 0);
   });
 
+  test('Engine does not complete a dynamic guide when continuation generation is unavailable', async () => {
+    const continuationAdapter = new MockAdapter();
+    const continuationEngine = new TutorialEngine({
+      adapter: continuationAdapter,
+      beforeNextStep: async () => false,
+    });
+
+    const singleStepTutorial = {
+      ...sampleBilingualTutorial,
+      id: 'dynamic-continuation-test',
+      steps: [sampleBilingualTutorial.steps[0]],
+    };
+
+    await continuationEngine.start(singleStepTutorial, 0);
+    continuationAdapter.triggerElementEvent('#btn-1', 'click');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.strictEqual(continuationEngine.getStateSnapshot().isActive, true);
+    assert.strictEqual(continuationEngine.getStateSnapshot().currentStepIndex, 0);
+  });
+
   test('Engine replaces an active tutorial without an invalid loading transition', async () => {
     await engine.start(sampleBilingualTutorial, 0);
     const restarted = await engine.start(sampleBilingualTutorial, 0);
