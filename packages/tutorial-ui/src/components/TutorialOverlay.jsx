@@ -30,6 +30,7 @@ export function TutorialOverlay({
   onCompleteOnboarding,
   isDashboardOpen,
   onToggleDashboard,
+  isFullPopupOpen,
   theme = 'light',
   onThemeChange,
   onDismiss,
@@ -37,6 +38,9 @@ export function TutorialOverlay({
 }) {
   const [rating, setRating] = useState(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+
+  // Hide the floating button whenever any overlay panel is open
+  const anyOverlayOpen = isPromptOpen || isOnboardingOpen || isDashboardOpen || Boolean(isFullPopupOpen);
 
   const lang = state?.language || 'km';
   const isKhmer = lang === 'km';
@@ -185,7 +189,7 @@ export function TutorialOverlay({
             }}
             onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
             isActive={true}
-            isOpen={isPromptOpen}
+            isOpen={anyOverlayOpen}
             language={lang}
           />
         </>
@@ -207,7 +211,7 @@ export function TutorialOverlay({
           }}
           onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
           isActive={true}
-          isOpen={isPromptOpen}
+          isOpen={anyOverlayOpen}
           language={lang}
         />
       </>
@@ -230,7 +234,7 @@ export function TutorialOverlay({
   } = state;
 
   return (
-    <div className="guideme-root-overlay pointer-events-none">
+    <div className={`guideme-root-overlay pointer-events-none ${isKhmer ? 'font-kantumruy' : 'font-sans'}`}>
       {modalOverlays}
       {chatOverlay}
 
@@ -284,7 +288,7 @@ export function TutorialOverlay({
         onDismiss={onDismiss || onClose}
         onOpenDashboard={() => onToggleDashboard && onToggleDashboard(true)}
         isActive={true}
-        isOpen={isPromptOpen}
+        isOpen={anyOverlayOpen}
         language={lang}
       />
     </div>

@@ -28,7 +28,9 @@ function ContextMenu({
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-      className="fixed z-[1000001] pointer-events-auto bg-white/98 dark:bg-[#181826]/98 backdrop-blur-md rounded-2xl p-2 min-w-[185px] border border-gray-200/90 dark:border-[#2d2d44] animate-[guideme-card-pop_0.15s_ease-out] flex flex-col gap-1.5"
+      className={`fixed z-[1000001] pointer-events-auto bg-white/98 dark:bg-[#181826]/98 backdrop-blur-md rounded-2xl p-2 min-w-[185px] border border-gray-200/90 dark:border-[#2d2d44] animate-[guideme-card-pop_0.15s_ease-out] flex flex-col gap-1.5 ${
+        language === 'km' ? 'font-kantumruy' : 'font-sans'
+      }`}
       style={{
         top: `${position.y}px`,
         left: `${position.x}px`,
@@ -255,6 +257,9 @@ export function FloatingAssistantButton({
     ? { top: `${customPosition.top}px`, left: `${customPosition.left}px`, bottom: 'auto', right: 'auto' }
     : { bottom: '24px', right: '24px' };
 
+  // Hide while the chat widget or any overlay is open
+  if (isOpen) return null;
+
   return (
     <>
       <div
@@ -267,6 +272,8 @@ export function FloatingAssistantButton({
         onContextMenu={handleContextMenu}
         style={positionStyle}
         className={`fixed z-[999998] pointer-events-auto select-none group ${
+          language === 'km' ? 'font-kantumruy' : 'font-sans'
+        } ${
           isDragging
             ? 'transition-none cursor-grabbing scale-105'
             : 'transition-[top,left,bottom,right] duration-300 cursor-pointer'

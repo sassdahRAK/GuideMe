@@ -506,7 +506,7 @@ export function DashboardOverlay({
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder={isKhmer ? 'ស្វែងរកមេរៀន...' : 'Search guides...'}
-                        className="bg-transparent border-0 outline-none text-xs w-full text-gray-900 dark:text-white"
+                        className={`bg-transparent border-0 outline-none text-xs w-full text-gray-900 dark:text-white ${isKhmer ? 'font-kantumruy' : 'font-sans'}`}
                       />
                     </div>
 
@@ -677,7 +677,7 @@ export function DashboardOverlay({
                         value={aiInput}
                         onChange={(e) => setAiInput(e.target.value)}
                         placeholder={isKhmer ? 'សួរអ្វីមួយអំពីការណែនាំ...' : 'Ask anything about guides or workflows...'}
-                        className="flex-1 bg-transparent border-0 outline-none text-xs text-gray-900 dark:text-white"
+                        className={`flex-1 bg-transparent border-0 outline-none text-xs text-gray-900 dark:text-white ${isKhmer ? 'font-kantumruy' : 'font-sans'}`}
                       />
                       <button
                         type="submit"

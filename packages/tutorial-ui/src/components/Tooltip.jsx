@@ -44,6 +44,8 @@ export function Tooltip({
   isPlayingAudio,
   isMuted = false,
   volume = 1.0,
+  targetMissing = false,
+  onRetry,
   onToggleMute,
   onVolumeChange,
   onLanguageChange,
@@ -296,6 +298,8 @@ export function Tooltip({
         isPlayingAudio={isPlayingAudio}
         isMuted={isMuted}
         volume={volume}
+        targetMissing={targetMissing}
+        onRetry={onRetry}
         onToggleMute={onToggleMute}
         onVolumeChange={onVolumeChange}
         isDragging={isDragging}

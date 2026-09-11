@@ -404,6 +404,18 @@ export const UI_STRINGS = {
     km: 'បានបញ្ចប់ការណែនាំ!',
     en: 'Walkthrough ended!',
   },
+  defaultChatTitle: {
+    km: 'ការជជែក',
+    en: 'Chat',
+  },
+  chatGreeting: {
+    km: 'សួស្តី! ខ្ញុំជា GuideMe AI Assistant។ តើខ្ញុំអាចជួយអ្វីអ្នកនៅលើទំព័រនេះ?',
+    en: 'Hello! I am your GuideMe AI Assistant. How can I help you on this page?',
+  },
+  chatGreetingShort: {
+    km: 'សួស្តី! តើខ្ញុំអាចជួយអ្វីអ្នកនៅលើទំព័រនេះ?',
+    en: 'Hello! How can I help you on this page?',
+  },
 };
 
 /**

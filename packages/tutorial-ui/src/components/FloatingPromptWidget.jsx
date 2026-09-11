@@ -246,7 +246,7 @@ export function FloatingPromptWidget({
               onKeyUp={(e) => e.stopPropagation()}
               onKeyPress={(e) => e.stopPropagation()}
               placeholder={getUIString('askAnything', language)}
-              className="flex-1 bg-transparent border-0 outline-none text-[13px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-500 font-normal min-w-0"
+              className={`flex-1 bg-transparent border-0 outline-none text-[13px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-500 font-normal min-w-0 ${language === 'km' ? 'font-kantumruy' : 'font-sans'}`}
               style={{ border: 'none', outline: 'none' }}
             />
 
