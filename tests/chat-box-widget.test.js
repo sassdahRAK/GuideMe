@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import esbuild from 'esbuild';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
@@ -27,7 +27,7 @@ describe('ChatBoxWidgetOverlay Component Unit Tests', () => {
     });
 
     try {
-      const { ChatBoxWidgetOverlay } = await import(tmpFile);
+      const { ChatBoxWidgetOverlay } = await import(pathToFileURL(tmpFile).href);
       assert.ok(ChatBoxWidgetOverlay, 'ChatBoxWidgetOverlay component must export cleanly');
 
       // 1. Closed state returns null

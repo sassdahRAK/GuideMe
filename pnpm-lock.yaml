@@ -105,6 +105,9 @@ importers:
       '@guideme/core-types':
         specifier: workspace:*
         version: link:../core-types
+      '@guideme/engine':
+        specifier: workspace:*
+        version: link:../engine
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 18.3.1

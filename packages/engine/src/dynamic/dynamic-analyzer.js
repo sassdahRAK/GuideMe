@@ -2,6 +2,9 @@
 import { SchemaValidator } from '@guideme/tutorial-schema';
 import { safeIdSelector, harvestInteractiveElements } from './dom-harvester.js';
 import { matchDomElementWithFuse, synthesizeGroundedTutorial } from './fuse-dom-matcher.js';
+import { GeminiDomAnalyzer } from './gemini-dom-analyzer.js';
+import { IntentResolver } from '../intent/intent-resolver.js';
+import { LocalFallbackReranker } from '../intent/llm-reranker.js';
 
 export { safeIdSelector, harvestInteractiveElements };
 
@@ -191,18 +194,20 @@ export class DynamicPageAnalyzer {
   static async generateDynamicTutorialAsync(doc, url = '', userPrompt = '', options = {}) {
     const isJsonPrompt = typeof userPrompt === 'string' && userPrompt.trim().startsWith('{');
 
-    // Fast-path: Explicit selector prompt (e.g. 'click #confirm-order-btn')
-    if (typeof userPrompt === 'string' && !isJsonPrompt) {
-      const explicitSteps = this._extractExplicitSelectors(userPrompt.trim(), doc);
-      if (explicitSteps.length > 0) {
-        return {
-          id: `dynamic-guide-${Date.now()}`,
-          version: '1.0.0',
-          name: `Guide: ${userPrompt}`,
-          description: `Step-by-step guidance for "${userPrompt}".`,
-          matchUrls: ['<all_urls>'],
-          steps: explicitSteps,
-        };
+    // Intent path (ADR-006 two-stage): explicit LLM/Backend reranker provided via
+    // options.reranker. Runs Stage 1 (Fuse.js) + Stage 2 (LLM/Backend) to order the
+    // interactive elements, then synthesizes the tutorial without sending keys client-side.
+    const reranker = options.reranker || null;
+    if (reranker && !(reranker instanceof LocalFallbackReranker)) {
+      try {
+        const intentTutorial = await this._generateFromIntentResolver(doc, url, userPrompt, reranker, options);
+        if (intentTutorial) {
+          return intentTutorial;
+        }
+      } catch (err) {
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('[DynamicPageAnalyzer] Intent resolver fallback:', err.message);
+        }
       }
     }
 
@@ -257,8 +262,8 @@ export class DynamicPageAnalyzer {
             prompt: userPrompt,
             doc,
             url,
-            apiKey: effectiveGeminiKey,
-            model: options.geminiModel || options.model || 'gemini-3.6-flash',
+            apiKey: geminiKey || options.apiKey,
+            model: options.model || 'gemini-2.5-flash',
             language: options.language || 'km',
             fetchFn: options.fetchFn,
           });
@@ -289,6 +294,7 @@ export class DynamicPageAnalyzer {
     return this.generateDynamicTutorial(doc, url, userPrompt, options);
   }
 
+  /**
   /**
    * Deterministically extracts structured intent from user prompt text for zero-hallucination Fuse.js DOM matching.
    * @param {string} text
@@ -342,7 +348,6 @@ export class DynamicPageAnalyzer {
   }
 
   /**
-   * Generates a fully formed, executable declarative tutorial schema for the page.
    * @param {Document} doc
    * @param {string} [url='']
    * @param {string|Object} [userPrompt=''] - Custom user input prompt or JSON schema
@@ -544,11 +549,17 @@ export class DynamicPageAnalyzer {
         }
       };
 
-      // Scan all interactive controls on the page (Universal for all frameworks)
+      // Scan all interactive controls on the page — includes Shadow DOM (Google Docs, etc.)
       analysis.buttons.forEach((btn) => scoreAndAdd(btn, 'button'));
       analysis.allInputs.forEach((input) => scoreAndAdd(input, 'input'));
-      const linksAndActionables = this._safeQueryAll(doc, 'a[href], [role="button"], [role="tab"], [role="menuitem"], [role="link"], summary');
+      const linksAndActionables = this._queryAllDeep(doc, 'a[href], [role="button"], [role="tab"], [role="menuitem"], [role="link"], summary, [aria-label], [aria-haspopup]');
       linksAndActionables.forEach((link) => scoreAndAdd(link, 'button'));
+
+      // Also scan shadow roots for buttons/inputs that analyzePage may have missed
+      const shadowButtons = this._queryAllDeep(doc, 'button, [role="button"], input[type="submit"], input[type="button"]');
+      shadowButtons.forEach((el) => scoreAndAdd(el, 'button'));
+      const shadowInputs = this._queryAllDeep(doc, 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea');
+      shadowInputs.forEach((el) => scoreAndAdd(el, 'input'));
 
       // If hover revealed any elements that weren't caught in query, add them directly
       for (const [revealedEl] of hoverRevealedMap) {
@@ -586,9 +597,8 @@ export class DynamicPageAnalyzer {
         // Score remaining top 10 candidates based on locality to anchor and dedup labels
         const seenLabels = new Set([`${anchor.type}-${anchor.label}`]);
         
-        for (let i = 1; i < Math.min(candidates.length, 10); i++) {
-          if (topCandidates.length >= 3) break; // Take max 3 steps
-          
+        for (let i = 1; i < candidates.length; i++) {
+          // No arbitrary step cap — the dedup logic and scoring naturally determine how many steps
           const cand = candidates[i];
           const labelKey = `${cand.type}-${cand.label}`;
           
@@ -659,9 +669,7 @@ export class DynamicPageAnalyzer {
             id: `prompt_step_${cand.type}_${idx + 1}`,
             title: stepTitle,
             description: `Step ${idx + 1}: ${stepTitle}`,
-            target: this._buildTargetSelector(
-              cand.el,
-              isBtn ? 'button, [role="button"], a' : 'input, textarea',
+            target: this._buildTargetSelector(cand.el, (cand.el.tagName || '').toLowerCase(),
               { hoverTrigger: cand.hoverTrigger }
             ),
             action: {
@@ -937,18 +945,32 @@ export class DynamicPageAnalyzer {
 
     // Ensure we always have at least 1 informational fallback step
     if (steps.length === 0) {
+      const hasUserPrompt = Boolean(promptText);
+      const noMatchMsg = hasUserPrompt
+        ? (activeLang === 'km'
+            ? `មិនអាចរកឃើញធាតុដែលត្រូវនឹង "${promptText}" នៅលើទំព័រនេះទេ។ សូមសាកល្បងពាក្យផ្សេង ឬជ្រើសរើសសកម្មភាពជាក់លាក់ដូចជា "ចុច Blank" ឬ "ស្វែងរកឯកសារ"។`
+            : `Could not find elements matching "${promptText}" on this page. Try a different prompt or be more specific (e.g. "click Blank", "search files").`)
+        : (activeLang === 'km'
+            ? 'សូមប្រាប់ខ្ញុំថាអ្នកចង់ធ្វើអ្វីលើទំព័រនេះ ឧទាហរណ៍: "ចុចប៊ូតុង Sign In"'
+            : 'Tell me what you want to do on this page. Example: "Click Sign In"');
+
       steps.push({
         id: 'dynamic_fallback_step',
-        title: `Welcome to ${domain}`,
-        description: 'Explore this page at your own pace.',
-        target: { css: 'body, main, #root, #app' },
+        title: hasUserPrompt
+          ? (activeLang === 'km' ? `មិនមានលទ្ធផលសម្រាប់ "${promptText}"` : `No results for "${promptText}"`)
+          : (activeLang === 'km' ? `សូមបញ្ជាក់សកម្មភាព` : `What would you like to do?`),
+        description: noMatchMsg,
+        target: null,
         action: {
           type: 'spotlight',
-          title: `Welcome to ${domain}`,
-          content: 'This page is ready for interaction. Follow on-screen controls to navigate.',
-          placement: 'bottom',
+          title: hasUserPrompt
+            ? (activeLang === 'km' ? `រកមិនឃើញ "${promptText}"` : `No matching elements`)
+            : (activeLang === 'km' ? 'ទំព័រនេះគ្មានធាតុអន្តរកម្ម' : 'No interactive elements found'),
+          content: noMatchMsg,
+          placement: 'center',
         },
-        validation: { type: 'click' },
+        validation: { type: 'manual_next' },
+        canSkip: true,
       });
     }
 
@@ -974,6 +996,47 @@ export class DynamicPageAnalyzer {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Queries elements across the main document AND all open shadow roots.
+   * Required for web apps like Google Docs that render UI inside custom
+   * elements with open Shadow DOM (e.g. <docs-*> elements).
+   * @private
+   */
+  static _queryAllDeep(root, selector) {
+    if (!root || !selector) return [];
+    const results = [];
+    const seen = new Set();
+    const traverse = (node) => {
+      if (!node || seen.has(node)) return;
+      seen.add(node);
+      if (typeof node.querySelectorAll === 'function') {
+        try {
+          const matches = node.querySelectorAll(selector);
+          for (let i = 0; i < matches.length; i++) {
+            const m = matches[i];
+            if (!seen.has(m)) {
+              seen.add(m);
+              results.push(m);
+            }
+          }
+        } catch {}
+      }
+      if (typeof node.querySelectorAll === 'function') {
+        try {
+          const allChildren = node.querySelectorAll('*');
+          for (let i = 0; i < allChildren.length; i++) {
+            const child = allChildren[i];
+            if (child && child.shadowRoot) {
+              traverse(child.shadowRoot);
+            }
+          }
+        } catch {}
+      }
+    };
+    traverse(root);
+    return results;
   }
 
   /**
@@ -1448,7 +1511,7 @@ export class DynamicPageAnalyzer {
 
     // 1. CSS Selector strategy
     if (el.id) {
-      target.css = safeIdSelector(el.id);
+      target.css = `#${el.id}`;
     } else if (el.getAttribute && (el.getAttribute('data-testid') || el.getAttribute('data-cy'))) {
       const tid = el.getAttribute('data-testid') || el.getAttribute('data-cy');
       target.css = `[data-testid="${tid}"]`;
@@ -1471,8 +1534,34 @@ export class DynamicPageAnalyzer {
       }
     }
 
+    // Fallback: build a precise positional selector using nth-of-type
+    // instead of a broad group selector like "button, [role="button"], a"
     if (!target.css) {
-      target.css = defaultCssFallback || tag || 'body';
+      try {
+        const parent = el.parentElement;
+        if (parent && typeof parent.querySelectorAll === 'function') {
+          const siblings = parent.querySelectorAll(`:scope > ${tag}`);
+          const index = Array.from(siblings).indexOf(el);
+          if (index >= 0) {
+            if (parent.id) {
+              target.css = `#${parent.id} > ${tag}:nth-of-type(${index + 1})`;
+            } else if (parent.className && typeof parent.className === 'string') {
+              const parentClass = parent.className.trim().split(/\s+/)[0];
+              if (parentClass && !parentClass.includes(':') && !parentClass.includes('/') && !parentClass.includes('[')) {
+                try {
+                  const parentUnique = parent.ownerDocument?.querySelectorAll(`.${parentClass}`).length === 1;
+                  if (parentUnique) {
+                    target.css = `.${parentClass} > ${tag}:nth-of-type(${index + 1})`;
+                  }
+                } catch {}
+              }
+            }
+          }
+        }
+      } catch {}
+      if (!target.css) {
+        target.css = tag || defaultCssFallback || 'body';
+      }
     }
 
     // Contextual Container Scoping to disambiguate identical elements across regions
@@ -1486,8 +1575,8 @@ export class DynamicPageAnalyzer {
       } else if (!el.id) {
         const containerWithId = typeof el.closest === 'function' ? el.closest('[id]') : null;
         if (containerWithId && containerWithId !== el && containerWithId.id) {
-          target.container = safeIdSelector(containerWithId.id);
-          target.css = `${target.container} ${target.css}`;
+          target.container = `#${containerWithId.id}`;
+          target.css = `#${containerWithId.id} ${target.css}`;
         }
       }
     } catch {}
@@ -1935,9 +2024,66 @@ Generate the interactive tutorial JSON now.`;
 
     return tutorial;
   }
+
+  /**
+   * Synthesizes a tutorial from intent-resolver ordered candidates.
+   * Used when an explicit LLM/Backend reranker is configured (ADR-006).
+   * @private
+   */
+  static async _generateFromIntentResolver(doc, url, userPrompt, reranker, options) {
+    const candidates = GeminiDomAnalyzer.extractInteractiveDom(doc);
+    if (candidates.length === 0) return null;
+
+    const resolver = new IntentResolver({ reranker });
+    const resolved = await resolver.resolve(candidates, userPrompt, { maxSteps: 3 });
+    if (!resolved || resolved.length === 0) return null;
+
+    const steps = resolved.map((desc, idx) => this._buildStepFromDesc(desc, userPrompt, idx));
+    const tutorialId = `intent-guide-${Date.now()}`;
+    const domain = (() => {
+      try { return new URL(url || 'http://localhost').hostname; } catch { return 'webpage'; }
+    })();
+
+    return {
+      id: tutorialId,
+      version: '1.0.0',
+      name: `Guide: ${userPrompt}`,
+      description: `Step-by-step guidance for "${userPrompt}" on ${domain}.`,
+      matchUrls: ['<all_urls>'],
+      steps,
+    };
+  }
+
+  /**
+   * Builds a tutorial step from a resolved candidate descriptor.
+   * @private
+   */
+  static _buildStepFromDesc(desc, userPrompt, idx) {
+    const tag = desc.tag || '';
+    const isInput = ['input', 'textarea', 'select'].includes(tag);
+    const label = desc.text || desc.placeholder || desc.ariaLabel || desc.id || desc.selector || 'element';
+
+    const target = {};
+    if (desc.selector) target.css = desc.selector;
+    if (desc.testId) target.testId = desc.testId;
+    if (desc.ariaLabel) target.ariaLabel = desc.ariaLabel;
+    if (desc.text && desc.text.length >= 2 && desc.text.length <= 30) target.text = desc.text;
+    if (!target.css) target.css = 'body';
+
+    return {
+      id: `intent_step_${idx + 1}`,
+      title: isInput ? `Enter ${label}` : `Click "${label}"`,
+      description: isInput ? `Type information into this field for "${userPrompt}".` : `Click this element to proceed with "${userPrompt}".`,
+      target,
+      action: {
+        type: 'spotlight',
+        title: label,
+        content: isInput ? 'Type your information here.' : 'Click to proceed.',
+        placement: isInput ? 'bottom' : 'top',
+      },
+      validation: { type: isInput ? 'input' : 'click' },
+    };
+  }
 }
 
-/**
- * Alias export for backward compatibility.
- */
-export const GeminiDomAnalyzer = DynamicPageAnalyzer;
+

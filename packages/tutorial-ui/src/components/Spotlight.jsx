@@ -14,8 +14,14 @@ export function Spotlight({
   showPointer = true,
   alertState = 'normal', // 'normal' | 'hesitation' | 'misclick'
 }) {
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1920;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 1080;
+  const coversFullViewport = targetBoundingBox && targetBoundingBox.left <= 1 && targetBoundingBox.top <= 1 &&
+    targetBoundingBox.width >= vw * 0.95 && targetBoundingBox.height >= vh * 0.95;
+
   const hasValidBox =
     targetBoundingBox &&
+    !coversFullViewport &&
     !targetBoundingBox.isClipped &&
     (targetBoundingBox.width > 0 || targetBoundingBox.height > 0) &&
     !(targetBoundingBox.left === 0 && targetBoundingBox.top === 0 && targetBoundingBox.width <= 1);

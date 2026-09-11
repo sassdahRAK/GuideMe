@@ -121,6 +121,24 @@
 
 ## 3. Upcoming Roadmap
 
-### Phase 5: Cloud Sync
-- [ ] Organization tutorial catalog distribution API.
+### Phase 5: Two-Stage Intent Resolution (ADR-006) Integration
+
+- [x] **ADR-006 Dynamic Analyzer Integration**: `DynamicPageAnalyzer.generateDynamicTutorialAsync` now accepts an `options.reranker` parameter. When a non-local `BaseIntentReranker` is provided, the method runs `IntentResolver.resolve()` (Stage 1 Fuse.js + Stage 2 LLM) instead of the direct Gemini/NVIDIA API path. This keeps all API keys server-side via `BackendIntentApiClient`.
+- [x] **Content Script Bridge**: `useContentBridge.js` instantiates `IntentRegistry.fromEnv(import.meta.env)` and passes the reranker into every dynamic guide generation call — both the `START_DYNAMIC_GUIDE` message handler and the `handleStartDynamicGuide` function.
+- [x] **Test Coverage**: Added `generateDynamicTutorialAsync uses intent-resolver path` unit test verifying the full pipeline with a mock `IntentRegistry` LLM reranker. Total test count increased to **148 passing tests** (100% pass rate).
+
+### Phase 6: Production Hardening & PiP Positioning Fixes
+- [x] **PiP Window `createPipWindow` refactored**: Replaced `window.screen` (unavailable in Service Workers) with `chrome.windows.get()` to derive real browser window bounds. Added `clampIntoView` logic to keep the PiP fully visible on screen.
+- [x] **Popup Guard**: Backend AI fetch wrapped in `if (baseUrl)` to prevent `net::ERR_CONNECTION_REFUSED` when no backend is running.
+- [x] **Synthetic Hover Events**: `ChromeAdapter.findTarget` now dispatches `pointerover`/`mouseover`/`focusin` events on resolved elements before measuring, enabling flyout menus to become visible.
+- [x] **Hysteresis Position Tracking**: `ChromeAdapter.observeTargetPosition` uses 4px hysteresis and a dedicated `boxesDiffer` comparator to reduce redundant re-renders.
+- [x] **Target Resolution Timeout**: Engine target polling increased from 1500ms to 5000ms for reliability on slow SPA pages.
+- [x] **Backend Error Propagation**: `errorHandler.ts` now uses typed `AppError` interface with `statusCode` + `code`, propagating structured service-level errors to the API client.
+- [x] **Dynamic Step Generation Timeout Alignment**: Content-script `generate-steps` requests now allow the backend's 12-second model budget to complete, clean up abort timers reliably, and use a deterministic offline fallback without issuing a second LLM request after timeout.
+- [x] **Backend Target Hydration**: LLM-generated steps are rebound to stable selectors from the live DOM candidate list before activation, with exact-text resolution for generic menu containers such as `div[role="menuitem"]`.
+- [x] **Dynamic Menu Target Recovery**: Target resolution ignores hidden matches and polls for controls revealed by menu/dialog interactions, covering SPA and shadow-root visibility changes beyond document-level mutation events.
+- [x] **Exact Menu Text Matching**: Prevented menu labels such as `New` from matching unrelated accessible labels such as `Show all comments 0 new comments`.
+- [x] **Incremental Dynamic Planning**: Single-step dynamic responses rescan the live DOM and append one next action after each successful interaction so hidden menu/dialog steps are resolved in their actual UI state; complete multi-step responses are preserved instead of being truncated.
+- [x] **Post-Event State Synchronization**: Continuation scans wait for host event handling and a quiet DOM mutation window, use visibility-aware candidates, and request an explicit single next action from the backend.
+- [x] **Tutorial Selector Hardening**: `welcome-tour.json` simplified CSS selectors to be more resilient across different web page layouts.
 

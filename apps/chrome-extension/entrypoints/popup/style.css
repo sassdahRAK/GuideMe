@@ -1,10 +1,52 @@
 @import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 @source "../..";
 @source "../../../../packages/tutorial-ui/src";
+
+/*
+ * ── Khmer Unicode-range auto-font ──────────────────────────────────────────
+ * Any element rendering characters in U+1780–U+17FF (Khmer block) will
+ * automatically use Kantumruy Pro, regardless of which CSS class is applied.
+ * This is the definitive font fix — no class needed on individual elements.
+ *
+ * NOTE: src uses local() first (fast path when OS has the font installed),
+ * then falls back to the Google Fonts CDN URL so users without a local
+ * install still get the correct glyph shapes.
+ */
+@font-face {
+  font-family: 'Inter';
+  src: local('Kantumruy Pro'),
+       url('https://fonts.gstatic.com/s/kantumruypro/v8/1u_jR9iFCOwcFKGLmZM5dBOJp_LGnBoZKM6aHxS-rI0.woff2') format('woff2');
+  unicode-range: U+1780-17FF, U+19E0-19FF, U+200C-200D, U+25CC;
+}
+
+@font-face {
+  font-family: 'Kantumruy Pro';
+  font-weight: 100 900;
+  font-style: normal;
+  src: local('Kantumruy Pro'),
+       url('https://fonts.gstatic.com/s/kantumruypro/v8/1u_jR9iFCOwcFKGLmZM5dBOJp_LGnBoZKM6aHxS-rI0.woff2') format('woff2');
+  unicode-range: U+1780-17FF, U+19E0-19FF, U+200C-200D, U+25CC;
+}
+
+@theme {
+  --font-family-kantumruy: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer utilities {
+  .font-kantumruy {
+    font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  }
+  
+  .font-sans {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  }
+}
 
 /* ──────────────────────────────────────────────────
    Design Tokens — Black / White / Purple theme
@@ -51,9 +93,14 @@ html.dark {
 
 /* ── Base ─────────────────────────────────────── */
 * {
-  font-family: 'Inter', 'Kantumruy Pro', -apple-system, BlinkMacSystemFont,
+  font-family: 'Kantumruy Pro', 'Inter', -apple-system, BlinkMacSystemFont,
                "Segoe UI", Roboto, sans-serif;
   box-sizing: border-box;
+}
+
+/* ─── Force form elements to inherit (browsers default to system font) ─── */
+input, textarea, button, select {
+  font-family: inherit;
 }
 
 body {

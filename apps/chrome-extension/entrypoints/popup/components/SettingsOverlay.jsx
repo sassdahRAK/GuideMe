@@ -279,8 +279,20 @@ export function SettingsOverlay({
               </div>
               <button
                 type="button"
+                onClick={() => {
+                  const siteUrl = import.meta.env.WXT_SITE_URL || 'http://localhost:3005';
+                  chrome.tabs.create({ url: `${siteUrl.replace(/\/$/, '')}/account` });
+                  window.close();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors border border-purple-200/60 dark:border-purple-800/40 cursor-pointer"
+              >
+                <FiExternalLink size={13} />
+                <span>{isKhmer ? 'គ្រប់គ្រងគណនី' : 'Manage Account'}</span>
+              </button>
+              <button
+                type="button"
                 onClick={onLogout}
-                className="w-full mt-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors border border-red-200/60 dark:border-red-900/40 cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors border border-red-200/60 dark:border-red-900/40 cursor-pointer"
               >
                 <FiLogOut size={13} />
                 <span>{isKhmer ? 'ចាកចេញ' : 'Log Out'}</span>
@@ -295,7 +307,11 @@ export function SettingsOverlay({
               </p>
               <button
                 type="button"
-                onClick={onOpenLogin}
+                onClick={() => {
+                  const siteUrl = import.meta.env.WXT_SITE_URL || 'http://localhost:3005';
+                  chrome.tabs.create({ url: `${siteUrl.replace(/\/$/, '')}/login?source=extension` });
+                  window.close();
+                }}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-sm transition-all cursor-pointer border-0"
               >
                 <FiLogIn size={14} />

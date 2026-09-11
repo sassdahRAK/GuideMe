@@ -96,7 +96,11 @@ export function PopupHeader({
         ) : (
           <button
             type="button"
-            onClick={onOpenLogin}
+            onClick={() => {
+              const siteUrl = import.meta.env.WXT_SITE_URL || 'http://localhost:3005';
+              chrome.tabs.create({ url: `${siteUrl.replace(/\/$/, '')}/login?source=extension` });
+              window.close();
+            }}
             title={currentLanguage === 'km' ? 'ចូលគណនីតាមរយៈ Web' : 'Login with Web'}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-semibold shadow-xs transition-colors cursor-pointer border-0"
           >

@@ -49,7 +49,7 @@ export function TutorialApp({ uiContainer }) {
   // Load preferences from storage on mount & listen to live changes
   useEffect(() => {
     try {
-      chrome.storage?.local?.get(['guideme_theme', 'guideme_is_chat_open'], (result) => {
+      chrome.storage?.local?.get(['guideme_theme', 'guideme_is_chat_open', 'guideme_popup_open'], (result) => {
         if (result?.guideme_theme) {
           setTheme(result.guideme_theme);
         } else if (window.matchMedia?.('(prefers-color-scheme: dark)')?.matches) {
@@ -57,6 +57,9 @@ export function TutorialApp({ uiContainer }) {
         }
         if (typeof result?.guideme_is_chat_open === 'boolean') {
           setIsPromptOpen(result.guideme_is_chat_open);
+        }
+        if (result?.guideme_popup_open === true) {
+          setIsFullPopupOpen(true);
         }
       });
 
@@ -67,6 +70,9 @@ export function TutorialApp({ uiContainer }) {
           }
           if (changes.guideme_is_chat_open !== undefined) {
             setIsPromptOpen(Boolean(changes.guideme_is_chat_open.newValue));
+          }
+          if (changes.guideme_popup_open !== undefined) {
+            setIsFullPopupOpen(Boolean(changes.guideme_popup_open.newValue));
           }
         }
       };
@@ -93,9 +99,11 @@ export function TutorialApp({ uiContainer }) {
     setIsDismissed,
   });
 
+  const lang = engineState?.language || 'km';
+
   // The Floating Assistant Button stays permanently visible on screen (never unmounts)
   return (
-    <div className={theme === 'dark' ? 'dark' : ''}>
+    <div className={`${theme === 'dark' ? 'dark' : ''} ${lang === 'km' ? 'font-kantumruy' : 'font-sans'}`}>
       <TutorialErrorBoundary>
         <TutorialOverlay
         state={engineState}
@@ -140,6 +148,7 @@ export function TutorialApp({ uiContainer }) {
         onPrev={() => engineRef.current?.prevStep()}
         onSkip={() => engineRef.current?.skipStep()}
         onClose={() => engineRef.current?.stop()}
+        onRetryLocateTarget={() => engineRef.current?.retryLocateTarget()}
         theme={theme}
         onThemeChange={(newTheme) => {
           setTheme(newTheme);

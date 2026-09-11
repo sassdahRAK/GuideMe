@@ -28,7 +28,7 @@ function normalizeText(text) {
 }
 
 // ── Action Verbs & Phrases that signal clear intent ─────────────────────────────
-const ACTION_VERBS_EN = /\b(click|press|tap|open|go\s+to|navigate|visit|search|find|type|enter|fill|submit|save|apply|buy|add|remove|delete|edit|create|sign\s*in|log\s*in|sign\s*up|register|checkout|download|upload|share|invite|send|copy|paste|select|toggle|switch|enable|disable|view|show\s+me\s+how|scroll|export|import|print|filter|sort|move|drag|drop|choose|pick|check|uncheck|setup|set\s*up|manage|customize)\b/i;
+const ACTION_VERBS_EN = /\b(click|press|tap|open|go\s+to|navigate|visit|search|find|type|enter|fill|insert|submit|save|apply|buy|add|remove|delete|edit|create|sign\s*in|log\s*in|sign\s*up|register|checkout|download|upload|share|invite|send|copy|paste|select|toggle|switch|enable|disable|view|show\s+me\s+how|scroll|export|import|print|filter|sort|move|drag|drop|choose|pick|check|uncheck|setup|set\s*up|manage|customize)\b/i;
 
 const ACTION_VERBS_KM = /(ចុច|បើក|ទៅ|ស្វែងរក|វាយ|បញ្ចូល|រក្សាទុក|ទិញ|បន្ថែម|លុប|កែ|បង្កើត|ចូល|ចុះឈ្មោះ|ទាញយក|ផ្ញើ|ចម្លង|ជ្រើសរើស|មើល|ចែករំលែក|អញ្ជើញ|ប្តូរ|ទាញ|ទម្លាក់|កំណត់)/;
 
@@ -188,6 +188,16 @@ export function classifyPrompt(rawPrompt) {
     };
   }
 
-  // ── 4. Default: treat as actionable ──────────────────────────────────────
+  // ── 4. Code-mixed prompt fallback ──────────────────────────────────────
+  // Khmer users often type mixed language with typos (e.g. "តើតើiinsertនៅទីណា").
+  // If the prompt contains any recognizable English action verb as a substring
+  // and has non-Latin characters, treat it as actionable.
+  const containsLatinAction = /\b(click|press|tap|open|go|navigate|search|find|type|enter|fill|insert|submit|save|buy|add|remove|delete|edit|create|sign|login|register|checkout|download|upload|share|send|select|toggle|switch|change|update|print|export|import|choose|setup|manage|help)\b/i.test(original);
+  const hasKhmer = /[\u1780-\u17FF]/.test(original);
+  if (containsLatinAction && hasKhmer && original.length >= 5) {
+    return { type: 'actionable', responses: { km: '', en: '' } };
+  }
+
+  // ── 5. Default: treat as actionable ──────────────────────────────────────
   return { type: 'actionable', responses: { km: '', en: '' } };
 }

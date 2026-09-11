@@ -158,8 +158,17 @@ export class ValidationEngine {
     // ── 3. Universal Action Validation Listeners ──
     const allTargets = [target, ...(validation.alternativeTargets || step.alternativeTargets || [])].filter(Boolean);
 
-    // Global Completion Listener for dialog actions (clicking Done, Send, Save finishes interactive step)
-    if (typeof document !== 'undefined') {
+    // Global Completion Listener — only for INPUT/CHANGE steps where the user
+    // submits a form or dialog by clicking Done/Send/Save/Submit rather than
+    // by pressing Enter. This must NOT fire for CLICK steps because:
+    //   1. The primary allTargets listener already handles the exact target click.
+    //   2. Many host pages have persistent Done/Close buttons in their own UI
+    //      that have nothing to do with the tutorial step, and blindly treating
+    //      those as step completion would advance the guide incorrectly.
+    if (
+      typeof document !== 'undefined' &&
+      (validation.type === ValidationType.INPUT || validation.type === ValidationType.CHANGE)
+    ) {
       const globalCompletionHandler = (event) => {
         const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
         const isInsideGuideMe = path.some(
@@ -170,10 +179,22 @@ export class ValidationEngine {
         );
         if (isInsideGuideMe) return;
 
+        // Only treat the click as a completion if the button is visually near
+        // (in the same form/dialog) as the input target element. This prevents
+        // a "Close" button in an unrelated panel from advancing the step.
         const compNode = path.find((node) => isCompletionElement(node));
-        if (compNode && (validation.type === ValidationType.CLICK || validation.type === ValidationType.INPUT)) {
-          onValidate({ valid: true, eventData: { reason: 'completion_button_clicked', target: compNode } });
+        if (!compNode) return;
+
+        const inputEl = typeof adapter.findElement === 'function' ? adapter.findElement(target) : null;
+        if (inputEl) {
+          // Accept if the completion button shares a common form or dialog ancestor
+          // with the input target (within 6 DOM levels).
+          const form = inputEl.closest?.('form, dialog, [role="dialog"], [role="form"]');
+          const compInSameForm = form && form.contains(compNode);
+          if (!compInSameForm) return;
         }
+
+        onValidate({ valid: true, eventData: { reason: 'completion_button_clicked', target: compNode } });
       };
 
       document.addEventListener('click', globalCompletionHandler, true);

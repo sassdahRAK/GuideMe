@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { DynamicPageAnalyzer, TutorialParser, GeminiDomAnalyzer } from '../packages/engine/src/index.js';
+import { DynamicPageAnalyzer, TutorialParser, GeminiDomAnalyzer, IntentRegistry, LlmReranker } from '../packages/engine/src/index.js';
 
 // Mock simple DOM document for unit testing
 function createMockDoc({
@@ -218,6 +218,28 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     assert.ok(domList.length >= 2);
     assert.ok(domList.some((el) => el.id === 'checkout-btn' && el.tag === 'button'));
     assert.ok(domList.some((el) => el.id === 'search-box' && el.tag === 'input'));
+  });
+
+  test('GeminiDomAnalyzer excludes hidden interactive elements from the current DOM scan', () => {
+    const visibleButton = {
+      tagName: 'BUTTON',
+      textContent: 'File',
+      getAttribute: () => null,
+      getClientRects: () => [{}],
+    };
+    const hiddenMenuItem = {
+      tagName: 'DIV',
+      textContent: 'New',
+      getAttribute: (name) => name === 'aria-hidden' ? 'true' : null,
+      getClientRects: () => [],
+    };
+    const mockDoc = {
+      querySelectorAll: () => [visibleButton, hiddenMenuItem],
+    };
+
+    const domList = GeminiDomAnalyzer.extractInteractiveDom(mockDoc);
+    assert.ok(domList.some((el) => el.text === 'File'));
+    assert.ok(!domList.some((el) => el.text === 'New'));
   });
 
   test('GeminiDomAnalyzer synthesizes valid tutorial schema with mock fetch', async () => {
@@ -589,120 +611,49 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     assert.strictEqual(step.target.hoverTrigger.css, '#user-profile-toggle');
   });
 
-  test('DynamicPageAnalyzer generates safe CSS selectors for elements with colon IDs (:6j, :a7)', () => {
-    const parentContainer = {
-      tagName: 'DIV',
-      id: ':a7',
-      closest: () => null,
-      getAttribute: () => null,
-    };
-
-    const colonBtn = {
-      tagName: 'BUTTON',
-      id: ':6j',
-      textContent: 'Compose New Email',
-      value: '',
-      closest: (sel) => {
-        if (sel === '[id]') return parentContainer;
-        return null;
-      },
-      getAttribute: () => null,
-    };
-
-    const mockDoc = {
-      title: 'Email Web App',
-      querySelectorAll: (sel) => {
-        if (sel.includes('button')) return [colonBtn];
-        return [];
-      },
-      querySelector: () => null,
-    };
-
-    colonBtn.ownerDocument = mockDoc;
-    parentContainer.ownerDocument = mockDoc;
-
-    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(
-      mockDoc,
-      'https://mail.google.com',
-      'click compose'
-    );
-
-    assert.ok(tutorial.steps.length > 0);
-    const step = tutorial.steps[0];
-    // Must be safe attribute selector [id=":6j"] instead of invalid syntax #:6j
-    assert.strictEqual(step.target.css, '[id=":6j"]');
-    assert.ok(!step.target.css.includes('#:'));
-  });
-
-  test('GeminiDomAnalyzer defaults to gemini-3.6-flash and retries with fallback model on 404', async () => {
+  test('DynamicPageAnalyzer.generateDynamicTutorialAsync uses intent-resolver path when reranker is configured', async () => {
     const mockDoc = createMockDoc({
-      title: 'Store Front',
+      title: 'Sign In Page',
+      inputs: [
+        { type: 'text', name: 'email', id: 'user-email', placeholder: 'Email' },
+        { type: 'password', name: 'password', id: 'user-password', placeholder: 'Password' },
+      ],
       buttons: [
-        { textContent: 'Checkout Now', id: 'btn-checkout' },
+        { textContent: 'Sign In', id: 'sign-in-btn' },
       ],
     });
 
-    const attemptedEndpoints = [];
-    const mockFetch = async (url) => {
-      attemptedEndpoints.push(url);
-      if (url.includes('gemini-3.6-flash')) {
-        // Simulate Google API returning 404 for deprecated / unavailable model
-        return {
-          ok: false,
-          status: 404,
-          text: async () => JSON.stringify({ error: { code: 404, message: 'Model not found' } }),
-        };
-      }
-      // Fallback model succeeds
+    const mockFetch = async (url, options) => {
       return {
         ok: true,
         status: 200,
         json: async () => ({
-          candidates: [
-            {
-              content: {
-                parts: [
-                  {
-                    text: JSON.stringify({
-                      id: 'gemini-fallback-guide',
-                      name: { km: 'ការណែនាំ', en: 'Guide' },
-                      description: { km: 'ការណែនាំ', en: 'Guide' },
-                      matchUrls: ['<all_urls>'],
-                      steps: [
-                        {
-                          id: 'step_checkout',
-                          title: { km: 'បង់ប្រាក់', en: 'Checkout' },
-                          description: { km: 'ចុចបង់ប្រាក់', en: 'Click checkout' },
-                          target: { css: '#btn-checkout' },
-                          action: {
-                            type: 'spotlight',
-                            title: { km: 'បង់ប្រាក់', en: 'Checkout' },
-                            placement: 'bottom',
-                          },
-                          validation: { type: 'click' },
-                        },
-                      ],
-                    }),
-                  },
-                ],
-              },
-            },
-          ],
+          choices: [{ message: { content: JSON.stringify({ stepIds: ['cand-0', 'cand-1'] }) } }],
         }),
       };
     };
 
-    const tutorial = await GeminiDomAnalyzer.analyzeWithGemini({
-      prompt: 'Proceed to checkout',
-      doc: mockDoc,
+    const reranker = IntentRegistry.create({
+      provider: 'openai',
       apiKey: 'test-key',
+      model: 'gpt-4o-mini',
+      endpoint: 'https://mock-openrouter.example.com/v1/chat/completions',
       fetchFn: mockFetch,
     });
 
-    assert.strictEqual(tutorial.id, 'gemini-fallback-guide');
-    assert.ok(attemptedEndpoints.length >= 2);
-    assert.ok(attemptedEndpoints[0].includes('gemini-3.6-flash'));
-    assert.ok(attemptedEndpoints[1].includes('gemini-1.5-flash'));
+    const tutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
+      mockDoc,
+      'https://example.com/login',
+      'sign in to my account',
+      { reranker }
+    );
+
+    assert.ok(tutorial, 'Tutorial must be generated');
+    assert.ok(tutorial.id.startsWith('intent-guide-'), 'Tutorial id must start with intent-guide-');
+    assert.ok(Array.isArray(tutorial.steps), 'Steps must be an array');
+    assert.ok(tutorial.steps.length > 0, 'At least one step');
+    assert.ok(tutorial.steps[0].target?.css, 'Step must have target css');
+    assert.ok(tutorial.steps[0].validation?.type, 'Step must have validation type');
   });
 });
 

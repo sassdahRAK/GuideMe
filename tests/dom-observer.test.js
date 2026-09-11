@@ -76,6 +76,120 @@ test('DomObserver does not treat a partial button label as a captured target mat
   }
 });
 
+test('DomObserver resolves exact text on a generic menu container', () => {
+  const originalDocument = globalThis.document;
+  const fileMenu = {
+    textContent: 'File',
+    offsetParent: {},
+    getClientRects: () => [{}],
+    getAttribute: (name) => name === 'role' ? 'menuitem' : null,
+    closest: () => fileMenu,
+  };
+
+  globalThis.document = {
+    querySelectorAll(selector) {
+      return selector.includes('[role="menuitem"]') ? [fileMenu] : [];
+    },
+  };
+
+  try {
+    assert.strictEqual(
+      DomObserver.findElement({ css: 'div', text: 'File' }),
+      fileMenu,
+    );
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test('DomObserver ignores a hidden matching target until it becomes visible', () => {
+  const originalDocument = globalThis.document;
+  const hiddenMenu = {
+    textContent: 'New',
+    offsetParent: null,
+    getClientRects: () => [],
+    getAttribute: () => null,
+  };
+
+  globalThis.document = {
+    querySelectorAll(selector) {
+      return selector === 'div' ? [hiddenMenu] : [];
+    },
+  };
+
+  try {
+    assert.strictEqual(
+      DomObserver.findElement({ css: 'div', text: 'New' }),
+      null,
+    );
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test('DomObserver does not match target text inside an unrelated ARIA label', () => {
+  const originalDocument = globalThis.document;
+  const commentsButton = {
+    textContent: '0',
+    offsetParent: {},
+    getClientRects: () => [{}],
+    getAttribute: (name) => name === 'aria-label' ? 'Show all comments 0 new comments' : null,
+  };
+  const newMenuItem = {
+    textContent: 'New',
+    offsetParent: {},
+    getClientRects: () => [{}],
+    getAttribute: () => null,
+  };
+
+  globalThis.document = {
+    querySelectorAll(selector) {
+      if (selector === '.goog-menuitem') return [];
+      if (selector.includes('[role="menuitem"]')) return [newMenuItem];
+      if (selector.includes('button')) return [commentsButton];
+      return [];
+    },
+  };
+
+  try {
+    assert.strictEqual(
+      DomObserver.findElement({ css: '.goog-menuitem', text: 'New' }),
+      newMenuItem,
+    );
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
+test('DomObserver does not resolve a menu target to a broad page banner', () => {
+  const originalDocument = globalThis.document;
+  const docsChrome = {
+    id: 'docs-chrome',
+    textContent: 'Untitled document File New Document',
+    offsetParent: {},
+    getClientRects: () => [{}],
+    getAttribute: () => null,
+  };
+
+  globalThis.document = {
+    querySelectorAll(selector) {
+      if (selector === '.apps-menuitem') return [];
+      if (selector.includes('button') || selector.includes('[role="menuitem"]')) return [];
+      if (selector.includes('span, div, p')) return [docsChrome];
+      return [];
+    },
+  };
+
+  try {
+    assert.strictEqual(
+      DomObserver.findElement({ css: '.apps-menuitem', text: 'New' }),
+      null,
+    );
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
 test('DomObserver captures a resilient selector from a user-picked element', () => {
   const element = {
     tagName: 'BUTTON',
