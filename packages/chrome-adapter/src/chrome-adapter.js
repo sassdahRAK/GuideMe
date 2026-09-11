@@ -14,9 +14,51 @@ export class ChromeAdapter extends BaseTutorialAdapter {
    * @param {number} [timeoutMs=5000]
    * @returns {Promise<Object|null>}
    */
-  async findTarget(selector, timeoutMs = 5000) {
+async findTarget(selector, timeoutMs = 5000) {
     const element = await DomObserver.waitForElement(selector, timeoutMs);
-    return element ? DomObserver.getBoundingBox(element) : null;
+    if (!element) return null;
+    const box = DomObserver.getBoundingBox(element);
+    // Only dispatch synthetic hover events when the target has zero bounding
+    // dimensions, which means it might be inside a collapsed flyout/dropdown
+    // menu that needs a hover to open.  Dispatching mouseover/focusin on an
+    // already-visible menu item (e.g. inside an open Google Docs File menu)
+    // can trigger unwanted submenu opens or focus changes that close the
+    // parent dropdown.
+    if (box && box.width === 0 && box.height === 0) {
+      DomObserver.dispatchHoverEvents(element);
+    }
+    return box;
+  }
+
+  /**
+   * Return the live element details used by the overlay for diagnostics.
+   * @param {Object} selector
+   * @returns {Object|null}
+   */
+  describeTarget(selector) {
+    const element = DomObserver.findElement(selector);
+    if (!element) return null;
+
+    const getAttribute = element.getAttribute?.bind(element);
+    const rect = typeof element.getBoundingClientRect === 'function'
+      ? element.getBoundingClientRect()
+      : null;
+
+    return {
+      tag: (element.tagName || '').toLowerCase(),
+      id: element.id || '',
+      className: typeof element.className === 'string' ? element.className : '',
+      role: getAttribute?.('role') || '',
+      ariaLabel: getAttribute?.('aria-label') || getAttribute?.('title') || '',
+      text: (element.textContent || element.value || '').replace(/\s+/g, ' ').trim().slice(0, 120),
+      selector: DomObserver.createTargetSelector(element),
+      rect: rect ? {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      } : null,
+    };
   }
 
   /**
@@ -40,16 +82,46 @@ export class ChromeAdapter extends BaseTutorialAdapter {
   observeTargetPosition(selector, onChange) {
     if (typeof window === 'undefined') return () => {};
 
+    const HYSTERESIS_PX = 4;
     let running = true;
-    let lastBoxJson = '';
+    let lastBox = null;
+
+    // Pin the element identity at observation start. Re-querying on every
+    // frame with a generic selector (e.g. css:'button') causes the spotlight
+    // to jump to whichever matching element becomes first-visible after a
+    // dropdown opens. We only re-query when the pinned element disconnects.
+    let pinnedElement = DomObserver.findElement(selector);
+
+    const boxesDiffer = (a, b) => {
+      if (a === b) return false;
+      if (!a || !b) return true;
+      return (
+        Math.abs(a.left - b.left) >= HYSTERESIS_PX ||
+        Math.abs(a.top - b.top) >= HYSTERESIS_PX ||
+        Math.abs(a.width - b.width) >= HYSTERESIS_PX ||
+        Math.abs(a.height - b.height) >= HYSTERESIS_PX ||
+        a.isClipped !== b.isClipped
+      );
+    };
 
     const update = () => {
       if (!running) return;
-      const element = DomObserver.findElement(selector);
-      const box = element ? DomObserver.getBoundingBox(element) : null;
-      const json = JSON.stringify(box);
-      if (json !== lastBoxJson) {
-        lastBoxJson = json;
+
+      // Re-query only if the pinned element has been detached from the DOM.
+      // This handles SPA navigation / framework re-renders that destroy and
+      // recreate nodes, while preventing the spotlight from jumping to a
+      // different element of the same type when a dropdown opens.
+      if (pinnedElement && typeof pinnedElement.isConnected === 'boolean' && !pinnedElement.isConnected) {
+        pinnedElement = DomObserver.findElement(selector);
+      } else if (!pinnedElement) {
+        pinnedElement = DomObserver.findElement(selector);
+      }
+
+      const box = pinnedElement ? DomObserver.getBoundingBox(pinnedElement) : null;
+      // Emit only when the resolved box actually moves beyond hysteresis.
+      // null→null (element still missing) emits nothing.
+      if (boxesDiffer(lastBox, box)) {
+        lastBox = box;
         onChange(box);
       }
     };
