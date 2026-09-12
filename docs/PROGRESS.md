@@ -142,3 +142,13 @@
 - [x] **Post-Event State Synchronization**: Continuation scans wait for host event handling and a quiet DOM mutation window, use visibility-aware candidates, and request an explicit single next action from the backend.
 - [x] **Tutorial Selector Hardening**: `welcome-tour.json` simplified CSS selectors to be more resilient across different web page layouts.
 
+### Phase 7: Crawlee DOM Crawler & Path Graph Engine
+- [x] **Created `@guideme/crawlee-engine` package**: New workspace package integrating Crawlee + Playwright for automated website mapping.
+- [x] **`CrawleeDOMAnalyzer` class**: Full implementation of button/interactive-element extraction, click simulation, URL navigation tracking, and DOM mutation detection.
+- [x] **Path Graph Builder**: Constructs `{ nodes, edges }` JSON graph capturing all button-to-destination mappings including `navigation`, `client_route`, and `dom_mutation` edge types.
+- [x] **DOM Extractor Utilities**: `extractInteractiveElements`, `isElementVisible`, `generateStateChangedUrl` for cross-page element discovery and state-change detection.
+- [x] **Dual Mode API**: Both `CrawlerDOMAnalyzer` class (for configuration) and `crawlDom()` convenience function.
+- [x] **Test Suite**: 14 unit tests covering analyzer instantiation, path graph builder, edge deduplication, and URL generation.
+- [x] **Usage Examples**: `examples/usage.js` demonstrating class usage, convenience function, and AI integration patterns.
+
+

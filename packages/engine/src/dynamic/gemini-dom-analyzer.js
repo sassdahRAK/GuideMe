@@ -188,13 +188,8 @@ export class GeminiDomAnalyzer {
         selector = `[data-testid="${testId}"]`;
       } else if (name) {
         selector = `${tag}[name="${name}"]`;
-      } else if (ariaLabel) {
+       } else if (ariaLabel) {
         selector = `[aria-label="${ariaLabel}"]`;
-      } else if (el.className && typeof el.className === 'string') {
-        const firstClass = el.className.trim().split(/\s+/)[0];
-        if (firstClass && !firstClass.includes(':')) {
-          selector = `${tag}.${firstClass}`;
-        }
       }
       if (!selector) selector = tag;
 

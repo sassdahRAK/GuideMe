@@ -55,14 +55,13 @@ export function deriveConcreteSelector(matchedItem) {
     return exactSel;
   }
 
-  // Priority 5: Safe class-based selector if unique
-  if (element && element.className && typeof element.className === 'string') {
-    const classes = element.className.trim().split(/\s+/).filter((c) => c && !c.includes(':') && !c.includes('/'));
-    if (classes.length > 0) {
-      return `${tag || ''}.${classes[0]}`.trim();
-    }
+  // Priority 5: Exact visible inner text
+  if (matchedItem.text && matchedItem.text.length >= 2 && matchedItem.text.length <= 40) {
+    const escapedText = matchedItem.text.replace(/["\\]/g, '\\$&');
+    return `${tag || '*'}[aria-label="${escapedText}" i], ${tag || '*'}[title="${escapedText}" i]`;
   }
 
+  // Avoid unstable hashed utility classes completely
   return tag || 'button';
 }
 

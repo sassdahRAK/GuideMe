@@ -19,6 +19,40 @@ export function safeIdSelector(id) {
   return `#${id}`;
 }
 
+// Container elements that aggregate children's textContent (Container Text Bleed source)
+const CONTAINER_TAGS = new Set([
+  'div', 'span', 'p', 'section', 'main', 'article', 'nav', 'header',
+  'footer', 'aside', 'form', 'fieldset', 'legend', 'details',
+]);
+
+/**
+ * Checks if an element is a leaf interactive control, not a container
+ * that inherits text from children. Containers like <div>, <form>, <section>
+ * bleed their children's textContent, causing false text matches.
+ * @param {Element} el
+ * @returns {boolean}
+ */
+function isLeafControl(el) {
+  const tag = (el.tagName || '').toLowerCase();
+  const leafTags = ['button', 'input', 'select', 'textarea', 'a', 'summary'];
+  if (leafTags.includes(tag)) return true;
+  const role = el.getAttribute?.('role') || '';
+  const interactiveRoles = ['button', 'link', 'tab', 'menuitem', 'menuitemcheckbox',
+    'menuitemradio', 'checkbox', 'radio', 'combobox', 'listbox', 'option',
+    'switch', 'searchbox', 'spinbutton', 'slider', 'textbox'];
+  if (interactiveRoles.includes(role.toLowerCase())) return true;
+  if (el.getAttribute?.('data-testid') || el.getAttribute?.('data-cy') || el.getAttribute?.('data-tooltip')) return true;
+  // aria-label/title on non-interactive containers is not enough —
+  // they must also be an interactive tag or role to be leaf controls
+  if (el.getAttribute?.('aria-label') || el.getAttribute?.('title')) {
+    if (tag !== 'div' && tag !== 'span' && tag !== 'p' && tag !== 'section' &&
+        tag !== 'main' && tag !== 'article' && tag !== 'nav' && tag !== 'header' &&
+        tag !== 'footer' && tag !== 'aside' && tag !== 'form' && tag !== 'fieldset' &&
+        tag !== 'details' && tag !== 'figure' && tag !== 'figcaption') return true;
+  }
+  return false;
+}
+
 const INTERACTIVE_SELECTORS = [
   'button',
   'a[href]',
@@ -37,11 +71,10 @@ const INTERACTIVE_SELECTORS = [
   '[role="menuitem"]',
   '[role="option"]',
   '[role="searchbox"]',
-  '[data-testid]',
-  '[tabindex="0"]',
   '[aria-label]',
   '[title]',
-  '[data-tooltip]',
+  '[data-testid]',
+  '[tabindex="0"]',
   '.goog-flat-menu-button',
   '.goog-select',
   'summary',
@@ -139,6 +172,10 @@ export function harvestInteractiveElements(doc, options = {}) {
   for (const el of rawElements) {
     if (candidates.length >= maxElements) break;
     if (!el) continue;
+
+    // Filter out container elements that aggregate children's textContent
+    // (Container Text Bleed prevention)
+    if (!isLeafControl(el)) continue;
 
     // Filter out hidden / disconnected elements
     if (el.getAttribute && el.getAttribute('aria-hidden') === 'true') continue;

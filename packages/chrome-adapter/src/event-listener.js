@@ -31,21 +31,20 @@ export class DomEventListener {
       const isGenericCss = /^(button|div|a|input|span|select|textarea|p|li|ul|ol)$/i.test(
         (selector?.css || '').trim()
       );
-      const isCssMatch = Boolean(
-        selector?.css &&
-        !isGenericCss &&
-        event.target?.matches?.(selector.css)
-      );
+      const safeCss = selector?.css ? DomObserver.sanitizeCssSelector(selector.css) : '';
+      let isCssMatch = false;
+      if (safeCss && !isGenericCss && event.target?.matches) {
+        try {
+          isCssMatch = Boolean(event.target.matches(safeCss));
+        } catch {}
+      }
 
-      // isClosestMatch: only valid when we have a resolved targetElement, so we
-      // don't accidentally walk up to an unrelated ancestor that happens to
-      // match the selector.
-      const isClosestMatch = Boolean(
-        selector?.css &&
-        !isGenericCss &&
-        targetElement &&
-        event.target?.closest?.(selector.css) === targetElement
-      );
+      let isClosestMatch = false;
+      if (safeCss && !isGenericCss && targetElement && event.target?.closest) {
+        try {
+          isClosestMatch = Boolean(event.target.closest(safeCss) === targetElement);
+        } catch {}
+      }
 
       if (isDirectMatch || isCssMatch || isClosestMatch) {
         const payload = {

@@ -1,0 +1,16 @@
+{
+  "name": "@guideme/crawlee-engine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@guideme/adapter-interface": "workspace:*",
+    "@guideme/core-types": "workspace:*",
+    "crawlee": "^3.18.1",
+    "playwright": "^1.63.0"
+  }
+}

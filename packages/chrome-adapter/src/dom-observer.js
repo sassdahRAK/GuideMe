@@ -135,10 +135,10 @@ export class DomObserver {
       } else if (typeof CustomEvent !== 'undefined') {
         element.dispatchEvent(new CustomEvent('mouseover', opts));
         element.dispatchEvent(new CustomEvent('mouseenter', { ...opts, bubbles: false }));
-      } else {
-        element.dispatchEvent({ type: 'mouseover', bubbles: true });
-        element.dispatchEvent({ type: 'mouseenter', bubbles: false });
-  }
+      } else if (typeof Event !== 'undefined') {
+        element.dispatchEvent(new Event('mouseover', opts));
+        element.dispatchEvent(new Event('mouseenter', { ...opts, bubbles: false }));
+      }
 
       if (typeof FocusEvent !== 'undefined') {
         element.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
@@ -149,11 +149,12 @@ export class DomObserver {
   /**
    * Recursively query all matching elements across the DOM and open shadow roots.
    * Enables seamless element resolution on complex web apps (Google Docs, Canvas LMS, Microsoft 365).
-   * @param {Document|Element|ShadowRoot} root
+   * @param {Document|Element|ShadowRoot|HTMLElement} root
    * @param {string} selector
-   * @returns {Element[]}
+   * @returns {HTMLElement[]}
    */
   static querySelectorAllDeep(root, selector) {
+    /** @type {HTMLElement[]} */
     const results = [];
     if (!root || !selector) return results;
 
@@ -166,7 +167,7 @@ export class DomObserver {
         try {
           const matches = node.querySelectorAll(selector);
           for (let i = 0; i < matches.length; i++) {
-            const m = matches[i];
+            const m = /** @type {HTMLElement} */ (matches[i]);
             if (!seen.has(m)) {
               seen.add(m);
               results.push(m);
@@ -195,16 +196,16 @@ export class DomObserver {
 
   /**
    * Recursively query the first matching element across the DOM and open shadow roots.
-   * @param {Document|Element|ShadowRoot} root
+   * @param {Document|Element|ShadowRoot|HTMLElement} root
    * @param {string} selector
-   * @returns {Element|null}
+   * @returns {HTMLElement|null}
    */
   static querySelectorDeep(root, selector) {
     if (!root || !selector) return null;
 
     if (typeof root.querySelector === 'function') {
       try {
-        const direct = root.querySelector(selector);
+        const direct = /** @type {HTMLElement|null} */ (root.querySelector(selector));
         if (direct) return direct;
       } catch {}
     }
@@ -226,10 +227,10 @@ export class DomObserver {
   }
 
   /**
-   * Evaluate XPath query with open shadow root traversal.
+   * Evaluates an XPath expression across light DOM and open shadow roots.
    * @param {string} xpath
    * @param {Document} doc
-   * @returns {Element|null}
+   * @returns {HTMLElement|null}
    */
   static evaluateXPathDeep(xpath, doc) {
     if (!xpath || !doc) return null;
@@ -244,8 +245,8 @@ export class DomObserver {
           XPathResult.FIRST_ORDERED_NODE_TYPE,
           null
         );
-        if (result?.singleNodeValue) {
-          return result.singleNodeValue;
+        if (result?.singleNodeValue && result.singleNodeValue.nodeType === 1) {
+          return /** @type {HTMLElement} */ (result.singleNodeValue);
         }
       } catch {}
     }
@@ -300,7 +301,7 @@ export class DomObserver {
     const docEl = doc?.documentElement;
     const visited = new Set();
 
-    let curr = element.parentElement || (element.getRootNode?.()?.host || null);
+    let curr = /** @type {HTMLElement|null} */ (element.parentElement || (/** @type {any} */ (element.getRootNode?.())?.host || null));
     let depth = 0;
 
     while (curr && curr !== body && curr !== docEl && depth < 50) {
@@ -318,7 +319,7 @@ export class DomObserver {
           }
         }
       } catch {}
-      curr = curr.parentElement || (curr.getRootNode?.()?.host || null);
+      curr = /** @type {HTMLElement|null} */ (curr.parentElement || (/** @type {any} */ (curr.getRootNode?.())?.host || null));
     }
 
     return ancestors;
@@ -384,33 +385,273 @@ export class DomObserver {
     }
   }
 
-  /**
-   * Find an element immediately using fallback strategies.
-   * @param {Object} selector - { css, xpath, text, testId, ariaLabel, hoverTrigger, container }
-   * @returns {HTMLElement|null}
-   */
-  static findElement(selector) {
-    if (!selector || typeof document === 'undefined') return null;
+/**
+    * Detects the currently active modal/dialog element on the page.
+    * @returns {HTMLElement|null}
+    */
+   static getActiveModal() {
+     if (typeof document === 'undefined') return null;
+     try {
+       const dialog = /** @type {HTMLElement|null} */ (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"], [aria-modal="true"]'));
+       if (dialog) return dialog;
+       const modalByClass = /** @type {HTMLElement|null} */ (document.querySelector('.modal-dialog[aria-modal="true"], [role="dialog"]:not([aria-hidden="true"]), .modal[aria-modal="true"], .apps-share-dialog'));
+       if (modalByClass) return modalByClass;
+     } catch {}
+     return null;
+   }
 
-    const isVisible = (element) => Boolean(
-      element && (
-        element.offsetParent !== null ||
-        element.getClientRects?.().length > 0
-      )
-    );
-    const targetText = selector.text ? this.normalizeText(selector.text) : '';
-    const targetAria = selector.ariaLabel ? selector.ariaLabel.trim().toLowerCase() : '';
-    const isGenericCss = /^(button|div|a|input|span|select|p)$/i.test((selector.css || '').trim());
-    const allowPartialText = Boolean(selector.css && !isGenericCss);
+   /**
+    * Searches for an element inside a given root context (e.g., active modal).
+    * Returns the found element or null if not found within the context.
+    * @param {Object} selector
+    * @param {HTMLElement} root
+    * @returns {HTMLElement|null}
+    */
+   static findElementInContext(selector, root) {
+     const isVisible = (element) => Boolean(
+       element && (
+         element.offsetParent !== null ||
+         element.getClientRects?.().length > 0
+       )
+     );
+     const isDialogContainer = (element) => {
+       if (!element) return false;
+       const role = element.getAttribute?.('role') || '';
+       const className = String(element.className || '');
+       const tagName = (element.tagName || '').toLowerCase();
+       return (
+         tagName === 'dialog' ||
+         role === 'dialog' ||
+         className.includes('modal-dialog') ||
+         (element.matches && (element.matches('dialog, [role="dialog"], .modal-dialog') || false))
+       );
+     };
+     const targetText = selector.text ? this.normalizeText(selector.text) : '';
+     const targetAria = selector.ariaLabel ? selector.ariaLabel.trim().toLowerCase() : '';
+     const isGenericCss = /^(button|div|a|input|span|select|p)$/i.test((selector.css || '').trim());
+     const allowPartialText = Boolean(selector.css && !isGenericCss);
 
+     // Handle container scoping within the modal context
+     if (selector.container) {
+       try {
+         const containerEl = this.querySelectorDeep(root, selector.container);
+         if (containerEl) {
+           if (selector.css) {
+             const cleanSubCss = selector.css.replace(selector.container, '').trim();
+             const innerMatch = this.querySelectorDeep(containerEl, cleanSubCss || selector.css);
+             if (innerMatch && (innerMatch.offsetParent !== null || innerMatch.getClientRects().length > 0)) {
+               if (!targetText || this.normalizeText(innerMatch.textContent) === targetText || this.normalizeText(/** @type {any} */ (innerMatch).value) === targetText) {
+                 return innerMatch;
+               }
+             }
+           }
+           if (targetText) {
+             const containerButtons = this.querySelectorAllDeep(containerEl, 'button, [role="button"], input[type="submit"], a, input');
+             for (const btn of containerButtons) {
+               if (this.normalizeText(btn.textContent) === targetText || this.normalizeText(/** @type {any} */ (btn).value) === targetText) {
+                 if (btn.offsetParent !== null || btn.getClientRects().length > 0) {
+                   return btn;
+                 }
+               }
+             }
+           }
+         }
+       } catch {}
+     }
 
-    // Handle hover-triggered target resolution if specified
-    if (selector.hoverTrigger) {
-      const triggerEl = this.findElement(selector.hoverTrigger);
-      if (triggerEl) {
-        this.dispatchHoverEvents(triggerEl);
-      }
-    }
+     // 1. Direct CSS Selector Strategy scoped to root
+     if (selector.css) {
+       try {
+         const cleanCss = sanitizeCssSelector(selector.css);
+         const matches = this.querySelectorAllDeep(root, cleanCss);
+         if (matches.length > 0) {
+           if (!targetText && !targetAria) {
+             const firstVisible = Array.from(matches).find((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+             if (firstVisible) return firstVisible;
+           }
+           for (const el of matches) {
+             const elText = this.normalizeText(el.textContent);
+             const elAria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || el.getAttribute?.('data-tooltip') || '').trim().toLowerCase();
+             const elVal = this.normalizeText(/** @type {any} */ (el).value || el.getAttribute?.('value') || '');
+
+             const exactText = targetText && (elText === targetText || elVal === targetText);
+             const exactAria = targetAria && (elAria === targetAria || (!isGenericCss && elAria.includes(targetAria)));
+             const partialText = allowPartialText && targetText && (elText.includes(targetText) || elVal.includes(targetText));
+             const partialAria = targetAria && !isGenericCss && elAria.includes(targetAria);
+
+             if ((exactText || exactAria || (partialText && !isDialogContainer(el)) || partialAria) && isVisible(el)) {
+               return el;
+             }
+           }
+           if (!isGenericCss && !targetText && !targetAria) {
+             const visibleMatch = Array.from(matches).find((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+             if (visibleMatch) return visibleMatch;
+           }
+         }
+       } catch (e) {}
+     }
+
+     // 2. data-testid / data-cy scoped to root
+     if (selector.testId) {
+       try {
+         const el = this.querySelectorDeep(root, `[data-testid="${selector.testId}"], [data-cy="${selector.testId}"]`);
+         if (isVisible(el)) return el;
+       } catch { }
+     }
+
+     // 3. aria-label / title / tooltip scoped to root
+     if (selector.ariaLabel || targetAria) {
+       const ariaQuery = (selector.ariaLabel || targetAria).replace(/["'\\]/g, '');
+       try {
+         const el = this.querySelectorDeep(
+           root,
+           `[aria-label*="${ariaQuery}" i], [title*="${ariaQuery}" i], [data-tooltip*="${ariaQuery}" i]`
+         );
+         if (isVisible(el)) return el;
+       } catch { }
+       const ariaCandidates = this.querySelectorAllDeep(root, '[aria-label], [title], [data-tooltip]');
+       for (const el of ariaCandidates) {
+         const aria = (el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('data-tooltip') || '').toLowerCase();
+         if (aria.includes(targetAria || ariaQuery.toLowerCase())) {
+           if (el.offsetParent !== null || el.getClientRects().length > 0) {
+             return el;
+           }
+         }
+       }
+     }
+
+     // 4. Visible Text Content Matching scoped to root
+     if (selector.text || targetText) {
+       const searchTxt = targetText || this.normalizeText(selector.text);
+       const CONTROLS_SELECTOR = 'button, [role="button"], [role="combobox"], [role="listbox"], [role="option"], [role="radio"], [role="checkbox"], a, select, input[type="submit"], input[type="button"], summary, [role="menuitem"], [role="tab"], .goog-flat-menu-button, .goog-select, div[id*="share" i], div[class*="share" i]';
+       const buttonCandidates = this.querySelectorAllDeep(root, CONTROLS_SELECTOR);
+       for (const el of buttonCandidates) {
+         if (isDialogContainer(el)) continue;
+         const text = this.normalizeText(el.textContent);
+         const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || el.getAttribute?.('data-tooltip') || '').trim().toLowerCase();
+         const val = this.normalizeText(/** @type {any} */ (el).value || el.getAttribute?.('value') || '');
+         const isMatch = isGenericCss
+           ? (text === searchTxt || val === searchTxt)
+           : (
+               text === searchTxt ||
+               (allowPartialText && text.includes(searchTxt)) ||
+               (targetAria && aria.includes(searchTxt)) ||
+               (!targetAria && aria === searchTxt) ||
+               val === searchTxt
+             );
+         if (isMatch) {
+           if (el.offsetParent !== null || el.getClientRects().length > 0) {
+             return el;
+           }
+         }
+       }
+       const allTextNodes = this.querySelectorAllDeep(root, 'span, div, p, label, b, strong, i, [role="menuitem"], [role="tab"]');
+       for (const node of allTextNodes) {
+         const text = this.normalizeText(node.textContent);
+         if (text === searchTxt) {
+           const parentBtn = node.closest ? node.closest('button, [role="button"], [role="menuitem"], [role="tab"], a') : null;
+           const targetEl = /** @type {HTMLElement} */ (parentBtn || node);
+           if (targetEl.offsetParent !== null || targetEl.getClientRects().length > 0) {
+             return targetEl;
+           }
+         }
+       }
+     }
+
+     // 5. XPath scoped to root
+     if (selector.xpath) {
+       try {
+         const xpathMatch = this.evaluateXPathDeep(selector.xpath, root.ownerDocument || document);
+         if (isVisible(xpathMatch)) return xpathMatch;
+       } catch (e) {}
+     }
+
+     // 6. Alternatives scoped to root
+     if (Array.isArray(selector.alternatives) && selector.alternatives.length > 0) {
+       for (const alt of selector.alternatives) {
+         if (!alt || typeof alt !== 'string' || alt === selector.css) continue;
+         try {
+           if (alt.includes(':has-text(')) {
+             const match = alt.match(/^(.*?):has-text\("(.*?)"\)$/);
+             if (match) {
+               const [, subTag, subText] = match;
+               const normSubText = this.normalizeText(subText);
+               const subMatches = this.querySelectorAllDeep(root, subTag || 'button, a, input');
+               for (const subEl of subMatches) {
+                 const txt = this.normalizeText(subEl.textContent);
+                 const val = this.normalizeText(/** @type {any} */ (subEl).value || '');
+                 if (txt.includes(normSubText) || val.includes(normSubText)) {
+                   if (subEl.offsetParent !== null || subEl.getClientRects().length > 0) {
+                     return subEl;
+                   }
+                 }
+               }
+             }
+           } else {
+             const altMatches = this.querySelectorAllDeep(root, alt);
+             const visibleAlt = Array.from(altMatches).find((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+             if (visibleAlt) return visibleAlt;
+           }
+         } catch {}
+       }
+     }
+
+     if (selector.fallbackCss && selector.fallbackCss !== selector.css) {
+       try {
+         const fallbackMatches = this.querySelectorAllDeep(root, selector.fallbackCss);
+         const visibleFallback = Array.from(fallbackMatches).find((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+         if (visibleFallback) return visibleFallback;
+       } catch {}
+     }
+
+     return null;
+   }
+
+   /**
+    * Find an element immediately using fallback strategies.
+    * @param {Object} selector - { css, xpath, text, testId, ariaLabel, hoverTrigger, container }
+    * @returns {HTMLElement|null}
+    */
+   static findElement(selector) {
+     if (!selector || typeof document === 'undefined') return null;
+
+     const isVisible = (element) => Boolean(
+       element && (
+         element.offsetParent !== null ||
+         element.getClientRects?.().length > 0
+       )
+     );
+     const isDialogContainer = (element) => {
+       if (!element) return false;
+       const role = element.getAttribute?.('role') || '';
+       const className = String(element.className || '');
+       const tagName = (element.tagName || '').toLowerCase();
+       return (
+         tagName === 'dialog' ||
+         role === 'dialog' ||
+         className.includes('modal-dialog') ||
+         (element.matches && (element.matches('dialog, [role="dialog"], .modal-dialog') || false))
+       );
+     };
+     const targetText = selector.text ? this.normalizeText(selector.text) : '';
+     const targetAria = selector.ariaLabel ? selector.ariaLabel.trim().toLowerCase() : '';
+     const isGenericCss = /^(button|div|a|input|span|select|p)$/i.test((selector.css || '').trim());
+     const allowPartialText = Boolean(selector.css && !isGenericCss);
+
+     // Handle hover-triggered target resolution if specified
+     if (selector.hoverTrigger) {
+       const triggerEl = this.findElement(selector.hoverTrigger);
+       if (triggerEl) {
+         this.dispatchHoverEvents(triggerEl);
+       }
+     }
+
+     // Modal Primacy: scope all searches inside the active dialog first
+     const activeModal = this.getActiveModal();
+     if (activeModal) {
+       const modalResult = this.findElementInContext(selector, activeModal);
+       if (modalResult) return modalResult;
+     }
 
     // Handle container scoping to prioritize active dialog or specific containers
     if (selector.container) {
@@ -421,7 +662,7 @@ export class DomObserver {
             const cleanSubCss = selector.css.replace(selector.container, '').trim();
             const innerMatch = this.querySelectorDeep(containerEl, cleanSubCss || selector.css);
             if (innerMatch && (innerMatch.offsetParent !== null || innerMatch.getClientRects().length > 0)) {
-              if (!targetText || this.normalizeText(innerMatch.textContent) === targetText || this.normalizeText(innerMatch.value) === targetText) {
+              if (!targetText || this.normalizeText(innerMatch.textContent) === targetText || this.normalizeText(/** @type {HTMLInputElement} */ (innerMatch).value) === targetText) {
                 return innerMatch;
               }
             }
@@ -429,7 +670,7 @@ export class DomObserver {
           if (targetText) {
             const containerButtons = this.querySelectorAllDeep(containerEl, 'button, [role="button"], input[type="submit"], a, input');
             for (const btn of containerButtons) {
-              if (this.normalizeText(btn.textContent) === targetText || this.normalizeText(btn.value) === targetText) {
+              if (this.normalizeText(btn.textContent) === targetText || this.normalizeText(/** @type {HTMLInputElement} */ (btn).value) === targetText) {
                 if (btn.offsetParent !== null || btn.getClientRects().length > 0) {
                   return btn;
                 }
@@ -443,7 +684,8 @@ export class DomObserver {
     // 1. Direct CSS Selector Strategy (Traverses Open Shadow Roots)
     if (selector.css) {
       try {
-        const matches = this.querySelectorAllDeep(document, selector.css);
+        const cleanCss = sanitizeCssSelector(selector.css);
+        const matches = this.querySelectorAllDeep(document, cleanCss);
         if (matches.length > 0) {
           // If no text or aria constraint, return the first visible match immediately
           if (!targetText && !targetAria) {
@@ -455,14 +697,14 @@ export class DomObserver {
           for (const el of matches) {
             const elText = this.normalizeText(el.textContent);
             const elAria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || el.getAttribute?.('data-tooltip') || '').trim().toLowerCase();
-            const elVal = this.normalizeText(el.value || el.getAttribute?.('value') || '');
+            const elVal = this.normalizeText(/** @type {HTMLInputElement} */ (el).value || el.getAttribute?.('value') || '');
 
             const exactText = targetText && (elText === targetText || elVal === targetText);
-            const exactAria = targetAria && (elAria === targetAria || elAria.includes(targetAria));
+            const exactAria = targetAria && (elAria === targetAria || (!isGenericCss && elAria.includes(targetAria)));
             const partialText = allowPartialText && targetText && (elText.includes(targetText) || elVal.includes(targetText));
-            const partialAria = targetAria && elAria.includes(targetAria);
+            const partialAria = targetAria && !isGenericCss && elAria.includes(targetAria);
 
-            if ((exactText || exactAria || partialText || partialAria) && isVisible(el)) {
+            if ((exactText || exactAria || (partialText && !isDialogContainer(el)) || partialAria) && isVisible(el)) {
               return el;
             }
           }
@@ -520,11 +762,11 @@ export class DomObserver {
         if (isDialogContainer(el)) continue;
         const text = this.normalizeText(el.textContent);
         const aria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || el.getAttribute?.('data-tooltip') || '').trim().toLowerCase();
-        const val = this.normalizeText(el.value || el.getAttribute?.('value') || '');
+        const val = this.normalizeText(/** @type {any} */ (el).value || el.getAttribute?.('value') || '');
 
-        const isMatch = isGenericCss
-          ? (text === searchTxt || val === searchTxt || aria === searchTxt)
-          : (
+const isMatch = isGenericCss
+	           ? (text === searchTxt || val === searchTxt)
+	           : (
               text === searchTxt ||
               (allowPartialText && text.includes(searchTxt)) ||
               (targetAria && aria.includes(searchTxt)) ||
@@ -548,7 +790,7 @@ export class DomObserver {
         const text = this.normalizeText(node.textContent);
         if (text === searchTxt) {
           const parentBtn = node.closest ? node.closest('button, [role="button"], [role="menuitem"], [role="tab"], a') : null;
-          const targetEl = parentBtn || node;
+          const targetEl = /** @type {HTMLElement} */ (parentBtn || node);
           if (targetEl.offsetParent !== null || targetEl.getClientRects().length > 0) {
             return targetEl;
           }
@@ -579,7 +821,7 @@ export class DomObserver {
               const subMatches = this.querySelectorAllDeep(document, subTag || 'button, a, input');
               for (const subEl of subMatches) {
                 const txt = this.normalizeText(subEl.textContent);
-                const val = this.normalizeText(subEl.value || '');
+                const val = this.normalizeText(/** @type {any} */ (subEl).value || '');
                 if (txt.includes(normSubText) || val.includes(normSubText)) {
                   if (subEl.offsetParent !== null || subEl.getClientRects().length > 0) {
                     return subEl;

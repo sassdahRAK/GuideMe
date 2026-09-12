@@ -8,6 +8,13 @@ import { LocalFallbackReranker } from '../intent/llm-reranker.js';
 
 export { safeIdSelector, harvestInteractiveElements };
 
+// Container elements that aggregate children's textContent (Container Text Bleed source)
+const CONTAINER_TAGS = new Set([
+  'div', 'span', 'p', 'section', 'main', 'article', 'nav', 'header',
+  'footer', 'aside', 'form', 'fieldset', 'legend', 'details',
+  'figure', 'figcaption',
+]);
+
 /**
  * Dynamic Page Analyzer & Universal Step Generator (Hybrid Engine Mode 2).
  * Inspects host DOM structure on unscripted pages and synthesizes interactive tutorial flows.
@@ -455,6 +462,13 @@ export class DynamicPageAnalyzer {
       const scoreAndAdd = (el, type) => {
         if (!el || seenElements.has(el)) return;
 
+        // Leaf Control Primacy: Skip non-interactive container elements
+        // that bleed their children's text into their own textContent.
+        // Containers (div, form, section, main, article, header, nav, etc.)
+        // match search queries via inherited textContent but are not
+        // actionable controls — they must never be spotlight targets.
+        if (!this._isLeafControl(el)) return;
+
         const isHoverRevealed = hoverRevealedMap.has(el);
 
         // 1. Strict Visibility & Interactability check
@@ -523,8 +537,12 @@ export class DynamicPageAnalyzer {
         if (isHoverRevealed) score += 60;
 
         // 5. Large text walls and body container penalties
-        if (text.length > 50) score -= 45;
-        if (text.length > 120) score -= 90;
+        // Container elements bleed their children's text into textContent,
+        // making them falsely match search queries. Heavily penalize long text
+        // to ensure leaf controls (short text) always win.
+        if (text.length > 30) score -= 40;
+        if (text.length > 60) score -= 80;
+        if (text.length > 100) score -= 120;
 
         // 6. Context-Aware Proximity / Spatial Score (Modals, Dropdowns, Layout, Reference elements)
         if (score > 10) {
@@ -552,7 +570,7 @@ export class DynamicPageAnalyzer {
       // Scan all interactive controls on the page — includes Shadow DOM (Google Docs, etc.)
       analysis.buttons.forEach((btn) => scoreAndAdd(btn, 'button'));
       analysis.allInputs.forEach((input) => scoreAndAdd(input, 'input'));
-      const linksAndActionables = this._queryAllDeep(doc, 'a[href], [role="button"], [role="tab"], [role="menuitem"], [role="link"], summary, [aria-label], [aria-haspopup]');
+      const linksAndActionables = this._queryAllDeep(doc, 'a[href], [role="button"], [role="tab"], [role="menuitem"], [role="link"], summary');
       linksAndActionables.forEach((link) => scoreAndAdd(link, 'button'));
 
       // Also scan shadow roots for buttons/inputs that analyzePage may have missed
@@ -1040,6 +1058,46 @@ export class DynamicPageAnalyzer {
   }
 
   /**
+   * Checks if an element is a leaf interactive control, not a container
+   * that inherits text from children (Container Text Bleed prevention).
+   * Containers like <div>, <form>, <section>, <main>, <article>, <nav>
+   * aggregate their children's textContent, causing false text matches.
+   * @param {HTMLElement} el
+   * @returns {boolean}
+   * @private
+   */
+  static _isLeafControl(el) {
+    if (!el || !el.tagName) return false;
+    const tag = el.tagName.toLowerCase();
+
+    // Explicit interactive tags are always leaf controls
+    const leafTags = ['button', 'input', 'select', 'textarea', 'a', 'summary'];
+    if (leafTags.includes(tag)) return true;
+
+    // Explicit ARIA interactive roles are leaf controls
+    const role = el.getAttribute?.('role') || '';
+    const interactiveRoles = [
+      'button', 'link', 'tab', 'menuitem', 'menuitemcheckbox', 'menuitemradio',
+      'checkbox', 'radio', 'combobox', 'listbox', 'option', 'switch',
+      'searchbox', 'spinbutton', 'slider', 'textbox',
+    ];
+    if (interactiveRoles.includes(role.toLowerCase())) return true;
+
+    // Elements with identifiers that are not containers
+    const testId = el.getAttribute?.('data-testid') || el.getAttribute?.('data-cy') || el.getAttribute?.('data-tooltip');
+    if (testId && !CONTAINER_TAGS.has(tag)) return true;
+
+    // aria-label/title on non-container interactive elements count
+    if (el.getAttribute?.('aria-label') || el.getAttribute?.('title')) {
+      if (!CONTAINER_TAGS.has(tag)) return true;
+    }
+
+    // Everything else (div, form, section, main, article, nav, header, etc.)
+    // is treated as a container and excluded from targeting
+    return false;
+  }
+
+  /**
    * Checks if an element is strictly visible and interactable.
    * Drops ghost elements, disabled inputs, and zero-dimensional nodes.
    * @param {HTMLElement} el
@@ -1050,6 +1108,9 @@ export class DynamicPageAnalyzer {
    */
   static _isInteractable(el, options = {}) {
     if (!el) return false;
+
+    // Leaf Control Primacy: reject container elements that are not actionable
+    if (!this._isLeafControl(el)) return false;
 
     // 1. Semantic disabled states
     const formElement = /** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement} */ (el);
@@ -1413,8 +1474,10 @@ export class DynamicPageAnalyzer {
     const matched = [];
     const seenElements = new Set();
 
-    // Regex matching potential CSS selector syntax: #id, .class, [attr], tag#id, tag.class, tag[attr]
-    const selectorRegex = /(?:[#.]|\[[a-zA-Z0-9_-]+|[a-zA-Z0-9_-]+[#.[])[a-zA-Z0-9_\-.:=^$*"'\][]+/g;
+     // Regex matching potential CSS selector syntax: #id, [attr], tag#id, tag[attr]
+     // NOTE: Class selectors (e.g. .btn_x9a81) are intentionally excluded
+     // because Tailwind/React hashed classes are unstable and re-render dependent.
+     const selectorRegex = /(?:\[[a-zA-Z0-9_-]+|[a-zA-Z0-9_-]+[#.[])[a-zA-Z0-9_\-.:=^$*"'\][]+/g;
 
     for (const segment of segments) {
       const candidateSelectors = [];
@@ -1422,7 +1485,7 @@ export class DynamicPageAnalyzer {
       // Clean leading verbs (e.g. "click #btn" -> "#btn")
       const stripped = segment.replace(/^(click|type|enter|fill|select|hover|inspect|check|find|show)\s+(?:on\s+|in\s+|at\s+)?/i, '').trim();
 
-      if (stripped.startsWith('#') || stripped.startsWith('.') || stripped.startsWith('[') || /^[a-zA-Z0-9_-]+[#.[]/.test(stripped)) {
+       if (stripped.startsWith('#') || stripped.startsWith('[') || /^[a-zA-Z0-9_-]+[#.[]/.test(stripped)) {
         // Remove trailing arguments like 'with "text"' or 'and submit'
         const cleanSel = stripped.split(/\s+(?:with|as|and|using)\s+/i)[0].trim();
         if (cleanSel) candidateSelectors.push(cleanSel);
@@ -1509,7 +1572,8 @@ export class DynamicPageAnalyzer {
     const target = {};
     const tag = (el.tagName || '').toLowerCase();
 
-    // 1. CSS Selector strategy
+    // Resilient Identifier Ranking (prioritize stable identifiers; avoid unstable hashed utility classes):
+    // 1. #id > 2. [data-testid] > 3. [aria-label]/[title] > 4. Exact visible text > 5. Positional > 6. Tag
     if (el.id) {
       target.css = `#${el.id}`;
     } else if (el.getAttribute && (el.getAttribute('data-testid') || el.getAttribute('data-cy'))) {
@@ -1517,25 +1581,22 @@ export class DynamicPageAnalyzer {
       target.css = `[data-testid="${tid}"]`;
     } else if (el.getAttribute && el.getAttribute('name')) {
       target.css = `${tag || 'input'}[name="${el.getAttribute('name')}"]`;
-    } else if (el.className && typeof el.className === 'string') {
-      const firstClass = el.className.trim().split(/\s+/)[0];
-      const classSelector = `${tag || 'div'}.${firstClass}`;
-      const ownerDocument = el.ownerDocument;
-      let isUniqueClass = false;
-      try {
-        isUniqueClass = ownerDocument?.querySelectorAll?.(classSelector).length === 1;
-      } catch {
-        // Utility classes can contain characters that are not safe in CSS.
+    } else if (el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('title'))) {
+      const ariaLabel = (el.getAttribute('aria-label') || el.getAttribute('title') || '').trim();
+      if (ariaLabel) {
+        const escaped = ariaLabel.replace(/["\\]/g, '\\$&');
+        target.css = `${tag || '*'}[aria-label="${escaped}"]`;
       }
-      // Class names are often shared by every button in a component library.
-      // Only use one as the primary locator when it identifies this one node.
-      if (isUniqueClass && !firstClass.includes(':') && !firstClass.includes('/') && !firstClass.includes('[')) {
-        target.css = classSelector;
+    } else if (el.textContent) {
+      const visibleText = el.textContent.trim().replace(/\s+/g, ' ');
+      // Use exact visible text as CSS selector for button/link/input elements
+      if (visibleText.length >= 2 && visibleText.length <= 40) {
+        const escapedText = visibleText.replace(/["\\]/g, '\\$&');
+        target.css = `${tag || '*'}[aria-label="${escapedText}" i], ${tag || '*'}[title="${escapedText}" i]`;
       }
     }
 
     // Fallback: build a precise positional selector using nth-of-type
-    // instead of a broad group selector like "button, [role="button"], a"
     if (!target.css) {
       try {
         const parent = el.parentElement;
@@ -1545,16 +1606,8 @@ export class DynamicPageAnalyzer {
           if (index >= 0) {
             if (parent.id) {
               target.css = `#${parent.id} > ${tag}:nth-of-type(${index + 1})`;
-            } else if (parent.className && typeof parent.className === 'string') {
-              const parentClass = parent.className.trim().split(/\s+/)[0];
-              if (parentClass && !parentClass.includes(':') && !parentClass.includes('/') && !parentClass.includes('[')) {
-                try {
-                  const parentUnique = parent.ownerDocument?.querySelectorAll(`.${parentClass}`).length === 1;
-                  if (parentUnique) {
-                    target.css = `.${parentClass} > ${tag}:nth-of-type(${index + 1})`;
-                  }
-                } catch {}
-              }
+            } else {
+              target.css = `${tag}:nth-of-type(${index + 1})`;
             }
           }
         }
@@ -1647,11 +1700,6 @@ export class DynamicPageAnalyzer {
       '.goog-flat-menu-button',
       '.goog-select',
       'summary',
-      'h1',
-      'h2',
-      'h3',
-      'table',
-      'nav',
     ];
 
     const rawElements = [];
@@ -1793,11 +1841,6 @@ export class DynamicPageAnalyzer {
         selector = `${tag}[name="${name}"]`;
       } else if (ariaLabel) {
         selector = `[aria-label="${ariaLabel}"]`;
-      } else if (el.className && typeof el.className === 'string') {
-        const firstClass = el.className.trim().split(/\s+/)[0];
-        if (firstClass && !firstClass.includes(':')) {
-          selector = `${tag}.${firstClass}`;
-        }
       }
       if (!selector) selector = tag;
 
