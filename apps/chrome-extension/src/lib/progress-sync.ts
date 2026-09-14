@@ -1,5 +1,5 @@
 // chrome-extension/src/lib/progress-sync.ts
-import { apiRequest } from "./api";
+import { apiRequest } from "./api.js";
 
 export interface StepCompletion {
   guideId: string;
@@ -11,10 +11,15 @@ export async function saveStepProgress(guideId: string, stepIndex: number): Prom
   const timestamp = new Date().toISOString();
 
   // 1. Instant local persistence (ensures zero UI latency for the user)
-  const { localProgress = {}, pendingSyncQueue = [] } = await chrome.storage.local.get([
+  const storage = (await chrome.storage.local.get([
     "localProgress",
     "pendingSyncQueue",
-  ]);
+  ])) as {
+    localProgress?: Record<string, number[]>;
+    pendingSyncQueue?: StepCompletion[];
+  };
+  const localProgress = storage.localProgress || {};
+  const pendingSyncQueue = storage.pendingSyncQueue || [];
 
   const updatedGuideSteps = new Set<number>(localProgress[guideId] || []);
   updatedGuideSteps.add(stepIndex);
@@ -39,10 +44,15 @@ export async function saveStepProgress(guideId: string, stepIndex: number): Prom
 export async function triggerQueueSync(): Promise<void> {
   if (typeof chrome === "undefined" || !chrome.storage?.local) return;
 
-  const { pendingSyncQueue = [], authToken } = await chrome.storage.local.get([
+  const storage = (await chrome.storage.local.get([
     "pendingSyncQueue",
     "authToken",
-  ]);
+  ])) as {
+    pendingSyncQueue?: StepCompletion[];
+    authToken?: string;
+  };
+  const pendingSyncQueue = storage.pendingSyncQueue || [];
+  const authToken = storage.authToken;
 
   if (!authToken || pendingSyncQueue.length === 0) return;
 

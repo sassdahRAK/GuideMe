@@ -8,10 +8,8 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@guideme/core-types": ["./packages/core-types/src/index.js"],
-      "@guideme/adapter-interface": ["./packages/adapter-interface/src/index.js"],
-      "@guideme/tutorial-schema": ["./packages/tutorial-schema/src/index.js"],
       "@guideme/engine": ["./packages/engine/src/index.js"],
+      "@guideme/engine/*": ["./packages/engine/src/*"],
       "@guideme/chrome-adapter": ["./packages/chrome-adapter/src/index.js"],
       "@guideme/tutorial-ui": ["./packages/tutorial-ui/src/index.js"]
     }

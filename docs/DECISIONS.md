@@ -20,6 +20,7 @@ This document tracks all foundational architectural choices, scope definitions, 
 12. [ADR-012: Extension AI Client vs. Backend Service Boundary](#adr-012-ai-client-backend-boundary)
 13. [ADR-013: Central Background Session Orchestration & In-Page Shadow DOM Overlay](#adr-013-background-session-pip-launcher)
 14. [ADR-014: AI-First Intent Pipeline with Fuse.js Grounded DOM Scanner](#adr-014-ai-first-intent-fuse-dom-scanner)
+15. [ADR-015: Monorepo Consolidation to 3 Core Packages](#adr-015-monorepo-consolidation-to-3-core-packages)
 
 ---
 
@@ -102,5 +103,14 @@ This document tracks all foundational architectural choices, scope definitions, 
   3. **Local Fuse.js Grounded DOM Grounding:** The Content Script extracts visible interactive elements on the active page via `harvestInteractiveElements()` and uses `Fuse.js` (`matchDomElementWithFuse`) to match against actual DOM nodes in memory (<5ms).
   4. **Zero Hallucination:** The final spotlight CSS selector is derived directly from the verified physical DOM element, completely eliminating selector hallucination.
   5. **Offline Fallback:** `classifyPrompt` is retained strictly as an offline/network-error fallback when the backend service is unreachable.
+### ADR-015: Monorepo Consolidation to 3 Core Packages
+- **Context:** The repository originally spanned 8 workspace packages, including 2 empty ghost directories (`dynamic-analyzer`, `crawlee-engine`) and 3 micro-packages (`core-types`, `tutorial-schema`, `adapter-interface`) containing 1–2 small files each. This caused excessive `pnpm-workspace` symlinking overhead, multiple redundant `package.json` definitions, and fragmented import paths.
+- **Decision:**
+  1. **Consolidate to 3 Core Packages:**
+     - `@guideme/engine`: 100% headless core encompassing state machine, parser, dynamic analyzer, audio synthesis, absorbed types/constants, Zod schemas, and `BaseTutorialAdapter` contract. Zero workspace dependencies.
+     - `@guideme/chrome-adapter`: Browser runtime adapter handling DOM observers, event interceptors, and `chrome.storage`.
+     - `@guideme/tutorial-ui`: Isolated presentational React layer mounted in Shadow DOM.
+  2. **Eliminate Ghost & Micro Packages:** Permanently removed `dynamic-analyzer`, `crawlee-engine`, `core-types`, `tutorial-schema`, and `adapter-interface`.
+  3. **Zero Invariant Loss:** Headless engine autonomy is preserved; UI Shadow DOM isolation is preserved; 100% of test suites and builds continue passing without regressions.
 - **Status:** **APPROVED & IMPLEMENTED**
 

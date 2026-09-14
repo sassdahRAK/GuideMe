@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "paths": {
+      "@guideme/engine": ["./packages/engine/src/index.ts", "./packages/engine/src/index.js"],
+      "@guideme/engine/*": ["./packages/engine/src/*"],
+      "@guideme/chrome-adapter": ["./packages/chrome-adapter/src/index.ts", "./packages/chrome-adapter/src/index.js"],
+      "@guideme/tutorial-ui": ["./packages/tutorial-ui/src/index.js"]
+    }
+  },
+  "include": [
+    "packages/*/src/**/*",
+    "apps/chrome-extension/src/**/*",
+    "apps/chrome-extension/entrypoints/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".output",
+    ".wxt"
+  ]
+}

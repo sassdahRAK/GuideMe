@@ -3,14 +3,31 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "main": "src/index.js",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "exports": {
-    ".": "./src/index.js"
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./types": {
+      "types": "./src/types/index.ts",
+      "import": "./src/types/index.ts",
+      "default": "./src/types/index.ts"
+    },
+    "./schema": {
+      "types": "./src/schema/index.ts",
+      "import": "./src/schema/index.ts",
+      "default": "./src/schema/index.ts"
+    },
+    "./adapter": {
+      "types": "./src/adapter/index.ts",
+      "import": "./src/adapter/index.ts",
+      "default": "./src/adapter/index.ts"
+    }
   },
   "dependencies": {
-    "@guideme/adapter-interface": "workspace:*",
-    "@guideme/core-types": "workspace:*",
-    "@guideme/tutorial-schema": "workspace:*",
     "fuse.js": "^7.5.0"
   }
 }

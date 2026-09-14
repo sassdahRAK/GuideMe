@@ -14,11 +14,8 @@
     "types:sync:prod": "openapi-typescript https://api.guideme.app/api/swagger.json -o src/types/api-schema.d.ts"
   },
   "dependencies": {
-    "@guideme/adapter-interface": "workspace:*",
     "@guideme/chrome-adapter": "workspace:*",
-    "@guideme/core-types": "workspace:*",
     "@guideme/engine": "workspace:*",
-    "@guideme/tutorial-schema": "workspace:*",
     "@guideme/tutorial-ui": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

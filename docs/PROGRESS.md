@@ -6,8 +6,15 @@
 
 ## 1. Project Health & Test Status
 
-- **Automated Test Suite:** 119/119 unit tests passing across all 9 suites (`tests/engine.test.js`, `tests/dynamic-analyzer.test.js`, `tests/dom-observer.test.js`, `tests/prompt-classifier.test.js`, `tests/intent-resolver.test.js`).
-- **Build Status:** Manifest V3 production bundle (`apps/chrome-extension/.output/chrome-mv3`) compiling cleanly via WXT + Vite (1.92s).
+- **Automated Test Suite:** 179/179 unit tests passing across all 12 core suites (`tests/engine.test.js`, `tests/dynamic-analyzer.test.js`, `tests/prompt-classifier.test.js`, `tests/intent-resolver.test.js`, `tests/fuse-dom-matcher.test.js`, `tests/rescue-engine.test.js`, `tests/tutorial-overlay-render.test.js`, etc.).
+- **TypeScript Health:** `pnpm typecheck` (`tsc --noEmit`) passes with 0 errors across `@guideme/engine`, `@guideme/chrome-adapter`, and `apps/chrome-extension`.
+- **TypeScript Migration Scorecard:** **61/75 files (81.3%)** in native TypeScript:
+  - `@guideme/engine`: 34/34 TS files (100.0%)
+  - `@guideme/chrome-adapter`: 6/6 TS files (100.0%)
+  - `apps/chrome-extension`: 21/21 TS files (100.0%)
+  - `@guideme/tutorial-ui`: 0/14 files (Phase 7 - next)
+- **Build Status:** Manifest V3 production bundle (`apps/chrome-extension/.output/chrome-mv3`) compiling cleanly via WXT + Vite in 2.2s (1.04 MB).
+- **Monorepo Architecture:** Clean 3-package layout (`@guideme/engine`, `@guideme/chrome-adapter`, `@guideme/tutorial-ui`) + host extension app (`apps/chrome-extension`).
 - **Specification Status:** Documentation unified under `docs/` and bound to root `AGENTS.md`.
 
 ---
@@ -15,13 +22,17 @@
 ## 2. Completed Milestones
 
 ### Phase 1: Core Headless Engine & Monorepo Foundation
-- [x] Initialized monorepo with PNPM workspaces across 6 packages (`engine`, `tutorial-ui`, `chrome-adapter`, `adapter-interface`, `tutorial-schema`, `core-types`) and an app (`chrome-extension`).
+- [x] Initialized monorepo with PNPM workspaces; consolidated into 3 core packages (`engine`, `chrome-adapter`, `tutorial-ui`) and host app (`chrome-extension`) per ADR-015.
+- [x] Migrated `@guideme/engine` types, schemas, and adapter contracts to TypeScript with strong domain models (`TutorialDefinition`, `StepAction`, `ValidationResult`).
+- [x] Enhanced `SchemaValidator` with self-healing for LLM dynamic outputs (missing `name`, `matchUrls`, action/validation defaults) and strict bilingual validation.
 - [x] Implemented `TutorialEngine` finite state machine (`IDLE`, `LOADING`, `STEP_ACTIVE`, `VALIDATING`, `STEP_COMPLETED`, `PAUSED`, `COMPLETED`, `ERROR`).
 - [x] Implemented `ValidationEngine` supporting `click`, `input`, `change`, `submit`, `url_change`, and `manual_next`.
 - [x] Created `TutorialParser` and schema validator with Zod checks.
 
 ### Phase 2: Chrome Adapter & Isolated UI Overlay
 - [x] Developed `ChromeAdapter` with `DOMObserver`, `MutationObserver` element polling, and `URLListener`.
+- [x] Migrated 100% of `@guideme/chrome-adapter` to native TypeScript (`chrome-adapter.ts`, `dom-observer.ts`, `event-listener.ts`, `url-listener.ts`, `chrome-storage.ts`, `index.ts`) with zero type diagnostics.
+- [x] Resilient selector auto-sanitization (handling `#:<id>` colons and invalid CSS identifiers) and dialog container disambiguation in `dom-observer.ts`.
 - [x] Mounted `TutorialOverlay` inside isolated Shadow DOM (`guideme-tutorial-root`) via WXT `createShadowRootUi`.
 - [x] Built interactive SVG `Spotlight` with cutout mask, corner smoothing, and radiant pulse glow ring.
 - [x] Built auto-flipping `StepCard` / `Tooltip` with responsive viewport collision avoidance via `@floating-ui/dom`.

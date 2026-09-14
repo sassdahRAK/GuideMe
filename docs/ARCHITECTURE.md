@@ -19,36 +19,37 @@ It operates on a **dual-mode engine architecture**:
 ```
 GuideMe/
 ├── packages/
-│   ├── core-types/         # Shared TypeScript interfaces, zero runtime dependencies
-│   ├── tutorial-schema/    # Zod validation schemas & parsers for JSON walkthroughs
-│   ├── engine/             # 100% HEADLESS pure JS state machine & validation logic
+│   ├── engine/             # 100% HEADLESS pure JS state machine, validation, types & contracts
+│   │   ├── src/types/      # Constants, enum definitions, and extension messaging schemas
+│   │   ├── src/schema/     # Zod validation schemas & parsers for JSON walkthroughs
+│   │   ├── src/adapter/    # BaseTutorialAdapter abstract capability contract
+│   │   ├── src/dynamic/    # Heuristic, Fuse.js DOM matching & AI DOM analyzer
+│   │   └── src/audio/      # Speech synthesis & TTS engine registry
 │   │                       # NO React, NO Tailwind, NO Chrome APIs, NO DOM globals
-│   ├── adapter-interface/  # Abstract contracts (IAdapter, IDOMObserver, IStorage)
-│   ├── chrome-adapter/     # Chrome MV3 concrete adapter (MutationObserver, storage)
-│   └── tutorial-ui/        # Isolated presentational React components (Spotlight, Tooltip)
+│   ├── chrome-adapter/     # Chrome MV3 concrete adapter (MutationObserver, DOM listeners, storage)
+│   └── tutorial-ui/        # Isolated presentational React components (Spotlight, Tooltip, Modals)
 ├── apps/
-│   ├── chrome-extension/   # WXT + Manifest V3 extension host
-│   │   ├── entrypoints/
-│   │   │   ├── background/ # Service worker: lifecycle, tab management, shortcuts
-│   │   │   ├── content/    # Injected content script: mounts isolated Shadow DOM
-│   │   │   └── popup/      # Toolbar popup: guide selector, settings, status
-│   └── authoring-studio/   # Visual tutorial creator web app (Roadmap / Layer 7)
+│   └── chrome-extension/   # WXT + Manifest V3 extension host
+│       ├── entrypoints/
+│       │   ├── background.js # Service worker: lifecycle, tab management, shortcuts
+│       │   ├── content/    # Injected content script: mounts isolated Shadow DOM
+│       │   └── popup/      # Toolbar popup: guide selector, settings, status
 ├── docs/                   # Consolidated core documentation & ADRs
 │   ├── ARCHITECTURE.md     # This document
 │   ├── STANDARDS.md        # Code standards, design system (60-30-10), QA protocols
-│   ├── DECISIONS.md        # Architectural Decision Records (ADR 001–012)
+│   ├── DECISIONS.md        # Architectural Decision Records (ADR 001–015)
 │   ├── REQUIREMENTS.md     # Product specifications, schemas, DOM resolution
 │   ├── PROGRESS.md         # Milestone and implementation status
 │   ├── assets/             # UI prototypes and diagrams
 │   └── _archive/           # Historical raw specs preserved for reference
-└── tests/                  # Automated test suite (Vitest)
+└── tests/                  # Automated test suite (Node test runner)
 ```
 
 ### Inviolable Monorepo Boundaries
-- **Engine Autonomy**: `@guideme/engine` must run 100% headlessly in Node.js. It never imports React, Chrome APIs, or window/document globals.
+- **Engine Autonomy**: `@guideme/engine` must run 100% headlessly in Node.js. It encapsulates types, schemas, and adapter interfaces with zero workspace dependencies. It never imports React, Chrome APIs, or window/document globals.
 - **Shadow DOM Isolation**: All UI overlays mount strictly within `#guideme-tutorial-root` via WXT `createShadowRootUi`. Host page styles never pollute GuideMe, and GuideMe CSS never leaks to the host.
 - **Pure Presentational UI**: `@guideme/tutorial-ui` receives state snapshots and dispatches callbacks (`onNext`, `onPrev`, `onSkip`, `onClose`, `onLanguageChange`, `onThemeChange`). It never queries the host DOM directly.
-- **Adapter Inversion**: Chrome-specific logic (storage, tabs, messaging) is injected via `adapter-interface` implementations.
+- **Adapter Inversion**: Chrome-specific logic (storage, tabs, messaging) is injected via `BaseTutorialAdapter` implementations in `@guideme/chrome-adapter`.
 
 ---
 
