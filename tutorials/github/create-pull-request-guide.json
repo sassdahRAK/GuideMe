@@ -1,0 +1,255 @@
+{
+  "id": "github-create-pull-request-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការបើក Pull Request ក្នុង GitHub",
+    "en": "Open a Pull Request on GitHub"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបើក Pull Request (PR) ដើម្បីស្នើសុំបញ្ចូល Code ពី Branch ទៅ main — នេះជាដំណើរការ Core នៃការ Collaborate ក្នុង GitHub ។",
+    "en": "Learn how to open a Pull Request to propose merging code from a branch into main — the core GitHub collaboration workflow."
+  },
+  "matchUrls": [
+    "https://github.com/*/compare*",
+    "https://github.com/*/pull/new/*",
+    "https://github.com/*"
+  ],
+  "steps": [
+    {
+      "id": "step_navigate_to_repo",
+      "title": {
+        "km": "ចូលទៅ Repository",
+        "en": "Go to Your Repository"
+      },
+      "description": {
+        "km": "ចូលទៅ Repository ដែលមាន Branch ដែលអ្នកចង់ Merge ។ ចុចលើ Tab 'Pull requests' ។",
+        "en": "Navigate to the repository that has the branch you want to merge. Click the 'Pull requests' tab."
+      },
+      "target": {
+        "css": "[aria-label*='Pull requests' i], a[href*='/pulls'], #pull-requests-tab",
+        "ariaLabel": "Pull requests",
+        "text": "Pull requests"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច Pull requests Tab",
+          "en": "Click Pull Requests Tab"
+        },
+        "content": {
+          "km": "ចុចលើ Tab 'Pull requests' នៅខាងលើ Repository ។",
+          "en": "Click the 'Pull requests' tab at the top of your repository."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើ Tab Pull requests ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Pull requests tab.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_click_new_pr",
+      "title": {
+        "km": "ចុចប៊ូតុង New pull request",
+        "en": "Click New Pull Request"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'New pull request' ពណ៌បៃតង ដើម្បីចាប់ផ្ដើមដំណើរការបើក PR ថ្មី។",
+        "en": "Click the green 'New pull request' button to start the process of opening a new PR."
+      },
+      "target": {
+        "css": "a:has-text('New pull request'), [aria-label*='New pull request' i], .btn-primary:has-text('New pull request')",
+        "text": "New pull request",
+        "ariaLabel": "New pull request"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច New pull request",
+          "en": "Open New PR"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'New pull request' ពណ៌បៃតង ដើម្បីចាប់ផ្ដើមបង្កើត PR ។",
+          "en": "Click the green 'New pull request' button to start creating your PR."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង New pull request ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the New pull request button.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_select_compare_branch",
+      "title": {
+        "km": "ជ្រើស Branch ប្រៀបធៀប (compare)",
+        "en": "Select Your Compare Branch"
+      },
+      "description": {
+        "km": "ចុចប្រអប់ 'compare' ហើយជ្រើសរើស Branch ដែលមាន Code ថ្មីរបស់អ្នក (ឧ. feature/login) ។",
+        "en": "Click the 'compare' dropdown and select the branch that contains your new code (e.g. feature/login)."
+      },
+      "target": {
+        "css": "[aria-label*='compare branch' i], .branch-select-menu, summary:has-text('compare')",
+        "ariaLabel": "compare branch"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើស Feature Branch",
+          "en": "Choose Your Feature Branch"
+        },
+        "content": {
+          "km": "ចុចប្រអប់ compare ហើយជ្រើស Branch ដែលមាន Code ថ្មីរបស់អ្នក ដើម្បី Merge ទៅ main ។",
+          "en": "Click the compare dropdown and select the branch with your new code to merge into main."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើស Branch ដែលមាន Code ថ្មីរបស់អ្នក ពីប្រអប់ compare ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select your feature branch from the compare dropdown.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_fill_pr_title",
+      "title": {
+        "km": "សរសេរចំណងជើង PR",
+        "en": "Write PR Title"
+      },
+      "description": {
+        "km": "បំពេញ Title ច្បាស់លាស់ ពណ៌នាអំពីអ្វីដែល PR នេះធ្វើ (ឧ. 'Add user login feature') ។",
+        "en": "Fill in a clear Title describing what this PR does (e.g. 'Add user login feature')."
+      },
+      "target": {
+        "css": "input#pull_request_title, [aria-label*='Title' i], input[name='pull_request[title]']",
+        "ariaLabel": "Title",
+        "text": "Title"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "សរសេរ PR Title",
+          "en": "Enter PR Title"
+        },
+        "content": {
+          "km": "វាយ Title ច្បាស់លាស់ (ឧ. 'Add user login') ដើម្បីឱ្យ Reviewer ដឹងអំពី PR នេះ។",
+          "en": "Type a clear title (e.g. 'Add user login') so reviewers understand what this PR is about."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយ Title ច្បាស់លាស់ ពណ៌នាអំពី PR នេះ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type a clear title describing what this pull request does.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_submit_pr",
+      "title": {
+        "km": "ដាក់ Submit Pull Request",
+        "en": "Submit Pull Request"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Create pull request' ដើម្បីបញ្ជូន PR ទៅ Team Member Review ។",
+        "en": "Click 'Create pull request' to send your PR for team review and approval."
+      },
+      "target": {
+        "css": "button:has-text('Create pull request'), [aria-label*='Create pull request' i]",
+        "text": "Create pull request",
+        "ariaLabel": "Create pull request"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច Create pull request",
+          "en": "Create Pull Request"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Create pull request' ដើម្បីបញ្ជូន PR ហើយរង់ចាំ Reviewer ចូល Review Code របស់អ្នក!",
+          "en": "Click 'Create pull request' to submit — your team can now review and approve your code changes!"
+        },
+        "placement": "top"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Create pull request ដើម្បីបញ្ជូន PR ទៅ Review ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Create pull request to submit it for review.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "Pull Request ត្រូវបានបើក!",
+        "en": "Pull Request Opened!"
+      },
+      "description": {
+        "km": "PR ត្រូវបានបញ្ជូនដោយជោគជ័យ! Team Member អាច Review, Comment, Approve ឬ Request Changes ។",
+        "en": "PR submitted successfully! Team members can now Review, Comment, Approve, or Request Changes."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Pull Request ជោគជ័យ!",
+          "en": "Pull Request Created!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! PR របស់អ្នកត្រូវបានបើករួចហើយ! Team Member អាចចូល Review Code, Comment, Approve ។ ប្រសិនបើ Merge, Code របស់អ្នកនឹងបន្ថែមទៅ main ជោគជ័យ!",
+          "en": "Your pull request is live! Team members can now review, comment, and approve. Once merged, your code becomes part of the main codebase!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

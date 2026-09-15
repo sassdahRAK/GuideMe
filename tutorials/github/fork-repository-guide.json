@@ -1,0 +1,214 @@
+{
+  "id": "github-fork-repository-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការ Fork Repository ក្នុង GitHub",
+    "en": "Fork a Repository on GitHub"
+  },
+  "description": {
+    "km": "រៀនពីរបៀប Fork Repository ពី GitHub — ជាវិធី Clone ឯកសារ Code របស់អ្នកដទៃ ដើម្បីកែប្រែ ឬ Contribute ទៅ Open Source Project ។",
+    "en": "Learn how to fork a repository — copying someone else's code project to your own account so you can modify or contribute to it."
+  },
+  "matchUrls": [
+    "https://github.com/*/*",
+    "https://github.com/*"
+  ],
+  "steps": [
+    {
+      "id": "step_find_repo",
+      "title": {
+        "km": "ចូលទៅ Repository ដែលចង់ Fork",
+        "en": "Navigate to the Target Repository"
+      },
+      "description": {
+        "km": "ស្វែងរក Repository ដែលអ្នកចង់ Fork — ឧទាហរណ៍ Project Open Source ដ៏ល្អដែលអ្នកចង់ Contribute ។",
+        "en": "Find and open the repository you want to fork — for example, an open source project you'd like to contribute to."
+      },
+      "target": {
+        "css": ".repository-content, #repository-container-header, .pagehead-actions",
+        "ariaLabel": "Repository header"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ស្វែងរក Repository",
+          "en": "Find the Repository"
+        },
+        "content": {
+          "km": "ប្រើ Search Bar របស់ GitHub ដើម្បីស្វែងរក Repository ដែលអ្នកចូលចិត្ត ហើយចុចឈ្មោះ Repository ដើម្បីចូល។",
+          "en": "Use GitHub's search bar to find the repository you want, then click on its name to open it."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចូលទៅ Repository ដែលអ្នកចង់ Fork ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Navigate to the repository you want to fork.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_click_fork_button",
+      "title": {
+        "km": "ចុចប៊ូតុង Fork",
+        "en": "Click the Fork Button"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Fork' នៅជ្រុងខាងស្ដាំខាងលើ Repository ។ ប្រសិនបើ Fork ច្រើនដង ចុចលើសញ្ញា ▼ ហើយជ្រើស 'Create a new fork' ។",
+        "en": "Click the 'Fork' button in the top-right of the repository. If forked multiple times, click the ▼ and choose 'Create a new fork'."
+      },
+      "target": {
+        "css": "button:has-text('Fork'), [aria-label*='Fork' i], .pagehead-actions .btn:has-text('Fork')",
+        "ariaLabel": "Fork",
+        "text": "Fork"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង Fork",
+          "en": "Click Fork"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Fork' នៅជ្រុងខាងស្ដាំ — GitHub នឹង Copy Repository ទៅ Account របស់អ្នកភ្លាមៗ!",
+          "en": "Click the 'Fork' button in the top-right corner — GitHub will copy this repository to your account!"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Fork ក្នុង Repository ដែលអ្នកចង់ Copy ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Fork button in the top right of the repository.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click",
+        "alternativeTargets": [
+          { "css": "[role='menuitem']:has-text('Create a new fork')" }
+        ]
+      }
+    },
+    {
+      "id": "step_review_fork_settings",
+      "title": {
+        "km": "ពិនិត្យការកំណត់ Fork",
+        "en": "Review Fork Settings"
+      },
+      "description": {
+        "km": "GitHub បង្ហាញទំព័រ Fork ជាមួយ Owner, Name, Description ។ ពិនិត្យ ហើយផ្លាស់ប្ដូរ Repository Name ប្រសិនចង់បាន។",
+        "en": "GitHub shows a Fork page with Owner, Name, Description. Review and optionally change the repository name."
+      },
+      "target": {
+        "css": "input#repository-name, [aria-label*='Repository name' i], #fork-repository-form",
+        "ariaLabel": "Repository name"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ពិនិត្យ Fork Settings",
+          "en": "Review Fork Options"
+        },
+        "content": {
+          "km": "ពិនិត្យ Repository Name ហើយផ្លាស់ប្ដូរបើចង់ ។ ជម្រើស 'Copy the main branch only' ល្អពេលចង់ Copy តែ main ។",
+          "en": "Review the repo name and change it if you want. The 'Copy the main branch only' option is fine for most cases."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ពិនិត្យ Repository Name ហើយប្ដូរតាមចង់បាន ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Review the repository name and change it if needed.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_create_fork",
+      "title": {
+        "km": "ចុចប៊ូតុង Create fork",
+        "en": "Click Create Fork"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Create fork' ដើម្បីបញ្ចប់ ។ GitHub នឹង Fork Repository ហើយ Redirect ទៅ Copy ក្នុង Account របស់អ្នក។",
+        "en": "Click the 'Create fork' button to complete. GitHub forks the repo and redirects you to your copy."
+      },
+      "target": {
+        "css": "button:has-text('Create fork'), [aria-label*='Create fork' i], button[type='submit']",
+        "text": "Create fork",
+        "ariaLabel": "Create fork"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច Create fork",
+          "en": "Create the Fork"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Create fork' ហើយ GitHub នឹង Fork Repository ភ្លាមៗ — អ្នកនឹង Redirect ទៅ Repository Copy ក្នុង Account របស់អ្នក!",
+          "en": "Click 'Create fork' and GitHub instantly forks the repo — you'll be redirected to your own copy!"
+        },
+        "placement": "top"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Create fork ដើម្បីបញ្ចប់ការ Fork ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Create fork to complete the forking process.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "Fork ជោគជ័យ!",
+        "en": "Fork Successful!"
+      },
+      "description": {
+        "km": "Repository ត្រូវបាន Fork ទៅ Account របស់អ្នកដោយជោគជ័យ! ឥឡូវ Clone ទៅ Computer ដើម្បីចាប់ផ្ដើមកែប្រែ Code ។",
+        "en": "Repository forked to your account! Now clone it to your computer to start editing code."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Fork ជោគជ័យ!",
+          "en": "Repository Forked!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! Repository ត្រូវបាន Fork ទៅ Account GitHub របស់អ្នករួចហើយ! ឥឡូវអ្នកអាចកែប្រែ Code ហើយ Submit Pull Request ទៅ Project ដើម ដើម្បី Contribute Open Source!",
+          "en": "Your fork is ready! Now you can edit the code freely and submit a Pull Request to contribute back to the original project!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

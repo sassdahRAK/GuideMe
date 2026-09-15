@@ -1,0 +1,211 @@
+{
+  "id": "google-sheets-apply-filter-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការប្រើប្រាស់ Filter ក្នុង Google Sheets",
+    "en": "Apply Filters in Google Sheets"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបន្ថែម Filter ទៅលើជួរ (Column) ក្នុង Google Sheets ដើម្បីបង្ហាញតែទិន្នន័យដែលអ្នកចង់ឃើញ។",
+    "en": "Learn how to add filters to columns in Google Sheets to display only the data you need."
+  },
+  "matchUrls": [
+    "https://docs.google.com/spreadsheets/*",
+    "https://docs.google.com/spreadsheets/d/*"
+  ],
+  "steps": [
+    {
+      "id": "step_select_data_range",
+      "title": {
+        "km": "ចុចក្នុង Range ទិន្នន័យ",
+        "en": "Click Inside Your Data Range"
+      },
+      "description": {
+        "km": "ចុចលើ Cell ណាមួយក្នុង Range ទិន្នន័យរបស់អ្នក ដើម្បីចាប់ផ្ដើមបន្ថែម Filter ។",
+        "en": "Click on any cell within your data range to get started with applying a filter."
+      },
+      "target": {
+        "css": ".grid-container, [role='grid'], .waffle-grid, .sheet-container",
+        "ariaLabel": "Spreadsheet grid"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចក្នុងទិន្នន័យ",
+          "en": "Click Inside Your Data"
+        },
+        "content": {
+          "km": "ចុចលើ Cell ណាមួយក្នុងតារាងទិន្នន័យ ដើម្បីប្រាប់ Sheets ថាដែន Filter ត្រូវបានអនុវត្ត។",
+          "en": "Click inside your data table so Sheets knows which range to apply the filter to."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចក្នុង Cell ណាមួយក្នុង Range ទិន្នន័យរបស់អ្នក។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click on any cell inside your data range.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_open_data_menu",
+      "title": {
+        "km": "ចុចម៉ឺនុយ Data",
+        "en": "Click the Data Menu"
+      },
+      "description": {
+        "km": "ចុចលើម៉ឺនុយ 'Data' នៅរបារខាងលើ ដើម្បីស្វែងរកមុខងារ Filter ។",
+        "en": "Click the 'Data' menu in the top bar to access the Filter feature."
+      },
+      "target": {
+        "css": "#docs-data-menu, [aria-label*='Data' i], span:has-text('Data')",
+        "ariaLabel": "Data",
+        "text": "Data"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចម៉ឺនុយ Data",
+          "en": "Open Data Menu"
+        },
+        "content": {
+          "km": "ចុចលើ 'Data' ក្នុងរបារម៉ឺនុយ ដើម្បីបើកជម្រើសសម្រាប់ Filter, Sort, និងការចាត់ចែងទិន្នន័យ។",
+          "en": "Click 'Data' in the menu bar to open options for filtering, sorting, and managing data."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចម៉ឺនុយ Data នៅរបារខាងលើ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Data menu in the top bar.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_create_filter",
+      "title": {
+        "km": "ចុច Create a Filter",
+        "en": "Click Create a Filter"
+      },
+      "description": {
+        "km": "ចុចលើ 'Create a filter' ដើម្បីបន្ថែមមុខងារ Filter ទៅជួរ Header នៃ Sheet របស់អ្នក។",
+        "en": "Click 'Create a filter' to add filter dropdown arrows to your data header row."
+      },
+      "target": {
+        "css": "[role='menuitem']:has-text('Create a filter'), .goog-menuitem:has-text('Create a filter'), [aria-label*='Create a filter' i]",
+        "text": "Create a filter",
+        "ariaLabel": "Create a filter"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច Create a Filter",
+          "en": "Create Filter"
+        },
+        "content": {
+          "km": "ចុចលើ 'Create a filter' — ប្រអប់ Filter ខ្នាតតូច (▼) នឹងលេចឡើងលើ Header Cell នីមួយៗ ដើម្បីគ្រប់គ្រងការបង្ហាញ។",
+          "en": "Click 'Create a filter' — small filter dropdowns (▼) will appear on each header cell for filtering."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើ Create a filter ដើម្បីបន្ថែមមុខងារ Filter ទៅ Header ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Create a filter to add filter dropdowns to your headers.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_use_filter_dropdown",
+      "title": {
+        "km": "ប្រើប្រាស់ Filter Dropdown",
+        "en": "Use a Filter Dropdown"
+      },
+      "description": {
+        "km": "ចុចរូប ▼ ក្នុង Header Cell ណាមួយ ហើយជ្រើសរើស ឬ Uncheck តម្លៃ ដើម្បីបង្ហាញតែជួរដែលអ្នកចង់ឃើញ។",
+        "en": "Click the ▼ icon in any header cell and check/uncheck values to show only the rows you need."
+      },
+      "target": {
+        "css": ".freezebar-hover-handle, [aria-label*='filter' i], .gs-scroll-proxy, [data-view-type='filter']",
+        "ariaLabel": "Filter column"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច Filter ▼",
+          "en": "Click a Filter Arrow"
+        },
+        "content": {
+          "km": "ចុចរូបសញ្ញា ▼ ក្នុង Header ណាមួយ ហើយ Uncheck តម្លៃដែលអ្នកមិនចង់ឃើញ ដើម្បី Filter ជួរ។",
+          "en": "Click any ▼ filter arrow and uncheck values you want to hide — rows will be filtered instantly."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចរូប Filter ▼ ហើយជ្រើសរើសតម្លៃ ដើម្បីបង្ហាញតែជួរដែលអ្នកចង់ឃើញ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the filter arrow and select values to show only the rows you need.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "Filter បានបន្ថែមដោយជោគជ័យ!",
+        "en": "Filter Applied!"
+      },
+      "description": {
+        "km": "Filter ត្រូវបានបន្ថែមទៅ Sheet របស់អ្នករួចហើយ ហើយអ្នកអាចប្រើវាដើម្បីតម្រង (Filter) ទិន្នន័យបានគ្រប់ពេល។",
+        "en": "Your sheet now has filters. You can use them anytime to quickly narrow down your data."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Filter ជោគជ័យ!",
+          "en": "Filter Setup Complete!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! Filter ត្រូវបានបន្ថែមទៅ Sheet របស់អ្នកហើយ។ ចុច ▼ ក្នុង Header ណាមួយ ដើម្បីចម្រោះ (Filter) ទិន្នន័យបានភ្លាមៗ!",
+          "en": "Filters are set up on your sheet. Click any ▼ header arrow to instantly filter your data!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

@@ -1,0 +1,257 @@
+{
+  "id": "github-create-repository-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការបង្កើត Repository ថ្មីក្នុង GitHub",
+    "en": "Create a New Repository on GitHub"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបង្កើត Repository (ថតឯកសារ Code) ថ្មីនៅ GitHub ដែលជាជំហានដំបូងបំផុតក្នុងការប្រើ GitHub ។",
+    "en": "Learn how to create a new repository on GitHub — the very first step every developer takes when starting a project."
+  },
+  "matchUrls": [
+    "https://github.com/*",
+    "https://github.com/new"
+  ],
+  "steps": [
+    {
+      "id": "step_click_new_repo",
+      "title": {
+        "km": "ចុចប៊ូតុង New Repository",
+        "en": "Click New Repository"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង '+' (New) នៅជ្រុងខាងស្ដាំខាងលើ ហើយជ្រើស 'New repository' ។",
+        "en": "Click the '+' (New) button in the top-right corner and select 'New repository'."
+      },
+      "target": {
+        "css": "[aria-label*='Create new' i], .header-search-button, summary[aria-label*='Create new' i], [data-hotkey='+'], button[aria-label='New']",
+        "ariaLabel": "Create new",
+        "text": "New"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង + New",
+          "en": "Click + New Button"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង '+' នៅជ្រុងខាងស្ដាំ ហើយជ្រើស 'New repository' ដើម្បីចាប់ផ្ដើមបង្កើតថត Code ថ្មី។",
+          "en": "Click the '+' button in the top-right corner then choose 'New repository' to start a new code folder."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង + New ហើយជ្រើស New repository ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the plus New button and select New repository.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click",
+        "alternativeTargets": [
+          { "css": "[role='menuitem']:has-text('New repository'), a[href='/new']" }
+        ]
+      }
+    },
+    {
+      "id": "step_name_repository",
+      "title": {
+        "km": "ដាក់ឈ្មោះ Repository",
+        "en": "Name Your Repository"
+      },
+      "description": {
+        "km": "វាយបញ្ចូលឈ្មោះ Repository ក្នុងប្រអប់ 'Repository name' — ប្រើអក្ខរក្រម ចំណុច ខ្នាត (-) គ្មានឃ្លា ។",
+        "en": "Type a name in the 'Repository name' field — use letters, numbers, hyphens, no spaces."
+      },
+      "target": {
+        "css": "#repository-name, input[name='repository[name]'], [aria-label*='Repository name' i]",
+        "ariaLabel": "Repository name",
+        "text": "Repository name"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ដាក់ឈ្មោះ Repository",
+          "en": "Enter Repository Name"
+        },
+        "content": {
+          "km": "វាយឈ្មោះ Repository (ឧ. my-first-project) ។ ជៀសវាងការប្រើ Space — ប្រើ - ជំនួសវិញ។",
+          "en": "Type your repository name (e.g. my-first-project). Avoid spaces — use hyphens instead."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយឈ្មោះ Repository ក្នុងប្រអប់ Repository name ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type your repository name in the Repository name field.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_set_public",
+      "title": {
+        "km": "ជ្រើស Public",
+        "en": "Select Public"
+      },
+      "description": {
+        "km": "ជ្រើសរើស 'Public' ដើម្បីឱ្យ Repository របស់អ្នកអាចមើលបានដោយអ្នករាល់គ្នា — ល្អសម្រាប់ Project Portfolio ។",
+        "en": "Select 'Public' so anyone can view your repository — great for portfolios and open source projects."
+      },
+      "target": {
+        "css": "input[value='public'], #repository_visibility_public, [aria-label*='Public' i]",
+        "ariaLabel": "Public",
+        "text": "Public"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើស Public",
+          "en": "Choose Public Visibility"
+        },
+        "content": {
+          "km": "ចុចជ្រើស 'Public' ដើម្បីឱ្យ Code Project របស់អ្នកអាចឃើញ Share ទៅ Portfolio ។",
+          "en": "Select 'Public' to make your code visible to everyone — perfect for sharing your portfolio."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើស Public ដើម្បីឱ្យ Repository មើលបានដោយអ្នករាល់គ្នា។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select Public to make your repository visible to everyone.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_add_readme",
+      "title": {
+        "km": "ដាក់ check ✓ 'Add a README file'",
+        "en": "Check 'Add a README file'"
+      },
+      "description": {
+        "km": "ដាក់ check ✓ ទៅ 'Add a README file' ដើម្បី GitHub Auto-create ឯកសារ README.md សម្រាប់ Project ។",
+        "en": "Check 'Add a README file' so GitHub automatically creates a README.md for your project description."
+      },
+      "target": {
+        "css": "#repository_initialize, input[name='repository[auto_init]'], [aria-label*='Initialize this repository' i]",
+        "ariaLabel": "Add a README file"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ដាក់ Check README",
+          "en": "Add README File"
+        },
+        "content": {
+          "km": "ដាក់ check 'Add a README file' — README ជាឯកសារណែនាំ Project ដែល Developer ទុកជានិច្ច!",
+          "en": "Check 'Add a README file' — README is the first document visitors see, describing what your project does!"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ដាក់ check ✓ Add a README file ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Check the Add a README file checkbox.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_create_repository",
+      "title": {
+        "km": "ចុចប៊ូតុង Create repository",
+        "en": "Click Create repository"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Create repository' ពណ៌បៃតងដើម្បីបញ្ចប់ការបង្កើត Repository ថ្មីរបស់អ្នក!",
+        "en": "Click the green 'Create repository' button to finish creating your new repository!"
+      },
+      "target": {
+        "css": "button[data-disable-invalid], button[type='submit']:has-text('Create repository'), [aria-label*='Create repository' i]",
+        "text": "Create repository",
+        "ariaLabel": "Create repository"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង Create repository",
+          "en": "Create Your Repository"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Create repository' ពណ៌បៃតង ដើម្បីបង្កើត Repository ជោគជ័យ!",
+          "en": "Click the green 'Create repository' button to finalize and create your project repository!"
+        },
+        "placement": "top"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Create repository ដើម្បីបញ្ចប់ការបង្កើត Repository ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Create repository button to complete the process.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "Repository ត្រូវបានបង្កើត!",
+        "en": "Repository Created!"
+      },
+      "description": {
+        "km": "GitHub Repository ថ្មីរបស់អ្នកត្រូវបានបង្កើតដោយជោគជ័យ ជាមួយ README.md ។ ឥឡូវអ្នកអាចបន្ថែម Files, Commit Code, និងចែករំលែក Project !</ ",
+        "en": "Your new GitHub repository is created with a README.md. Now you can add files, commit code, and share your project!"
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Repository ជោគជ័យ!",
+          "en": "Repository Created Successfully!"
+        },
+        "content": {
+          "km": "អបអរសាទរ Developer ថ្មី! Repository GitHub ដំបូងរបស់អ្នកបង្កើតដោយជោគជ័យ! ឥឡូវ Upload Files ឬ Clone ទៅ Computer ដើម្បីចាប់ផ្ដើម Code !</",
+          "en": "Congratulations new developer! Your first GitHub repository is live! Upload files or clone it to your computer to start coding!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

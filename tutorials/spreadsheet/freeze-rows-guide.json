@@ -1,0 +1,171 @@
+{
+  "id": "google-sheets-freeze-rows-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការ Freeze ជួរខាងលើ (Header Row) ក្នុង Google Sheets",
+    "en": "Freeze Header Rows in Google Sheets"
+  },
+  "description": {
+    "km": "រៀនពីរបៀប Freeze ជួរ Header (ជួរទី ១) ដើម្បីឱ្យជួរចំណងជើងតែងតែបង្ហាញនៅពេលអ្នក Scroll ចុះក្រោម ក្នុង Google Sheets។",
+    "en": "Learn how to freeze the top header row so it stays visible when scrolling through your data in Google Sheets."
+  },
+  "matchUrls": [
+    "https://docs.google.com/spreadsheets/*",
+    "https://docs.google.com/spreadsheets/d/*"
+  ],
+  "steps": [
+    {
+      "id": "step_open_view_menu",
+      "title": {
+        "km": "ចុចម៉ឺនុយ មើល (View)",
+        "en": "Click View Menu"
+      },
+      "description": {
+        "km": "ចុចលើម៉ឺនុយ 'View' នៅរបារខាងលើ ដើម្បីស្វែងរកជម្រើស Freeze ។",
+        "en": "Click the 'View' menu in the top bar to find the Freeze option."
+      },
+      "target": {
+        "css": "#docs-view-menu, [aria-label*='View' i], span:has-text('View')",
+        "ariaLabel": "View",
+        "text": "View"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចម៉ឺនុយ View",
+          "en": "Open View Menu"
+        },
+        "content": {
+          "km": "ចុចលើ 'View' នៅរបារម៉ឺនុយខាងលើ ដើម្បីបើកបញ្ជីជម្រើស Freeze ។",
+          "en": "Click 'View' in the top menu bar to open options including Freeze."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចម៉ឺនុយ View នៅរបារខាងលើ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the View menu in the top bar.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_hover_freeze",
+      "title": {
+        "km": "ជ្រើសរើស Freeze",
+        "en": "Select Freeze"
+      },
+      "description": {
+        "km": "ក្នុងបញ្ជីម៉ឺនុយ View ស្វែងរករហូតដល់ 'Freeze' ហើយដាក់ Mouse លើវា ដើម្បីបើកម៉ឺនុយរង។",
+        "en": "In the View menu, find and hover over 'Freeze' to open the sub-menu."
+      },
+      "target": {
+        "css": "[role='menuitem']:has-text('Freeze'), .goog-menuitem:has-text('Freeze'), [aria-label*='Freeze' i]",
+        "text": "Freeze",
+        "ariaLabel": "Freeze"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើស Freeze",
+          "en": "Hover over Freeze"
+        },
+        "content": {
+          "km": "ដាក់ Mouse លើ 'Freeze' ដើម្បីបើកម៉ឺនុយរងបន្ថែម ដែលមានជម្រើស Freeze ជួរ ១ ជួរ ២ ឬច្រើន។",
+          "en": "Hover over 'Freeze' to open the submenu with options to freeze 1 row, 2 rows, or more."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ដាក់ Mouse លើ Freeze ដើម្បីបើកម៉ឺនុយរង។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Hover over Freeze to open the submenu.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_freeze_one_row",
+      "title": {
+        "km": "Freeze ជួរ ១ (1 row)",
+        "en": "Freeze 1 Row"
+      },
+      "description": {
+        "km": "ជ្រើសរើស '1 row' ដើម្បី Freeze ជួរទី ១ (Header Row) ឱ្យតែងបង្ហាញពេល Scroll ។",
+        "en": "Select '1 row' to freeze your top header row so it stays visible while scrolling."
+      },
+      "target": {
+        "css": "[role='menuitem']:has-text('1 row'), .goog-menuitem:has-text('1 row'), [aria-label*='1 row' i]",
+        "text": "1 row",
+        "ariaLabel": "1 row"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "Freeze ជួរ ១",
+          "en": "Freeze 1 Row"
+        },
+        "content": {
+          "km": "ចុចលើ '1 row' ដើម្បី Freeze ជួរ Header ទី ១ — ជួរ Header នឹងមិនបាត់ទៅណាទោះបី Scroll ចុះក្រោមក៏ដោយ។",
+          "en": "Click '1 row' to freeze the top header row — it will stay fixed even when you scroll down through data."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើ 1 row ដើម្បី Freeze ជួរ Header ទី ១ ឱ្យតែងបង្ហាញ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click 1 row to freeze your header row so it stays visible while scrolling.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "ជួរ Header ត្រូវបាន Freeze!",
+        "en": "Header Row Frozen!"
+      },
+      "description": {
+        "km": "ជួរ Header ទី ១ ត្រូវបាន Freeze ហើយ — អ្នកនឹងឃើញបន្ទាត់ Freeze ពណ៌ខ្ចី ហើយ Header មិនបាត់នៅពេល Scroll ។",
+        "en": "Row 1 is now frozen — you'll see a thick border line and the header stays visible when scrolling."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Freeze ជោគជ័យ!",
+          "en": "Row Frozen Successfully!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! ជួរ Header ត្រូវបាន Freeze ហើយ។ ឥឡូវ Scroll ចុះក្រោមក្នុង Sheet ដើម្បីឃើញថា Header នៅតែបង្ហាញ!",
+          "en": "Your header row is now frozen. Try scrolling down your sheet — the headers stay in place!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

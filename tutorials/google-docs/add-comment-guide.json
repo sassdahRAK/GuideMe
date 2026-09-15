@@ -1,0 +1,253 @@
+{
+  "id": "google-docs-add-comment-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "បន្ថែមមតិយោបល់ (Comment) ក្នុង Google Docs",
+    "en": "Add a Comment in Google Docs"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបន្ថែមមតិយោបល់ (Comment) ទៅលើអក្សរ ឬផ្នែកណាមួយក្នុង Google Docs សម្រាប់ការសហការជាក្រុម។",
+    "en": "Learn how to add comments on selected text in Google Docs to collaborate and give feedback."
+  },
+  "matchUrls": [
+    "https://docs.google.com/document/*",
+    "https://docs.google.com/document/d/*"
+  ],
+  "steps": [
+    {
+      "id": "step_select_text_to_comment",
+      "title": {
+        "km": "ជ្រើសរើសអក្សរសម្រាប់ Comment",
+        "en": "Select Text to Comment On"
+      },
+      "description": {
+        "km": "ចុចហើយអូស Mouse ដើម្បីជ្រើសរើស (Highlight) អក្សរ ឬផ្នែកណាមួយដែលអ្នកចង់បន្ថែមមតិយោបល់។",
+        "en": "Click and drag to highlight the text or section you want to add a comment to."
+      },
+      "target": {
+        "css": ".kix-page-content-wrapper, .docs-editor-container, [contenteditable='true']",
+        "ariaLabel": "Document body"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើសរើសអក្សរ",
+          "en": "Highlight Text"
+        },
+        "content": {
+          "km": "អូស Mouse លើអក្សរដែលអ្នកចង់ Comment ដើម្បី Highlight វា។",
+          "en": "Drag your mouse over the text you want to comment on to highlight it."
+        },
+        "placement": "center"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើសរើសអក្សរដែលអ្នកចង់បន្ថែមមតិយោបល់។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select the text you want to add a comment to.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_open_insert_comment",
+      "title": {
+        "km": "ចុច Insert > Comment",
+        "en": "Click Insert > Comment"
+      },
+      "description": {
+        "km": "ចុចម៉ឺនុយ 'Insert' រួចជ្រើសរើស 'Comment' ដើម្បីបើកប្រអប់សរសេរ Comment ។ ឬអ្នកក៏អាចប្រើ Ctrl+Alt+M ផ្ទាល់ក៏បាន។",
+        "en": "Click the 'Insert' menu and select 'Comment'. Alternatively, use the shortcut Ctrl+Alt+M."
+      },
+      "target": {
+        "css": "#docs-insert-menu, [aria-label*='Insert' i]",
+        "ariaLabel": "Insert",
+        "text": "Insert"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចម៉ឺនុយ Insert",
+          "en": "Open Insert Menu"
+        },
+        "content": {
+          "km": "ចុចម៉ឺនុយ 'Insert' ហើយស្វែងរក 'Comment' ក្នុងបញ្ជី ឬប្រើ Ctrl+Alt+M ដោយផ្ទាល់។",
+          "en": "Click 'Insert' menu and find 'Comment', or use shortcut Ctrl+Alt+M directly."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចម៉ឺនុយ Insert ហើយជ្រើស Comment ឬប្រើ Ctrl+Alt+M។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Insert menu and select Comment, or use Ctrl+Alt+M.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_click_comment_item",
+      "title": {
+        "km": "ជ្រើសរើស Comment",
+        "en": "Select Comment"
+      },
+      "description": {
+        "km": "ចុចលើ 'Comment' ក្នុងបញ្ជីម៉ឺនុយ Insert ដើម្បីបើកប្រអប់សរសេរ Comment។",
+        "en": "Click 'Comment' in the Insert menu dropdown to open the comment input box."
+      },
+      "target": {
+        "css": "[role='menuitem']:has-text('Comment'), .goog-menuitem:has-text('Comment'), [aria-label*='Comment' i]",
+        "text": "Comment",
+        "ariaLabel": "Comment"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច Comment",
+          "en": "Click Comment"
+        },
+        "content": {
+          "km": "ចុចលើ 'Comment' ក្នុងបញ្ជី ដើម្បីបើកប្រអប់ Comment នៅក្បែរអក្សរ Highlight របស់អ្នក។",
+          "en": "Click 'Comment' in the list to open the comment box next to your highlighted text."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើ Comment ដើម្បីបើកប្រអប់សរសេរ Comment។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Comment to open the comment input box.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_type_comment",
+      "title": {
+        "km": "សរសេរមតិយោបល់",
+        "en": "Type Your Comment"
+      },
+      "description": {
+        "km": "សរសេរមតិយោបល់របស់អ្នកក្នុងប្រអប់ Comment ហើយចុច 'Comment' ឬ Enter ដើម្បីរក្សាទុក។",
+        "en": "Type your comment in the comment input box and click 'Comment' or press Ctrl+Enter to save."
+      },
+      "target": {
+        "css": ".docs-comment-composer textarea, [aria-label*='Comment' i] textarea, .comment-input, [data-testid='comment-input']",
+        "ariaLabel": "Add comment"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "សរសេរ Comment របស់អ្នក",
+          "en": "Type Your Comment"
+        },
+        "content": {
+          "km": "វាយបញ្ចូល Comment របស់អ្នក ហើយចុច 'Comment' ដើម្បីរក្សាទុក ឬ Ctrl+Enter ដើម្បីប្រញ័ប់។",
+          "en": "Type your comment and click the 'Comment' button to save, or press Ctrl+Enter to post quickly."
+        },
+        "placement": "left"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយបញ្ចូល Comment របស់អ្នក ហើយចុចប៊ូតុង Comment ដើម្បីរក្សាទុក។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type your comment and click the Comment button to save it.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_submit_comment",
+      "title": {
+        "km": "ដាក់ Comment",
+        "en": "Post Comment"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Comment' ពណ៌ខៀវ ដើម្បីដាក់ Comment របស់អ្នក។",
+        "en": "Click the blue 'Comment' button to post your comment."
+      },
+      "target": {
+        "css": ".docs-comment-composer button[aria-label*='Comment' i], button.docs-material-button-primary:has-text('Comment'), [aria-label='Post comment']",
+        "ariaLabel": "Post comment",
+        "text": "Comment"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង Comment",
+          "en": "Post Your Comment"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Comment' ពណ៌ខៀវដើម្បីដាក់ Comment របស់អ្នក — គេដែលសហការជាមួយអ្នកនឹងឃើញ Comment នេះ។",
+          "en": "Click the blue 'Comment' button to post — collaborators will see your comment in the document margin."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Comment ខៀវ ដើម្បីបញ្ចូលមតិយោបល់របស់អ្នក។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the blue Comment button to publish your comment.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "Comment បានដាក់ដោយជោគជ័យ!",
+        "en": "Comment Posted!"
+      },
+      "description": {
+        "km": "Comment របស់អ្នកបានបង្ហាញនៅចំហៀងឯកសារ ហើយអ្នកសហការអាចដឹងនិងឆ្លើយតបបាន។",
+        "en": "Your comment now appears in the document margin and collaborators can view and reply to it."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Comment ត្រូវបានបញ្ចូល!",
+          "en": "Comment Added Successfully!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! Comment របស់អ្នកបង្ហាញនៅចំហៀងឯកសារ។ គេដែលមានសិទ្ធិចូលប្រើប្រាស់ ឬកំពុងសហការ អាចឃើញ និងឆ្លើយតបទៅ Comment របស់អ្នក។",
+          "en": "Your comment is visible in the document. Anyone with access can view and reply to your feedback."
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

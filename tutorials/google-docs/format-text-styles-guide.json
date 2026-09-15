@@ -1,0 +1,216 @@
+{
+  "id": "google-docs-format-text-styles-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការធ្វើទ្រង់ទ្រាយអក្សរ និងចំណងជើងក្នុង Google Docs",
+    "en": "Format Text and Headings in Google Docs"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបធ្វើឱ្យអក្សររឹង (Bold) ទ្រេត (Italic) លើស (Underline) និងប្រើប្រាស់រចនាប័ទ្មចំណងជើង (Heading Styles)។",
+    "en": "Learn how to apply Bold, Italic, Underline formatting and use Heading styles for structured documents."
+  },
+  "matchUrls": [
+    "https://docs.google.com/document/*",
+    "https://docs.google.com/document/d/*"
+  ],
+  "steps": [
+    {
+      "id": "step_select_text",
+      "title": {
+        "km": "ជ្រើសរើសអក្សរ",
+        "en": "Select Text"
+      },
+      "description": {
+        "km": "ជ្រើសរើស (Highlight) អក្សរដែលអ្នកចង់ធ្វើទ្រង់ទ្រាយ ដោយចុចហើយអូស Mouse លើវា។",
+        "en": "Highlight the text you want to format by clicking and dragging your mouse over it."
+      },
+      "target": {
+        "css": ".kix-page-content-wrapper, .docs-editor-container, [contenteditable='true']",
+        "ariaLabel": "Document body"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើសរើសអក្សររបស់អ្នក",
+          "en": "Select Your Text"
+        },
+        "content": {
+          "km": "ចុចហើយអូស Mouse លើអក្សរដែលអ្នកចង់ធ្វើទ្រង់ទ្រាយ ឬចុច Ctrl+A ដើម្បីជ្រើសទាំងអស់។",
+          "en": "Click and drag over the text you want to format, or press Ctrl+A to select all."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើសរើសអក្សរដែលអ្នកចង់ធ្វើទ្រង់ទ្រាយ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select the text you want to format.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_apply_bold",
+      "title": {
+        "km": "ធ្វើឱ្យអក្សររឹង (Bold)",
+        "en": "Apply Bold"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង Bold (**B**) នៅរបារឧបករណ៍ ឬប្រើផ្លូវកាត់ Ctrl+B ដើម្បីធ្វើឱ្យអក្សររឹង។",
+        "en": "Click the Bold button (**B**) in the toolbar or press Ctrl+B to make text bold."
+      },
+      "target": {
+        "css": "[aria-label*='Bold' i], button[aria-label='Bold'], .docs-icon-bold, #boldButton",
+        "ariaLabel": "Bold",
+        "text": "B"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង Bold",
+          "en": "Click Bold"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង Bold (B) ឬប្រើ Ctrl+B ដើម្បីធ្វើឱ្យអក្សររបស់អ្នករឹង។",
+          "en": "Click the Bold button (B) or press Ctrl+B to make your selected text bold."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Bold ឬប្រើ Ctrl+B ដើម្បីធ្វើឱ្យអក្សររឹង។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Bold button or press Ctrl+B to bold your text.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_apply_heading",
+      "title": {
+        "km": "ប្រើប្រាស់រចនាប័ទ្មចំណងជើង (Heading)",
+        "en": "Apply Heading Style"
+      },
+      "description": {
+        "km": "ចុចលើបញ្ជីទម្លាក់ 'Paragraph styles' ហើយជ្រើសរើស Heading 1 ឬ Heading 2 ដើម្បីរៀបចំឯកសាររបស់អ្នក។",
+        "en": "Click the 'Paragraph styles' dropdown and select Heading 1 or Heading 2 to structure your document."
+      },
+      "target": {
+        "css": ".docs-paragraph-style, [aria-label*='Paragraph styles' i], [aria-label*='Styles' i], .docs-toolbar-paragraph-styles",
+        "ariaLabel": "Paragraph styles",
+        "text": "Normal text"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើសរើស Heading Style",
+          "en": "Choose Heading Style"
+        },
+        "content": {
+          "km": "ចុចប្រអប់ 'Normal text' ហើយជ្រើសរើស 'Heading 1' ឬ 'Heading 2' ដើម្បីបង្ហាញចំណងជើងឯកសារ។",
+          "en": "Click the 'Normal text' dropdown and select 'Heading 1' or 'Heading 2' for section titles."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប្រអប់ Paragraph styles ហើយជ្រើសរើស Heading ដើម្បីរៀបចំចំណងជើងឯកសារ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Paragraph styles dropdown and choose a Heading to structure your document.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click",
+        "alternativeTargets": [
+          {
+            "css": "[role='menuitem']:has-text('Heading 1'), [role='menuitem']:has-text('Heading 2'), [aria-label*='Heading' i]"
+          }
+        ]
+      }
+    },
+    {
+      "id": "step_change_font_size",
+      "title": {
+        "km": "ប្ដូរទំហំអក្សរ (Font Size)",
+        "en": "Change Font Size"
+      },
+      "description": {
+        "km": "ចុចលើប្រអប់លេខទំហំអក្សរ (Font size) ហើយបញ្ចូលលេខថ្មី ឬជ្រើសរើសពីបញ្ជី ដើម្បីកំណត់ទំហំអក្សររបស់អ្នក។",
+        "en": "Click the font size box and type a new number or choose from the list to adjust text size."
+      },
+      "target": {
+        "css": "[aria-label*='Font size' i], .docs-font-size, .goog-toolbar-combo-button input[type='text']",
+        "ariaLabel": "Font size"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ផ្លាស់ប្ដូរទំហំអក្សរ",
+          "en": "Change Font Size"
+        },
+        "content": {
+          "km": "ចុចលើប្រអប់លេខទំហំអក្សរ ហើយបញ្ចូលទំហំថ្មី ឧទាហរណ៍ 14 ឬ 16 ហើយចុច Enter។",
+          "en": "Click the font size box, type a new size like 14 or 16, and press Enter to apply."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប្រអប់ទំហំអក្សរ ហើយប្ដូរទំហំតាមការចង់បាន។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the font size box and enter your desired text size.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_complete",
+      "title": {
+        "km": "ការធ្វើទ្រង់ទ្រាយជោគជ័យ!",
+        "en": "Formatting Complete!"
+      },
+      "description": {
+        "km": "អ្នកបានរៀនពីការធ្វើទ្រង់ទ្រាយអក្សររឹង (Bold) និងការប្រើប្រាស់ Heading Style ក្នុង Google Docs។",
+        "en": "You have learned how to apply bold formatting and heading styles in Google Docs."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "ជំនាញទ្រង់ទ្រាយបានបញ្ចប់!",
+          "en": "Formatting Skills Complete!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! ឥឡូវអ្នកដឹងពីវិធីធ្វើឱ្យអក្សររឹង (Bold) ប្ដូរ Heading Style និងកំណត់ទំហំអក្សររបស់អ្នក។",
+          "en": "Great work! You now know how to bold text, apply heading styles, and change font sizes in Google Docs."
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

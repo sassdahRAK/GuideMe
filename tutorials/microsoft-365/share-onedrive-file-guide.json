@@ -1,0 +1,212 @@
+{
+  "id": "microsoft-365-share-onedrive-file-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការចែករំលែកឯកសារ OneDrive (Microsoft 365)",
+    "en": "Share a File via OneDrive (Microsoft 365)"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបចែករំលែក (Share) ឯកសារ Word, Excel, ឬ PowerPoint ពី OneDrive ដោយ Link ទៅកាន់អ្នកដទៃ ។",
+    "en": "Learn how to share a Word, Excel, or PowerPoint file from OneDrive using a shareable link."
+  },
+  "matchUrls": [
+    "https://onedrive.live.com/*",
+    "https://*.sharepoint.com/*",
+    "https://www.office.com/*"
+  ],
+  "steps": [
+    {
+      "id": "step_select_file",
+      "title": {
+        "km": "ជ្រើសរើសឯកសារ",
+        "en": "Select Your File"
+      },
+      "description": {
+        "km": "ចុច Right-click (ចុចខាងស្ដាំ) ឬ ចុចប្រអប់ Check ​ ជ្រើស (Select) នៅស្ដាំ​ ឯកសារដែលអ្នកចង់ Share ។",
+        "en": "Right-click or check the checkbox next to the file you want to share."
+      },
+      "target": {
+        "css": ".od-ItemContent, [data-automationid='ItemTile'], [aria-label*='file' i], .ms-List-cell",
+        "ariaLabel": "File item"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើសឯកសារ",
+          "en": "Select a File"
+        },
+        "content": {
+          "km": "ចុចលើ Checkbox ក្បែរឯកសារ ឬ Right-click ដើម្បីជ្រើស — ឯកសារ Highlight ខៀវ ព្រមខ្ចី Options ។",
+          "en": "Click the checkbox next to the file or right-click on it — the file highlights and shows action options."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើសរើសឯកសារដែលអ្នកចង់ Share ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select the file you want to share.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_click_share",
+      "title": {
+        "km": "ចុចប៊ូតុង Share",
+        "en": "Click Share Button"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Share' (🔗) ក្នុង Action Bar ខាងលើ ឬ ពី Context Menu (ចុចខាងស្ដាំ) ។",
+        "en": "Click the 'Share' (🔗) button in the action bar at the top, or from the right-click context menu."
+      },
+      "target": {
+        "css": "[aria-label*='Share' i], [data-automationid='share-button'], button:has-text('Share'), .ms-Button--share",
+        "ariaLabel": "Share",
+        "text": "Share"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង Share",
+          "en": "Click Share"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Share' ជំ​ ​ Action Bar ខាងលើ ដើម្បីបើកផ្ទាំង Share Settings ។",
+          "en": "Click the 'Share' button in the top action bar to open the sharing settings panel."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Share ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Share button.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_copy_link",
+      "title": {
+        "km": "ចម្លង Link ចែករំលែក",
+        "en": "Copy the Share Link"
+      },
+      "description": {
+        "km": "ក្នុងផ្ទាំង Share ចុចលើ 'Copy link' ដើម្បីចម្លង Link ចែករំលែក ឬ ធ្វើបច្ចុប្បន្នការ Link Settings ដំបូង (Anyone, View/Edit) ។",
+        "en": "In the Share panel, click 'Copy link' to copy the shareable URL, or adjust Link Settings (Anyone, View/Edit) first."
+      },
+      "target": {
+        "css": "[aria-label*='Copy link' i], [data-automationid='copy-link-button'], button:has-text('Copy link'), .ms-Button--copyLink",
+        "ariaLabel": "Copy link",
+        "text": "Copy link"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចម្លង Link",
+          "en": "Copy Share Link"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Copy link' ហើយ Link ចែករំលែក Copy ទៅ Clipboard — Paste ទៅ Chat ឬ Email ដើម្បីផ្ញើ!",
+          "en": "Click 'Copy link' and the shareable URL is on your clipboard — paste it in a chat or email to send!"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Copy link ដើម្បី Copy Link ចែករំលែក ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Copy link to copy the shareable link to your clipboard.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_adjust_permissions",
+      "title": {
+        "km": "ប្ដូរ Permission (ស្រេចចិត្ត)",
+        "en": "Adjust Permissions (Optional)"
+      },
+      "description": {
+        "km": "ចុច 'Anyone with the link can edit' ដើម្បីប្ដូរ Permission — ជ្រើស Can view ប្រសិនចង់ Read-only ។",
+        "en": "Click 'Anyone with the link can edit' to adjust permissions — choose 'Can view' for read-only access."
+      },
+      "target": {
+        "css": "[aria-label*='Anyone with the link can edit' i], [aria-label*='Link settings' i], [data-automationid='sharing-permission']",
+        "ariaLabel": "Link settings"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ប្ដូរ Permission",
+          "en": "Change Permission Level"
+        },
+        "content": {
+          "km": "ជ្រើស Permission: 'Can edit' ផ្ដល់សិទ្ធិកែប្រែ, 'Can view' ផ្ដល់សិទ្ធិបើកមើលប៉ុណ្ណោះ ។",
+          "en": "Choose: 'Can edit' lets them modify content, 'Can view' gives read-only access to the file."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ប្ដូរ Permission ទៅ Can view ប្រសិនចង់ Read-only ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Change permission to Can view if you want read-only access.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "ការចែករំលែក OneDrive ជោគជ័យ!",
+        "en": "OneDrive File Shared!"
+      },
+      "description": {
+        "km": "Link ចែករំលែក OneDrive ត្រូវបានចម្លងរួចហើយ! Paste ទៅ Email ឬ Chat ហើយ Recipient អាចចូលប្រើប្រាស់ភ្លាម ។",
+        "en": "Your OneDrive share link is copied! Paste it in email or chat and recipients can access the file immediately."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "OneDrive ចែករំលែកជោគជ័យ!",
+          "en": "OneDrive File Shared!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! Link ចែករំលែក OneDrive ត្រូវបានចម្លងទៅ Clipboard ។ Paste (Ctrl+V) ក្នុង Email, Teams, ឬ Chat ដើម្បីផ្ញើ!",
+          "en": "Your OneDrive share link is ready! Paste it (Ctrl+V) in an email, Teams message, or chat to share your file!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

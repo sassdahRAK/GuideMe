@@ -1,0 +1,211 @@
+{
+  "id": "google-sheets-create-formula-sum-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការប្រើប្រាស់រូបមន្ត SUM ក្នុង Google Sheets",
+    "en": "Use the SUM Formula in Google Sheets"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបសរសេររូបមន្ត =SUM() ដើម្បីបូករួម (Sum) ចំនួនលេខក្នុង Range ណាមួយ — នេះជារូបមន្តជំនាញដំបូងគេក្នុង Spreadsheet ។",
+    "en": "Learn how to write the =SUM() formula to total numbers in any range — the essential first formula for every spreadsheet user."
+  },
+  "matchUrls": [
+    "https://docs.google.com/spreadsheets/*",
+    "https://docs.google.com/spreadsheets/d/*"
+  ],
+  "steps": [
+    {
+      "id": "step_click_empty_cell",
+      "title": {
+        "km": "ចុចលើ Cell ទទេ",
+        "en": "Click an Empty Cell"
+      },
+      "description": {
+        "km": "ចុចលើ Cell ទទេណាមួយ (ឧទាហរណ៍ B6) ដែលអ្នកចង់បង្ហាញលទ្ធផលបូក (Total) ។",
+        "en": "Click on an empty cell (e.g. B6) where you want the sum result to appear."
+      },
+      "target": {
+        "css": ".grid-container, [role='grid'], .waffle-grid",
+        "ariaLabel": "Spreadsheet grid"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចលើ Cell ទទេ",
+          "en": "Select Empty Cell"
+        },
+        "content": {
+          "km": "ចុចលើ Cell ទទេដែលស្ថិតនៅក្រោមមួយជួរ ដើម្បីកំណត់ទីតាំងបង្ហាញ Total ។",
+          "en": "Click an empty cell just below your data column to place your total there."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើ Cell ទទេ ដែលអ្នកចង់បង្ហាញលទ្ធផលបូក។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click on an empty cell where you want to display the sum total.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_type_sum_formula",
+      "title": {
+        "km": "វាយបញ្ចូលរូបមន្ត =SUM(",
+        "en": "Type the =SUM( Formula"
+      },
+      "description": {
+        "km": "វាយបញ្ចូល '=SUM(' ក្នុង Cell ដែលបានជ្រើសរើស — ក្រោយ '(' Sheets នឹងបង្ហាញ Autocomplete និងការណែនាំ។",
+        "en": "Type '=SUM(' in the selected cell — after the '(' Sheets will show autocomplete hints and guidance."
+      },
+      "target": {
+        "css": ".cell-input, [role='textbox'], .waffle-cell-editor, #formula-bar-input, .docs-formula-input",
+        "ariaLabel": "Formula input"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "វាយ =SUM(",
+          "en": "Type =SUM("
+        },
+        "content": {
+          "km": "វាយបញ្ចូល '=SUM(' ក្នុង Cell ។ សញ្ញា '=' ប្រាប់ Sheets ថានេះជារូបមន្ត។ 'SUM' ជារូបមន្តសម្រាប់រក Total ។",
+          "en": "Type '=SUM(' in the cell. The '=' tells Sheets this is a formula, and SUM adds up numbers."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយ =SUM( ក្នុង Cell ។ ចំណាំ: ត្រូវវាយ = មុន SUM ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type equals SUM open parenthesis in the cell. Remember the equals sign comes first.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input",
+        "expectedValue": "=SUM(",
+        "exactMatch": false
+      }
+    },
+    {
+      "id": "step_select_range",
+      "title": {
+        "km": "ជ្រើស Range លេខ",
+        "en": "Select the Number Range"
+      },
+      "description": {
+        "km": "ជ្រើស (Highlight) ជួរ Cells ដែលមានលេខ (ឧទាហរណ៍ B1:B5) ដោយចុចហើយអូស Mouse ។ Range នឹងបំពេញដោយស្វ័យប្រវត្តិ។",
+        "en": "Highlight the cells containing numbers (e.g. B1:B5) by clicking and dragging. The range auto-fills."
+      },
+      "target": {
+        "css": ".grid-container, [role='grid'], .waffle-grid",
+        "ariaLabel": "Spreadsheet grid"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើស Cells ទិន្នន័យ",
+          "en": "Select Your Data Cells"
+        },
+        "content": {
+          "km": "ចុចហើយអូស Mouse ពី Cell ទី ១ រហូតដល់ Cell ចុងក្រោយ ដែលមានលេខ (ឧ. B1 ដល់ B5) ។",
+          "en": "Click and drag from the first to the last cell containing your numbers (e.g. B1 through B5)."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើស Cells ដែលមានលេខ ដោយចុចហើយអូស Mouse ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select the cells with numbers by clicking and dragging your mouse.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_close_formula_enter",
+      "title": {
+        "km": "បិទវង់ក្រចក ) ហើយចុច Enter",
+        "en": "Close Parenthesis and Press Enter"
+      },
+      "description": {
+        "km": "វាយ ')' ដើម្បីបិទរូបមន្ត ហើយចុច Enter ដើម្បីបង្ហាញ Total ។ Sheets ក៏អាច Auto-close ')' ដែររ ប្រសិនបើអ្នកចុច Enter ដោយផ្ទាល់។",
+        "en": "Type ')' to close the formula, then press Enter to display the total. Sheets may auto-close the parenthesis if you press Enter directly."
+      },
+      "target": {
+        "css": ".cell-input, [role='textbox'], .waffle-cell-editor, #formula-bar-input",
+        "ariaLabel": "Formula input"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច Enter ដើម្បីបង្ហាញ Total",
+          "en": "Press Enter to Get Total"
+        },
+        "content": {
+          "km": "វាយ ')' ដើម្បីបញ្ចប់រូបមន្ត ហើយចុច Enter — Sheets នឹងគណនា Total ភ្លាមៗ!",
+          "en": "Type ')' to complete the formula then press Enter — Sheets instantly calculates and shows the total!"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយ ) ហើយចុច Enter ដើម្បីឃើញ Total ភ្លាមៗ!",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type the closing parenthesis then press Enter to see your total instantly!",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "ជោគជ័យ! Total ត្រូវបានគណនា",
+        "en": "Success! Total Calculated"
+      },
+      "description": {
+        "km": "លទ្ធផលបូក (Total) ត្រូវបានបង្ហាញក្នុង Cell ។ ក្រោយពេលនេះ ប្រសិនបើអ្នកប្ដូរលេខណាមួយ Total នឹងធ្វើបច្ចុប្បន្នភាពដោយស្វ័យប្រវត្តិ!",
+        "en": "The total now displays in the cell. If you change any number in the range, the total updates automatically!"
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "រូបមន្ត SUM ជោគជ័យ!",
+          "en": "SUM Formula Complete!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! អ្នកបានជំនះរូបមន្ត SUM ដំបូងបង្អស់! ប្ដូរលេខក្នុង Range ហើយមើល Total ប្ដូរស្វ័យប្រវត្តិ — នោះជាចំណុចពិសេសនៃ Spreadsheet!",
+          "en": "You've mastered your first formula! Change a number in the range and watch the total update automatically — that's the magic of spreadsheets!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

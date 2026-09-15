@@ -1,0 +1,214 @@
+{
+  "id": "notion-add-database-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការបន្ថែម Database (Table) ក្នុង Notion",
+    "en": "Add an Inline Database (Table) in Notion"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបន្ថែម Database (Table View) ក្នុង Page Notion — Notion Database គឺជាមុខងារ Core ដ៏ខ្លាំងបំផុតសម្រាប់ Organize ព័ត៌មាន ។",
+    "en": "Learn how to insert an inline database table into a Notion page — Notion's most powerful feature for organizing information."
+  },
+  "matchUrls": [
+    "https://www.notion.so/*",
+    "https://notion.so/*"
+  ],
+  "steps": [
+    {
+      "id": "step_open_command_menu",
+      "title": {
+        "km": "វាយ / ដើម្បីបើក Command Menu",
+        "en": "Type / to Open Command Menu"
+      },
+      "description": {
+        "km": "ចុចក្នុង Body ហើយវាយ '/' ដើម្បីបើក Command Menu ។ Notion Command Menu ជា Shortcut ដ៏強 ដើម្បីបន្ថែម Block ។",
+        "en": "Click inside the page body and type '/' to open Notion's Command Menu — the fastest way to add any block type."
+      },
+      "target": {
+        "css": ".notion-page-content, [data-content-editable-leaf='true'], [placeholder*='Type' i]",
+        "ariaLabel": "Page content"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "វាយ / ក្នុង Page",
+          "en": "Type / in the Page"
+        },
+        "content": {
+          "km": "ចុចក្នុង Page ហើយវាយ '/' — Command Menu នឹងលេចឡើង ហើយអ្នកអាចស្វែងរក 'Database' ។",
+          "en": "Click in the page body and type '/' — the Command Menu appears so you can search for 'Database'."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចក្នុង Body ហើយវាយ Slash ដើម្បីបើក Command Menu ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click in the body and type a forward slash to open the Command Menu.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input",
+        "expectedValue": "/",
+        "exactMatch": false
+      }
+    },
+    {
+      "id": "step_search_database",
+      "title": {
+        "km": "ស្វែងរក 'Table'",
+        "en": "Search for 'Table'"
+      },
+      "description": {
+        "km": "ក្នុង Command Menu វាយ 'table' ហើយ Notion នឹង Filter ហើយបង្ហាញ 'Table — Inline' ។",
+        "en": "In the Command Menu, type 'table' and Notion will filter to show 'Table — Inline' option."
+      },
+      "target": {
+        "css": ".notion-slash-menu, [role='listbox'], .slash-menu-item, [data-testid='command-menu']",
+        "ariaLabel": "Command menu"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ស្វែងរក Table",
+          "en": "Search Table"
+        },
+        "content": {
+          "km": "វាយ 'table' ក្នុង Command Menu ហើយ Notion Filter ឱ្យបង្ហាញ 'Table — Inline' ។",
+          "en": "Type 'table' in the Command Menu and Notion filters to show 'Table — Inline'."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយ table ក្នុង Command Menu ដើម្បីស្វែងរក Table ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type table in the Command Menu to search for the table option.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input",
+        "expectedValue": "table",
+        "exactMatch": false
+      }
+    },
+    {
+      "id": "step_select_table_inline",
+      "title": {
+        "km": "ជ្រើស Table — Inline",
+        "en": "Select Table — Inline"
+      },
+      "description": {
+        "km": "ចុចលើ 'Table — Inline' ដើម្បីបន្ថែម Database Table ភ្លាមៗ ក្នុង Page Notion ។",
+        "en": "Click 'Table — Inline' to immediately insert a database table inside your Notion page."
+      },
+      "target": {
+        "css": "[aria-label*='Table' i], [data-testid*='table' i], .slash-menu-item:has-text('Table'), [role='option']:has-text('Table')",
+        "text": "Table",
+        "ariaLabel": "Table"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើស Table Inline",
+          "en": "Insert Inline Table"
+        },
+        "content": {
+          "km": "ចុច 'Table — Inline' ហើយ Database Table នឹងបន្ថែមចូលក្នុង Page ។ Table ជា Database ដ៏ Basic-មួយ ដែល Support Property ផ្សេងៗ ។",
+          "en": "Click 'Table — Inline' and a database table appears in your page. It's a basic database that supports various property types."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុច Table Inline ដើម្បីបន្ថែម Database ចូល Page ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Table Inline to add a database table to your page.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_add_columns",
+      "title": {
+        "km": "បន្ថែម Column ទៅ Table",
+        "en": "Add Columns to the Table"
+      },
+      "description": {
+        "km": "ចុច '+' ខាងស្ដាំ Table Header ដើម្បីបន្ថែម Column ថ្មី ។ ជ្រើស Column Type (Text, Number, Select, Date, Checkbox)  ។",
+        "en": "Click the '+' at the right end of the table header to add a new column. Choose a column type (Text, Number, Select, Date, Checkbox)."
+      },
+      "target": {
+        "css": ".notion-table-view-add-button, [aria-label*='Add column' i], button:has-text('+ New'), [data-testid='table-add-column']",
+        "ariaLabel": "Add column"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "បន្ថែម Column",
+          "en": "Add a Column"
+        },
+        "content": {
+          "km": "ចុច '+' ខាង Column ចុងក្រោយ ហើយជ្រើស Column Type:\n• Text — អក្សរ\n• Number — លេខ\n• Select — ជ្រើស Option\n• Date — កាលបរិច្ឆេទ\n• Checkbox — ✓ ✗",
+          "en": "Click '+' after the last column and choose a type:\n• Text — words\n• Number — numbers\n• Select — choose from options\n• Date — date picker\n• Checkbox — ✓ ✗"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុច + ដើម្បីបន្ថែម Column ថ្មី ហើយជ្រើស Column Type ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click plus to add a new column and choose the column type.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "Database Notion ជោគជ័យ!",
+        "en": "Notion Database Created!"
+      },
+      "description": {
+        "km": "Database Table ត្រូវបានបន្ថែមរួចហើយ! ឥឡូវ Add Row ថ្មី ប្ដូរ View ទៅ Board, Gallery, Calendar ។",
+        "en": "Your database table is ready! Now add rows, change the view to Board, Gallery, or Calendar for different perspectives."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Database Notion ត្រៀម!",
+          "en": "Notion Database Ready!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! Database Notion របស់អ្នកនៅ Page ហើយ! ចុច '+ New' ដើម្បីបន្ថែម Row ថ្មី ។ ចុច 'Add view' ដើម្បីប្ដូរ View ទៅ Board ឬ Calendar ដើម្បីបង្ហាញ Data ខុសៗ!",
+          "en": "Your Notion database is live! Click '+ New' to add rows. Click 'Add view' to switch to Board or Calendar view for different data perspectives!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

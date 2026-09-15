@@ -1,0 +1,171 @@
+{
+  "id": "google-slides-add-new-slide-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការបន្ថែម Slide ថ្មីក្នុង Google Slides",
+    "en": "Add a New Slide in Google Slides"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបន្ថែម Slide ថ្មី និងជ្រើស Layout ក្នុង Google Slides ដើម្បីពង្រឹង Presentation របស់អ្នក។",
+    "en": "Learn how to insert a new slide and choose the right layout in Google Slides to build your presentation."
+  },
+  "matchUrls": [
+    "https://docs.google.com/presentation/*",
+    "https://docs.google.com/presentation/d/*"
+  ],
+  "steps": [
+    {
+      "id": "step_open_slide_menu",
+      "title": {
+        "km": "ចុចម៉ឺនុយ Slide",
+        "en": "Click the Slide Menu"
+      },
+      "description": {
+        "km": "ចុចលើម៉ឺនុយ 'Slide' នៅរបារខាងលើ ដើម្បីស្វែងរកជម្រើស 'New slide' ។",
+        "en": "Click the 'Slide' menu in the top bar to find the 'New slide' option."
+      },
+      "target": {
+        "css": "#docs-slide-menu, [aria-label*='Slide' i], span:has-text('Slide')",
+        "ariaLabel": "Slide",
+        "text": "Slide"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចម៉ឺនុយ Slide",
+          "en": "Open Slide Menu"
+        },
+        "content": {
+          "km": "ចុចលើ 'Slide' ក្នុងរបារម៉ឺនុយ ដើម្បីបើកជម្រើស Slide ។ ឬ ចុចប្រើ Ctrl+M ផ្ទាល់ ដើម្បីបន្ថែម Slide ថ្មី!",
+          "en": "Click 'Slide' in the menu bar to open slide options. Or press Ctrl+M directly to add a new slide!"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចម៉ឺនុយ Slide ឬប្រើ Ctrl+M ដើម្បីបន្ថែម Slide ថ្មី។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Slide menu or press Ctrl+M to add a new slide.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_click_new_slide",
+      "title": {
+        "km": "ចុច New slide",
+        "en": "Click New Slide"
+      },
+      "description": {
+        "km": "ចុចលើ 'New slide' ក្នុងបញ្ជីម៉ឺនុយ Slide ដើម្បីបន្ថែម Slide ទទេ ​ ។",
+        "en": "Click 'New slide' in the Slide menu to insert a new blank slide."
+      },
+      "target": {
+        "css": "[role='menuitem']:has-text('New slide'), .goog-menuitem:has-text('New slide'), [aria-label*='New slide' i]",
+        "text": "New slide",
+        "ariaLabel": "New slide"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច New slide",
+          "en": "Insert New Slide"
+        },
+        "content": {
+          "km": "ចុច 'New slide' ដើម្បីបន្ថែម Slide ទទេ ក្រោម Slide បច្ចុប្បន្ន។",
+          "en": "Click 'New slide' to add a blank slide after your current slide."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុច New slide ដើម្បីបន្ថែម Slide ទទេ ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click New slide to add a blank slide to your presentation.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_apply_layout",
+      "title": {
+        "km": "ជ្រើស Layout សម្រាប់ Slide",
+        "en": "Apply a Slide Layout"
+      },
+      "description": {
+        "km": "ចុច Slide > Apply layout ហើយជ្រើស Layout ដែលសមស្រប (ឧ. Title and content, Two columns) ។",
+        "en": "Click Slide > Apply layout and choose the right layout for your content (e.g. Title and content, Two columns)."
+      },
+      "target": {
+        "css": "[role='menuitem']:has-text('Apply layout'), .goog-menuitem:has-text('Apply layout'), [aria-label*='Apply layout' i]",
+        "text": "Apply layout",
+        "ariaLabel": "Apply layout"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើស Slide Layout",
+          "en": "Choose Slide Layout"
+        },
+        "content": {
+          "km": "ជ្រើស Layout ដែលពណ៌នាខ្លឹមសារ Slide (ឧ. Title and content ល្អសម្រាប់ Slide ណែនាំ)  ។",
+          "en": "Select a layout that matches your content (e.g. 'Title and content' is great for informational slides)."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើស Layout ដែលសមស្រប ដើម្បី Slide មានរចនាប័ទ្ម។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Choose a layout that fits your slide content.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "Slide ថ្មីត្រូវបានបន្ថែម!",
+        "en": "New Slide Added!"
+      },
+      "description": {
+        "km": "Slide ថ្មីត្រូវបានបន្ថែមដោយជោគជ័យ! ចុចក្នុង Text Box ដើម្បីចាប់ផ្ដើមវាយ Content ។",
+        "en": "New slide added! Click inside the text placeholder to start typing your content."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Slide ថ្មីត្រូវបានបន្ថែម!",
+          "en": "Slide Inserted Successfully!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! Slide ថ្មីត្រូវបានបន្ថែមទៅ Presentation របស់អ្នក! ចុចក្នុង Placeholder ដើម្បីបន្ថែម Title, Content, ឬ Image ។",
+          "en": "New slide is in your presentation! Click any placeholder to add a title, content, or image to it."
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

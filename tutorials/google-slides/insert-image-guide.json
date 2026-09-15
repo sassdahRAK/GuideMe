@@ -1,0 +1,212 @@
+{
+  "id": "google-slides-insert-image-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការបញ្ចូលរូបភាព (Image) ក្នុង Google Slides",
+    "en": "Insert an Image in Google Slides"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបញ្ចូលរូបភាពពី Computer ឬ URL ចូលទៅ Google Slides Presentation ។",
+    "en": "Learn how to insert an image from your computer or a URL into a Google Slides presentation."
+  },
+  "matchUrls": [
+    "https://docs.google.com/presentation/*",
+    "https://docs.google.com/presentation/d/*"
+  ],
+  "steps": [
+    {
+      "id": "step_open_insert_menu",
+      "title": {
+        "km": "ចុចម៉ឺនុយ Insert",
+        "en": "Click Insert Menu"
+      },
+      "description": {
+        "km": "ចុចលើម៉ឺនុយ 'Insert' ដើម្បីបើកបញ្ជីជម្រើស ហើយស្វែងរក 'Image' ។",
+        "en": "Click the 'Insert' menu to open options and find the 'Image' option."
+      },
+      "target": {
+        "css": "#docs-insert-menu, [aria-label*='Insert' i], span:has-text('Insert')",
+        "ariaLabel": "Insert",
+        "text": "Insert"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចម៉ឺនុយ Insert",
+          "en": "Open Insert Menu"
+        },
+        "content": {
+          "km": "ចុចម៉ឺនុយ 'Insert' ក្នុងរបារខាងលើ ដើម្បីស្វែងរកជម្រើស Image ។",
+          "en": "Click 'Insert' in the top menu bar to find the Image insertion option."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចម៉ឺនុយ Insert នៅខាងលើ ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Insert menu at the top.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_hover_image",
+      "title": {
+        "km": "ជ្រើស Image",
+        "en": "Select Image"
+      },
+      "description": {
+        "km": "ក្នុងបញ្ជីម៉ឺនុយ Insert ចុចលើ 'Image' ដើម្បីបើកម៉ឺនុយរងជ្រើសប្រភពរូបភាព។",
+        "en": "In the Insert menu, click 'Image' to open the sub-menu for choosing your image source."
+      },
+      "target": {
+        "css": "[role='menuitem']:has-text('Image'), .goog-menuitem:has-text('Image'), [aria-label*='Insert image' i]",
+        "text": "Image",
+        "ariaLabel": "Image"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើស Image",
+          "en": "Select Image"
+        },
+        "content": {
+          "km": "ចុច 'Image' ហើយជ្រើសប្រភពរូបភាព: Upload from computer, URL, Drive, ឬ Camera ។",
+          "en": "Click 'Image' and choose your source: Upload from computer, By URL, Drive, or Camera."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើស Image ហើយជ្រើសប្រភពរូបភាព។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select Image then choose your image source.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_upload_from_computer",
+      "title": {
+        "km": "ជ្រើស Upload from Computer",
+        "en": "Choose Upload from Computer"
+      },
+      "description": {
+        "km": "ចុច 'Upload from computer' ដើម្បីបើក File Explorer ហើយជ្រើសរូបភាពពី Computer ។",
+        "en": "Click 'Upload from computer' to open your file explorer and select an image file from your device."
+      },
+      "target": {
+        "css": "[role='menuitem']:has-text('Upload from computer'), .goog-menuitem:has-text('Upload from computer'), [aria-label*='Upload from computer' i]",
+        "text": "Upload from computer",
+        "ariaLabel": "Upload from computer"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "Upload from Computer",
+          "en": "Upload from Computer"
+        },
+        "content": {
+          "km": "ចុច 'Upload from computer' ហើយជ្រើសរូបភាព (.jpg, .png, .gif) ពី Computer ។",
+          "en": "Click 'Upload from computer' and choose an image file (.jpg, .png, .gif) from your device."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុច Upload from computer ហើយជ្រើសរូបភាព ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Upload from computer and select your image file.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_resize_image",
+      "title": {
+        "km": "ប្ដូរទំហំ (Resize) រូបភាព",
+        "en": "Resize the Image"
+      },
+      "description": {
+        "km": "ក្រោយបញ្ចូលរូបភាព ចុចលើវា ហើយអូស Handle (ចុងរូបភាព) ដើម្បីប្ដូរទំហំ ។ ចុចហើយអូស ចំកណ្ដាល ដើម្បីផ្លាស់ទី (Move) ។",
+        "en": "After insertion, click the image and drag its corner handles to resize. Click and drag the center to move it."
+      },
+      "target": {
+        "css": ".punch-viewer-container, .punch-image, [data-element-type='image'], .goog-slide-object",
+        "ariaLabel": "Image"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "Resize និង Move រូបភាព",
+          "en": "Resize and Position Image"
+        },
+        "content": {
+          "km": "ចុចលើរូបភាព ហើយអូស Corner Handle (ចុងកែង) ដើម្បីប្ដូរទំហំ — ប្រើ Shift ដើម្បីរក្សា Aspect Ratio ។",
+          "en": "Click the image and drag a corner handle to resize — hold Shift while dragging to keep the aspect ratio."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើរូបភាព ហើយអូស Handle ដើម្បីប្ដូរទំហំ ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the image and drag a corner handle to resize it.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "រូបភាពបានបញ្ចូលដោយជោគជ័យ!",
+        "en": "Image Inserted!"
+      },
+      "description": {
+        "km": "រូបភាពត្រូវបានបញ្ចូលទៅ Slide របស់អ្នករួចហើយ! អ្នកអាច Resize, Rotate, ឬ Crop បន្ថែម។",
+        "en": "Your image is in the slide! You can also resize, rotate, or crop it using the right-click menu."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "រូបភាពបានបញ្ចូល!",
+          "en": "Image Inserted Successfully!"
+        },
+        "content": {
+          "km": "ល្អណាស់! រូបភាពរបស់អ្នកស្ថិតនៅ Slide ហើយ! ចុចខាងស្ដាំ (Right-click) លើរូបភាព ដើម្បី Crop, Rotate, ឬ Replace Image ។",
+          "en": "Your image is on the slide! Right-click on it to crop, rotate, replace, or add alt text for accessibility."
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

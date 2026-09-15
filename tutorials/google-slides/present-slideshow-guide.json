@@ -1,0 +1,170 @@
+{
+  "id": "google-slides-present-slideshow-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការ Present (Slideshow) ក្នុង Google Slides",
+    "en": "Start a Presentation (Slideshow) in Google Slides"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបចាប់ផ្ដើម Present Slideshow ពី Slide ទី ១ ហើយប្រើ Keyboard Controls ដើម្បី Navigate ។",
+    "en": "Learn how to start your slideshow from the beginning and use keyboard shortcuts to navigate slides."
+  },
+  "matchUrls": [
+    "https://docs.google.com/presentation/*",
+    "https://docs.google.com/presentation/d/*"
+  ],
+  "steps": [
+    {
+      "id": "step_click_present",
+      "title": {
+        "km": "ចុចប៊ូតុង Present",
+        "en": "Click Present Button"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Present' ពណ៌ខ្មៅ/ស (Slideshow) ដែលស្ថិតខ្នាតស្ដាំ ខាងស្ដាំ 'Share' ប៊ូតុង ដើម្បីចាប់ផ្ដើម Present ។",
+        "en": "Click the 'Present' (Slideshow) button next to the Share button to start presenting in fullscreen."
+      },
+      "target": {
+        "css": "[aria-label*='Present' i], [aria-label*='Slideshow' i], button:has-text('Slideshow'), .punch-present-button",
+        "ariaLabel": "Present",
+        "text": "Present"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង Present",
+          "en": "Start Presenting"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Present' ឬ 'Slideshow' នៅជ្រុងខាងស្ដាំ ដើម្បីចាប់ផ្ដើម Present ពី Slide ទី ១ ។",
+          "en": "Click the 'Present' or 'Slideshow' button at the top right to start presenting from slide 1."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Present ដើម្បីចាប់ផ្ដើម Slideshow ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Present button to start your slideshow.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_present_from_beginning",
+      "title": {
+        "km": "Present ពី Slide ទី ១",
+        "en": "Present from Beginning"
+      },
+      "description": {
+        "km": "ប្រសិនចុចត្រង់ 'Present' ប៊ូតុង វានឹង Present ពី Slide ចង់ (Current Slide) ។ ប្រើ ▼ dropdown ហើយជ្រើស 'From beginning' ដើម្បីចាប់ Foundation Slide ១ ។",
+        "en": "Clicking 'Present' starts from the current slide. Use the ▼ dropdown and choose 'From beginning' to start from slide 1."
+      },
+      "target": {
+        "css": "[aria-label*='From beginning' i], [data-tooltip*='From beginning' i], button:has-text('From beginning')",
+        "text": "From beginning",
+        "ariaLabel": "From beginning"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើស From beginning",
+          "en": "Start From Beginning"
+        },
+        "content": {
+          "km": "ចុច ▼ ក្បែរប៊ូតុង Present ហើយជ្រើស 'From beginning' ដើម្បី Present ចាប់ពី Slide ១ ។",
+          "en": "Click the ▼ arrow next to Present and select 'From beginning' to start your presentation from slide 1."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើស From beginning ដើម្បី Present ចាប់ពី Slide ១ ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Choose From beginning to start presenting from slide one.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_keyboard_navigation",
+      "title": {
+        "km": "ការ Navigate ក្នុងពេល Present",
+        "en": "Navigating During Presentation"
+      },
+      "description": {
+        "km": "ប្រើ Arrow Keys: → ឬ Space ដើម្បីទៅ Slide ក្រោយ, ← ដើម្បីត្រឡប់ Slide មុន, Esc ដើម្បីបញ្ចប់ Present ។",
+        "en": "Use arrow keys: → or Space to go forward, ← to go back, and Esc to end the presentation."
+      },
+      "target": {
+        "css": ".punch-viewer-container, .punch-presentation, [role='presentation']",
+        "ariaLabel": "Presentation viewer"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "Keyboard Shortcuts Present",
+          "en": "Navigation Shortcuts"
+        },
+        "content": {
+          "km": "🔑 Shortcuts Present:\n→ ឬ Space: Slide បន្ទាប់\n← : Slide មុន\nEsc : ចប់ Present\nF: Fullscreen\nN: Note Panel",
+          "en": "🔑 Presentation Shortcuts:\n→ or Space: Next slide\n← : Previous slide\nEsc : End presentation\nF: Toggle fullscreen\nN: Show speaker notes"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ប្រើ Arrow Key → ដើម្បីទៅ Slide ក្រោយ ← ត្រឡប់ Slide មុន ហើយ Esc ដើម្បីបញ្ចប់ ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Use right arrow to go forward, left arrow to go back, and Escape to end the presentation.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "ជំនាញ Present ត្រូវបានរៀន!",
+        "en": "Presentation Skills Learned!"
+      },
+      "description": {
+        "km": "អ្នកបានរៀនពីរបៀប Present Slideshow ក្នុង Google Slides! សូម Present Presentation ដំបូងរបស់អ្នក!",
+        "en": "You've learned how to present a slideshow in Google Slides! Now go present your first presentation!"
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "ជំនាញ Present ជោគជ័យ!",
+          "en": "Ready to Present!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! ឥឡូវ អ្នកដឹងពីរបៀបចាប់ផ្ដើម Present ហើយ Navigate ដោយ Arrow Keys ។ ចូរ Present Presentation ដ៏អស្ចារ្យដំបូងរបស់អ្នក!",
+          "en": "You're ready! You know how to start a presentation and navigate with keyboard shortcuts. Go deliver your first amazing presentation!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

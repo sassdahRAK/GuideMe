@@ -1,0 +1,212 @@
+{
+  "id": "notion-create-page-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការបង្កើត Page ថ្មីក្នុង Notion",
+    "en": "Create a New Page in Notion"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបង្កើត Page (ទំព័រ) ថ្មីក្នុង Notion Workspace — ជំហានដំបូងបំផុតក្នុងការប្រើ Notion ។",
+    "en": "Learn how to create a new page inside your Notion workspace — the first step to organizing your notes and projects."
+  },
+  "matchUrls": [
+    "https://www.notion.so/*",
+    "https://notion.so/*"
+  ],
+  "steps": [
+    {
+      "id": "step_click_new_page",
+      "title": {
+        "km": "ចុច + New Page នៅ Sidebar",
+        "en": "Click + New Page in Sidebar"
+      },
+      "description": {
+        "km": "ក្នុង Sidebar ខាងឆ្វេង ស្វែងរក '+ New page' ហើយចុចវា ។ ឬ ចុចប៊ូតុង '+ New' នៅក្រោម Sidebar ។",
+        "en": "In the left sidebar, find and click '+ New page'. Or click the '+ New' button at the bottom of the sidebar."
+      },
+      "target": {
+        "css": "[aria-label*='New page' i], button:has-text('New page'), a:has-text('New page'), [data-testid='sidebar-new-page']",
+        "ariaLabel": "New page",
+        "text": "New page"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច New page",
+          "en": "Click New Page"
+        },
+        "content": {
+          "km": "ចុច '+ New page' ក្នុង Sidebar ខាងឆ្វេង ដើម្បីបង្កើត Page ទទេថ្មី ។",
+          "en": "Click '+ New page' in the left sidebar to create a fresh blank page."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុច New page ក្នុង Sidebar ខាងឆ្វេង ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click New page in the left sidebar.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_add_title",
+      "title": {
+        "km": "ដាក់ Title ទំព័រ",
+        "en": "Add a Page Title"
+      },
+      "description": {
+        "km": "វាយ Title (ចំណងជើង) ទំព័ររបស់អ្នក ក្នុងប្រអប់ 'Untitled' ខាងលើ Page ។ Title ក៏ជឈ្មោះ Page ក្នុង Sidebar ផងដែរ ។",
+        "en": "Type your page title in the 'Untitled' area at the top. The title also becomes the page name in the sidebar."
+      },
+      "target": {
+        "css": "[placeholder*='Untitled' i], [data-content-editable-leaf='true'], .notranslate[contenteditable='true'], [aria-label*='Page title' i]",
+        "ariaLabel": "Page title",
+        "text": "Untitled"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "វាយ Title ទំព័រ",
+          "en": "Type Your Page Title"
+        },
+        "content": {
+          "km": "ចុចលើ 'Untitled' ហើយវាយ Title ច្បាស់លាស់ (ឧ. 'Meeting Notes 2026', 'Project Ideas') ។",
+          "en": "Click on 'Untitled' and type a clear title (e.g. 'Meeting Notes 2026', 'Project Ideas')."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើ Untitled ហើយដាក់ Title ទំព័ររបស់អ្នក ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click on Untitled and type your page title.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_add_icon_or_cover",
+      "title": {
+        "km": "បន្ថែម Icon ឬ Cover (ស្រេចចិត្ត)",
+        "en": "Add Icon or Cover (Optional)"
+      },
+      "description": {
+        "km": "ចុចលើ 'Add icon' ដើម្បីបន្ថែម Emoji/Icon ពណ៌ ឬ 'Add cover' ដើម្បីបន្ថែម Cover Image ស្រស់ស្អាត ។",
+        "en": "Click 'Add icon' to add an emoji or 'Add cover' to add a beautiful header image to your page."
+      },
+      "target": {
+        "css": "[aria-label*='Add icon' i], button:has-text('Add icon'), [data-testid='page-icon-button'], [class*='addIcon']",
+        "ariaLabel": "Add icon",
+        "text": "Add icon"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "បន្ថែម Icon",
+          "en": "Add an Icon"
+        },
+        "content": {
+          "km": "ចុច 'Add icon' ដើម្បីជ្រើស Emoji ដែលតំណាង Page (ឧ. 📋 សម្រាប់ Notes) — ជួយ Identify Page ភ្លាម!",
+          "en": "Click 'Add icon' to choose an emoji representing this page (e.g. 📋 for notes) — makes it easy to spot in the sidebar!"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុច Add icon ដើម្បីបន្ថែម Emoji ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Add icon to add an emoji to your page.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_start_writing",
+      "title": {
+        "km": "ចាប់ផ្ដើម Write Content",
+        "en": "Start Writing Content"
+      },
+      "description": {
+        "km": "ចុចក្នុង Body (ខ្លឹមសារ) ហើយចាប់ផ្ដើមវាយ ។ វាយ '/' ដើម្បីបើក Command Menu ហើយជ្រើស Block ប្រភេទផ្សេង ។",
+        "en": "Click in the body and start typing. Type '/' to open the Command Menu and add different block types."
+      },
+      "target": {
+        "css": ".notion-page-content, [data-content-editable-leaf='true'], [placeholder*='Type' i], .contenteditable",
+        "ariaLabel": "Page content"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចាប់ផ្ដើម Write",
+          "en": "Start Writing"
+        },
+        "content": {
+          "km": "ចុចក្នុង Body ហើយចាប់ផ្ដើមវាយ Content! ⌨️ Tip: វាយ '/' ដើម្បីបើក Command Menu — បន្ថែម Heading, To-do, Image, Table, ហើយ Database!",
+          "en": "Click in the body and start typing! ⌨️ Tip: Type '/' to open the Command Menu — add Headings, To-dos, Images, Tables, and Databases!"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចក្នុង Body ហើយចាប់ផ្ដើមវាយ ។ វាយ Slash ដើម្បីបើក Command Menu ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click in the body and start typing. Type slash to open the Command Menu for more options.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "Page Notion ត្រូវបានបង្កើត!",
+        "en": "Notion Page Created!"
+      },
+      "description": {
+        "km": "Page ថ្មីបង្ហាញក្នុង Sidebar Notion ហើយ! ឥឡូវវានឹង Auto-save ។",
+        "en": "Your new page now appears in the Notion sidebar — it auto-saves as you type!"
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Notion Page ជោគជ័យ!",
+          "en": "Notion Page Ready!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! Page Notion ថ្មីត្រូវបានបង្កើត Auto-save ។ Notion Save ដោយស្វ័យប្រវត្តិ! ឥឡូវវាយ / ដើម្បីទំ​ Content ផ្សេងៗ ហើយ Organize Project !!!",
+          "en": "Your Notion page is live and auto-saving! Type / to add different content blocks and organize your projects like a pro!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

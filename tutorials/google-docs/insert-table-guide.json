@@ -1,0 +1,171 @@
+{
+  "id": "google-docs-insert-table-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "បញ្ចូលតារាង (Table) ក្នុង Google Docs",
+    "en": "Insert a Table in Google Docs"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបបញ្ចូលតារាង (Table) ដើម្បីរៀបចំទិន្នន័យរបស់អ្នកឱ្យមានលំដាប់ក្នុង Google Docs។",
+    "en": "Learn how to insert a table to organize your data neatly inside a Google Docs document."
+  },
+  "matchUrls": [
+    "https://docs.google.com/document/*",
+    "https://docs.google.com/document/d/*"
+  ],
+  "steps": [
+    {
+      "id": "step_open_insert_menu",
+      "title": {
+        "km": "ចុចម៉ឺនុយ បញ្ចូល (Insert)",
+        "en": "Click Insert Menu"
+      },
+      "description": {
+        "km": "ចុចលើម៉ឺនុយ 'Insert' នៅរបារខាងលើដើម្បីបើកជម្រើសសម្រាប់បញ្ចូលធាតុ។",
+        "en": "Click the 'Insert' menu in the top bar to open insertion options."
+      },
+      "target": {
+        "css": "#docs-insert-menu, [aria-label*='Insert' i], span:has-text('Insert')",
+        "ariaLabel": "Insert",
+        "text": "Insert"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចម៉ឺនុយ Insert",
+          "en": "Click Insert Menu"
+        },
+        "content": {
+          "km": "សូមចុចលើពាក្យ 'Insert' នៅរបារម៉ឺនុយខាងលើ។",
+          "en": "Click 'Insert' in the top menu bar."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើម៉ឺនុយ Insert នៅរបារខាងលើ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Insert menu in the top bar.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_hover_table",
+      "title": {
+        "km": "ជ្រើសរើស តារាង (Table)",
+        "en": "Select Table"
+      },
+      "description": {
+        "km": "ក្នុងបញ្ជីម៉ឺនុយ ស្វែងរកហើយចុចលើ 'Table' ដើម្បីបើកឧបករណ៍ជ្រើសរើសចំនួនជួរ។",
+        "en": "In the menu list, find and click 'Table' to open the column/row picker."
+      },
+      "target": {
+        "css": "[role='menuitem']:has-text('Table'), .goog-menuitem:has-text('Table'), [aria-label*='Table' i]",
+        "text": "Table",
+        "ariaLabel": "Table"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើស Table",
+          "en": "Select Table"
+        },
+        "content": {
+          "km": "ចុចលើ 'Table' ដើម្បីបើកទំហំតារាងដែលអ្នកចង់បន្ថែម។",
+          "en": "Click 'Table' to open the grid for choosing your table size."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើ Table ដើម្បីបើកទំហំតារាង។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Table to open the size picker.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_pick_grid",
+      "title": {
+        "km": "ជ្រើសរើសចំនួនជួរ និងជួរឈរ",
+        "en": "Pick Rows and Columns"
+      },
+      "description": {
+        "km": "ប្រើប្រអប់ Grid ដើម្បីជ្រើសរើសចំនួនជួរ (Row) និងជួរឈរ (Column) ដែលអ្នកចង់បាន ហើយចុចដើម្បីបញ្ចូល។",
+        "en": "Use the grid picker to select your desired number of rows and columns, then click to insert."
+      },
+      "target": {
+        "css": ".docs-table-inserter, [role='grid'], .table-insert-picker, .goog-palette",
+        "ariaLabel": "Insert table",
+        "container": ".goog-menu, [role='menu']"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើសទំហំតារាង",
+          "en": "Pick Table Size"
+        },
+        "content": {
+          "km": "ដកទស្សន៍ទ្រនិចឆ្លងកាត់ Grid ដើម្បីជ្រើសចំនួនជួរ ហើយចុចបញ្ចូល។ ឧទាហរណ៍ 3×4 = 3 ជួរ, 4 ជួរឈរ។",
+          "en": "Drag over the grid to select rows and columns. For example 3×4 = 3 rows, 4 columns."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើសចំនួនជួរ និងជួរឈរ ហើយចុចបញ្ចូលតារាង។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select the number of rows and columns and click to insert the table.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "រួចរាល់!",
+        "en": "Done!"
+      },
+      "description": {
+        "km": "តារាងត្រូវបានបញ្ចូលទៅក្នុងឯកសាររបស់អ្នកដោយជោគជ័យ។ ឥឡូវចុចក្នុងកោដ (Cell) ដើម្បីបញ្ចូលពត៌មាន។",
+        "en": "Your table has been inserted successfully. Click inside any cell to start entering data."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "តារាងត្រូវបានបញ្ចូល!",
+          "en": "Table Inserted!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! តារាងរបស់អ្នកត្រូវបានបញ្ចូលរួចរាល់ហើយ។ ចុចក្នុងជួរ Cell ណាមួយដើម្បីចាប់ផ្តើមបញ្ចូលទិន្នន័យ។",
+          "en": "Congratulations! Your table is now in the document. Click any cell to start typing your content."
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

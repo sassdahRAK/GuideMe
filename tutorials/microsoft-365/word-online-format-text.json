@@ -1,0 +1,169 @@
+{
+  "id": "microsoft-365-word-online-format-text",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការធ្វើទ្រង់ទ្រាយអក្សរក្នុង Word Online (Microsoft 365)",
+    "en": "Format Text in Word Online (Microsoft 365)"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបធ្វើឱ្យអក្សររឹង (Bold) ប្ដូរ Heading Style និង Font Size ក្នុង Microsoft Word Online ។",
+    "en": "Learn how to apply bold, change heading styles, and adjust font size in Microsoft Word Online."
+  },
+  "matchUrls": [
+    "https://word.office.com/*",
+    "https://*.officeapps.live.com/*",
+    "https://www.office.com/*"
+  ],
+  "steps": [
+    {
+      "id": "step_select_text",
+      "title": {
+        "km": "ជ្រើសរើសអក្សរ",
+        "en": "Select Text"
+      },
+      "description": {
+        "km": "ចុចហើយអូស Mouse ដើម្បី Highlight អក្សរដែលចង់ធ្វើទ្រង់ទ្រាយ។",
+        "en": "Click and drag to highlight the text you want to format."
+      },
+      "target": {
+        "css": ".WebComponentsRoot, [contenteditable='true'], .canvasWrapper, #document-content",
+        "ariaLabel": "Document content"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើសអក្សររបស់អ្នក",
+          "en": "Select Your Text"
+        },
+        "content": {
+          "km": "ចុចហើយអូស Mouse ដើម្បី Highlight អក្សរ ឬ ប្រើ Ctrl+A ដើម្បីជ្រើសទាំងអស់ ។",
+          "en": "Click and drag to highlight your text, or press Ctrl+A to select all text in the document."
+        },
+        "placement": "center"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើសរើសអក្សរដែលអ្នកចង់ធ្វើទ្រង់ទ្រាយ ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select the text you want to format.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_apply_bold",
+      "title": {
+        "km": "ចុចប៊ូតុង Bold (B)",
+        "en": "Click Bold Button"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'B' (Bold) ក្នុង Ribbon Toolbar ឬប្រើ Ctrl+B ដើម្បីធ្វើឱ្យអក្សររឹង។",
+        "en": "Click the 'B' (Bold) button in the Ribbon Toolbar or press Ctrl+B to bold your text."
+      },
+      "target": {
+        "css": "[aria-label='Bold'], button[aria-label='Bold'], [data-automationid='Bold'], #Bold-Medium",
+        "ariaLabel": "Bold"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង Bold",
+          "en": "Apply Bold"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង Bold (B) ក្នុង Ribbon ឬប្រើ Ctrl+B ដើម្បីធ្វើឱ្យអក្សរ Highlight រឹងឡើង ។",
+          "en": "Click the Bold button (B) in the Ribbon or press Ctrl+B to make your selected text bold."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Bold ឬប្រើ Ctrl+B ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Bold or press Ctrl+B to bold your selected text.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_apply_heading_style",
+      "title": {
+        "km": "ប្រើ Heading Style",
+        "en": "Apply a Heading Style"
+      },
+      "description": {
+        "km": "ចុចប្រអប់ Styles ក្នុង Ribbon (ធម្មតាបង្ហាញ 'Normal') ហើយជ្រើស 'Heading 1' ឬ 'Heading 2' ។",
+        "en": "Click the Styles dropdown in the Ribbon (usually showing 'Normal') and select 'Heading 1' or 'Heading 2'."
+      },
+      "target": {
+        "css": "[aria-label*='Styles' i], [aria-label*='Style' i], [data-automationid='StyleGallery'], .ms-Button--styleGallery",
+        "ariaLabel": "Styles"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ជ្រើស Heading Style",
+          "en": "Pick Heading Style"
+        },
+        "content": {
+          "km": "ចុចប្រអប់ Style ក្នុង Ribbon ហើយជ្រើស 'Heading 1' ដើម្បីបង្ហាញចំណងជើងធំ — ល្អសម្រាប់រចនាប័ទ្មឯកសារ ។",
+          "en": "Click the Styles gallery in the Ribbon and select 'Heading 1' for a large title style — great for document structure."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើស Heading Style ពីប្រអប់ Styles ក្នុង Ribbon ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Choose a Heading style from the Styles gallery in the Ribbon.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "ទ្រង់ទ្រាយ Word Online ជោគជ័យ!",
+        "en": "Word Online Formatting Done!"
+      },
+      "description": {
+        "km": "អ្នកបានរៀនពីរបៀបធ្វើទ្រង់ទ្រាយអក្សរ ជ្រើស Heading Style ក្នុង Microsoft Word Online រួចហើយ!",
+        "en": "You've learned how to apply text formatting and heading styles in Microsoft Word Online!"
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Word Online ជោគជ័យ!",
+          "en": "Word Online Formatting Complete!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! ឥឡូវ អ្នករួចហើយ Format ឯកសារ Word Online ដូចជា Pro! ពួករៀន Bold, Heading Style, Font Size ។",
+          "en": "You can now format Word Online documents like a pro! Bold, heading styles, font sizes — you've got them all."
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "id": "notion-share-page-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការចែករំលែក Page Notion ជាមួយ Guest",
+    "en": "Share a Notion Page with Guests"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបចែករំលែក (Share) Page Notion ដោយ Link ឬ Invite Guest ដែលគ្មាន Notion Account ក៏អាចបើកប្រើបាន ។",
+    "en": "Learn how to share a Notion page via link or by inviting guests — even people without Notion accounts can view it."
+  },
+  "matchUrls": [
+    "https://www.notion.so/*",
+    "https://notion.so/*"
+  ],
+  "steps": [
+    {
+      "id": "step_click_share_button",
+      "title": {
+        "km": "ចុចប៊ូតុង Share ខាងស្ដាំ",
+        "en": "Click the Share Button (Top Right)"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Share' ពណ៌ស/ប្លែក ដែលស្ថិតខ្នាតស្ដាំ ខាងលើ Page Notion ។",
+        "en": "Click the 'Share' button at the top right of the Notion page to open sharing options."
+      },
+      "target": {
+        "css": "[aria-label*='Share' i], button:has-text('Share'), [data-testid='share-menu-button'], .topbar-action-button:has-text('Share')",
+        "ariaLabel": "Share",
+        "text": "Share"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង Share",
+          "en": "Open Share Panel"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Share' នៅខ្នាតស្ដាំ Page ។ Notion នឹងបង្ហាញ Panel ចែករំលែក ។",
+          "en": "Click the 'Share' button in the page's top-right corner. Notion opens the sharing panel."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Share ខ្នាតស្ដាំ ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Share button in the top right.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_enable_web_sharing",
+      "title": {
+        "km": "Enable 'Share to web'",
+        "en": "Enable Share to Web"
+      },
+      "description": {
+        "km": "ចុច Toggle 'Share to web' ឱ្យបើក (On) ដើម្បីអនុញ្ញាតឱ្យ Anyone with the link អាចបើក Page ។",
+        "en": "Toggle 'Share to web' to On to allow anyone with the link to view this page without signing in."
+      },
+      "target": {
+        "css": "[aria-label*='Share to web' i], [data-testid='share-to-web-toggle'], input[type='checkbox'][aria-label*='web' i], .notion-toggle:has-text('Share to web')",
+        "ariaLabel": "Share to web"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច Toggle Share to web",
+          "en": "Enable Web Sharing"
+        },
+        "content": {
+          "km": "ចុח Toggle 'Share to web' ឱ្យ On (ពណ៌ខ្ចី) ។ នេះនឹងបង្កើត Public Link ដែល Anyone អាចបើក Page ដោយគ្មាន Account Notion ។",
+          "en": "Toggle 'Share to web' to On (turns green). This creates a public link so anyone can open the page without a Notion account."
+        },
+        "placement": "right"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុច Toggle Share to web ឱ្យ On ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Toggle Share to web to On.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_copy_link",
+      "title": {
+        "km": "ចម្លង Link",
+        "en": "Copy the Link"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Copy link' ដើម្បីចម្លង Public Link ទៅ Clipboard ។",
+        "en": "Click 'Copy link' to copy the public Notion page URL to your clipboard."
+      },
+      "target": {
+        "css": "[aria-label*='Copy link' i], button:has-text('Copy link'), [data-testid='copy-link-button']",
+        "ariaLabel": "Copy link",
+        "text": "Copy link"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចម្លង Link",
+          "en": "Copy Link"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Copy link' ហើយ URL ត្រូវបានចម្លងទៅ Clipboard ។ Paste ហើយ Share!",
+          "en": "Click 'Copy link' and the page URL is on your clipboard. Paste it anywhere to share!"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុច Copy link ដើម្បីចម្លង Link ចែករំលែក Notion ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click Copy link to copy the Notion page share link.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_invite_email",
+      "title": {
+        "km": "Invite Guest ដោយ Email (ស្រេចចិត្ត)",
+        "en": "Invite a Guest by Email (Optional)"
+      },
+      "description": {
+        "km": "វាយ Email Address ក្នុងប្រអប់ Invite ហើយជ្រើស Permission (Can read, Can comment, Can edit, Full access) ។",
+        "en": "Type an email address in the Invite field and choose the permission level (Can read, Can comment, Can edit, Full access)."
+      },
+      "target": {
+        "css": "[placeholder*='Add people' i], [placeholder*='Invite' i], [aria-label*='Invite' i], input[type='email']",
+        "ariaLabel": "Invite people"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "Invite ដោយ Email",
+          "en": "Invite by Email"
+        },
+        "content": {
+          "km": "ប្រសិនចង់ Invite Guest ដោយ Email ជំនួស Link — វាយ Email Address ហើយចុច Invite ។ Guest Receive Email Notification ។",
+          "en": "To invite specific people by email instead of a link — type their email and click Invite. They get an email notification."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយ Email ប្រសិនចង់ Invite ដោយ Email ជំនួស Link ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type an email address to invite someone directly instead of sharing a link.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "Share Notion Page ជោគជ័យ!",
+        "en": "Notion Page Shared!"
+      },
+      "description": {
+        "km": "Page Notion ត្រូវបានចែករំលែករួចហើយ! Anyone with the link (ឬ Invited Guest) អាចបើក Page ។",
+        "en": "Your Notion page is shared! Anyone with the link (or invited guests) can now access the page."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "Notion Page ចែករំលែកជោគជ័យ!",
+          "en": "Notion Page Shared!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! Page Notion ចែករំលែករួចហើយ! Paste Link ទៅ Chat, Email, ឬ Social Media ។ Guests អាចបើក Page ដោយគ្មាន Notion Account!",
+          "en": "Your Notion page is shared! Paste the link in a chat, email, or social media. Guests can access it without a Notion account!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

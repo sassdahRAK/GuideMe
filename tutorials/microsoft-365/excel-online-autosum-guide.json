@@ -1,0 +1,170 @@
+{
+  "id": "microsoft-365-excel-online-autosum-guide",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ការប្រើប្រាស់ AutoSum ក្នុង Excel Online (Microsoft 365)",
+    "en": "Use AutoSum in Excel Online (Microsoft 365)"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបប្រើ AutoSum (Σ) ក្នុង Excel Online ដើម្បីបូករួម (Sum) ជួរ Cells ភ្លាមៗ ដោយគ្មានការសរសេររូបមន្តដោយដៃ។",
+    "en": "Learn how to use AutoSum (Σ) in Excel Online to instantly total a column of numbers without typing formulas manually."
+  },
+  "matchUrls": [
+    "https://excel.office.com/*",
+    "https://*.officeapps.live.com/op/spreadsheet*",
+    "https://www.office.com/*"
+  ],
+  "steps": [
+    {
+      "id": "step_click_below_data",
+      "title": {
+        "km": "ចុចក្រោមទិន្នន័យ",
+        "en": "Click Below Your Data"
+      },
+      "description": {
+        "km": "ចុចលើ Cell ទទេដែលស្ថិតនៅក្រោមមួយជួរ ទិន្នន័យ (ឧ. B6 ប្រសិនទិន្នន័យ B1:B5) ។",
+        "en": "Click the empty cell directly below your number column (e.g. B6 if your data is in B1:B5)."
+      },
+      "target": {
+        "css": ".ms-FocusZone, [role='gridcell'], .cell, .excel-canvas",
+        "ariaLabel": "Spreadsheet cell"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចក្រោមទិន្នន័យ",
+          "en": "Select Cell Below Data"
+        },
+        "content": {
+          "km": "ចុច Cell ទទេនៅក្រោមជួរ (Column) ទិន្នន័យ ។ AutoSum នឹង Auto-detect Range ដោយស្វ័យប្រវត្តិ ។",
+          "en": "Click the empty cell below your data column. AutoSum will automatically detect the data range above."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុច Cell ទទេ ដែលស្ថិតក្រោម Column ទិន្នន័យ ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the empty cell below your data column.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_click_autosum",
+      "title": {
+        "km": "ចុចប៊ូតុង AutoSum (Σ)",
+        "en": "Click AutoSum Button (Σ)"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង AutoSum (Σ) ដែលស្ថិតក្នុង Ribbon ក្រោម Tab 'Home' ។ Excel នឹង Auto-highlight Range ទិន្នន័យ ។",
+        "en": "Click the AutoSum (Σ) button in the Ribbon under the 'Home' tab. Excel will auto-highlight the data range."
+      },
+      "target": {
+        "css": "[aria-label='AutoSum'], [data-automationid='AutoSum'], button:has-text('AutoSum'), [aria-label*='Sum' i].ms-Button",
+        "ariaLabel": "AutoSum",
+        "text": "AutoSum"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង AutoSum Σ",
+          "en": "Use AutoSum Σ"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង Σ (AutoSum) ក្នុង Ribbon Tab Home — Excel នឹងបង្ហាញ SUM Formula ជាមួយ Range ដោយស្វ័យប្រវត្តិ!",
+          "en": "Click the Σ (AutoSum) button in the Home tab — Excel instantly shows a SUM formula with the detected range!"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង AutoSum Sigma ក្នុង Ribbon ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the AutoSum Sigma button in the Ribbon.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_confirm_range",
+      "title": {
+        "km": "ពិនិត្យ Range ហើយចុច Enter",
+        "en": "Verify Range and Press Enter"
+      },
+      "description": {
+        "km": "Excel នឹងបង្ហាញ Range ដូចជា =SUM(B1:B5) ។ ពិនិត្យ Range ថាត្រូវវា ហើយចុច Enter ដើម្បីបន្ថែម Total ។",
+        "en": "Excel shows the formula like =SUM(B1:B5). Verify the range is correct, then press Enter to finalize the total."
+      },
+      "target": {
+        "css": "[role='gridcell'].editing, .formula-bar, [aria-label*='formula bar' i], .cell-editor",
+        "ariaLabel": "Formula bar"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ពិនិត្យ Range ហើយ Enter",
+          "en": "Confirm and Press Enter"
+        },
+        "content": {
+          "km": "ពិនិត្យ Range ដែល Excel ស្នើ (ឧ. B1:B5) ។ ប្រសិន Range ត្រូវវា ចុច Enter ភ្លាម!",
+          "en": "Review the range Excel suggests (e.g. B1:B5). If it's correct, press Enter to display the sum!"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ពិនិត្យ Range ហើយចុច Enter ដើម្បីបញ្ចប់ ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Review the range and press Enter to finalize the sum.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "AutoSum ជោគជ័យ!",
+        "en": "AutoSum Applied!"
+      },
+      "description": {
+        "km": "Total ត្រូវបានគណនា Auto ហើយ! AutoSum ជារូបមន្តលោតផ្ទៃ Excel ដ៏ស្រស់ស្អាតបំផុតដែល Save ពេលខ្លាំង ។",
+        "en": "Total calculated! AutoSum is Excel's most time-saving feature — one click gets your total instantly."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "AutoSum ជោគជ័យ!",
+          "en": "AutoSum Complete!"
+        },
+        "content": {
+          "km": "អបអរសាទរ! ម្ដងតែ Click ​ AutoSum ហើយ Excel គណនា Total ភ្លាមៗ! AutoSum ក៏ Support Average, Count, Max, Min ក្រោម ▼ ផងដែរ!",
+          "en": "One click and Excel totals everything! AutoSum also supports Average, Count, Max, and Min under the ▼ dropdown!"
+        }
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}
