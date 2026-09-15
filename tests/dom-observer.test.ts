@@ -1,5 +1,3 @@
-import { test } from 'node:test';
-import assert from 'node:assert';
 import { DomObserver, safeIdSelector, sanitizeCssSelector } from '../packages/chrome-adapter/src/dom-observer.ts';
 import { DomEventListener } from '../packages/chrome-adapter/src/event-listener.ts';
 
@@ -30,65 +28,72 @@ function createButton(label: string): MockElement {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers — use vi.stubGlobal because jsdom makes `document` a read-only
+// getter on `window`; direct assignment throws in strict mode.
+// ---------------------------------------------------------------------------
+function stubDocument(mockDoc: unknown) {
+  vi.stubGlobal('document', mockDoc);
+}
+function restoreDocument() {
+  vi.unstubAllGlobals();
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 test('DomObserver resolves the exact button when a broad CSS selector has text metadata', () => {
-  const originalDocument = globalThis.document;
   const cancelButton = createButton('Cancel');
   const saveButton = createButton('Save changes');
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelectorAll(selector: string) {
       return selector === 'button' ? [cancelButton, saveButton] : [];
     },
-  };
+  });
 
   try {
-    assert.strictEqual(DomObserver.findElement({ css: 'button', text: 'Save changes' }), saveButton);
+    expect(DomObserver.findElement({ css: 'button', text: 'Save changes' })).toBe(saveButton);
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });
 
 test('DomObserver does not fall back to an unrelated button while an exact captured target is absent', () => {
-  const originalDocument = globalThis.document;
   const upgradeButton = createButton('Upgrade');
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelectorAll(selector: string) {
       if (selector === 'button' || selector.startsWith('button,')) return [upgradeButton];
       return [];
     },
-  };
+  });
 
   try {
-    assert.strictEqual(DomObserver.findElement({ css: 'button', text: 'Save' }), null);
+    expect(DomObserver.findElement({ css: 'button', text: 'Save' })).toBe(null);
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });
 
 test('DomObserver does not treat a partial button label as a captured target match', () => {
-  const originalDocument = globalThis.document;
   const saveDraftButton = createButton('Save draft');
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelectorAll(selector: string) {
       if (selector === 'button' || selector.startsWith('button,')) return [saveDraftButton];
       return [];
     },
-  };
+  });
 
   try {
-    assert.strictEqual(DomObserver.findElement({ css: 'button', text: 'Save' }), null);
+    expect(DomObserver.findElement({ css: 'button', text: 'Save' })).toBe(null);
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });
 
 test('DomObserver resolves exact text on a generic menu container', () => {
-  const originalDocument = globalThis.document;
   const fileMenu = {
     textContent: 'File',
     offsetParent: {},
@@ -97,21 +102,20 @@ test('DomObserver resolves exact text on a generic menu container', () => {
     closest: () => fileMenu,
   };
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelectorAll(selector: string) {
       return selector.includes('[role="menuitem"]') ? [fileMenu] : [];
     },
-  };
+  });
 
   try {
-    assert.strictEqual(DomObserver.findElement({ css: 'div', text: 'File' }), fileMenu);
+    expect(DomObserver.findElement({ css: 'div', text: 'File' })).toBe(fileMenu);
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });
 
 test('DomObserver ignores a hidden matching target until it becomes visible', () => {
-  const originalDocument = globalThis.document;
   const hiddenMenu = {
     textContent: 'New',
     offsetParent: null,
@@ -119,21 +123,20 @@ test('DomObserver ignores a hidden matching target until it becomes visible', ()
     getAttribute: () => null,
   };
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelectorAll(selector: string) {
       return selector === 'div' ? [hiddenMenu] : [];
     },
-  };
+  });
 
   try {
-    assert.strictEqual(DomObserver.findElement({ css: 'div', text: 'New' }), null);
+    expect(DomObserver.findElement({ css: 'div', text: 'New' })).toBe(null);
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });
 
 test('DomObserver does not match target text inside an unrelated ARIA label', () => {
-  const originalDocument = globalThis.document;
   const commentsButton = {
     textContent: '0',
     offsetParent: {},
@@ -147,24 +150,23 @@ test('DomObserver does not match target text inside an unrelated ARIA label', ()
     getAttribute: () => null,
   };
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelectorAll(selector: string) {
       if (selector === '.goog-menuitem') return [];
       if (selector.includes('[role="menuitem"]')) return [newMenuItem];
       if (selector.includes('button')) return [commentsButton];
       return [];
     },
-  };
+  });
 
   try {
-    assert.strictEqual(DomObserver.findElement({ css: '.goog-menuitem', text: 'New' }), newMenuItem);
+    expect(DomObserver.findElement({ css: '.goog-menuitem', text: 'New' })).toBe(newMenuItem);
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });
 
 test('DomObserver does not resolve a menu target to a broad page banner', () => {
-  const originalDocument = globalThis.document;
   const docsChrome = {
     id: 'docs-chrome',
     textContent: 'Untitled document File New Document',
@@ -173,19 +175,19 @@ test('DomObserver does not resolve a menu target to a broad page banner', () => 
     getAttribute: () => null,
   };
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelectorAll(selector: string) {
       if (selector === '.apps-menuitem') return [];
       if (selector.includes('button') || selector.includes('[role="menuitem"]')) return [];
       if (selector.includes('span, div, p')) return [docsChrome];
       return [];
     },
-  };
+  });
 
   try {
-    assert.strictEqual(DomObserver.findElement({ css: '.apps-menuitem', text: 'New' }), null);
+    expect(DomObserver.findElement({ css: '.apps-menuitem', text: 'New' })).toBe(null);
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });
 
@@ -199,7 +201,7 @@ test('DomObserver captures a resilient selector from a user-picked element', () 
       ({ 'aria-label': 'Save profile', 'data-testid': 'profile-save' } as Record<string, string>)[name] || null,
   };
 
-  assert.deepStrictEqual(DomObserver.createTargetSelector(element), {
+  expect(DomObserver.createTargetSelector(element)).toEqual({
     css: '#save-profile',
     testId: 'profile-save',
     ariaLabel: 'Save profile',
@@ -208,8 +210,12 @@ test('DomObserver captures a resilient selector from a user-picked element', () 
 });
 
 test('DomObserver.findElement resolves hover-triggered flyout items by dispatching synthetic hover events', () => {
-  const originalDocument = globalThis.document;
   const dispatchedEvents: string[] = [];
+
+  // ownerDocument.defaultView must be null so dispatchHoverEvents uses view:null
+  // in its event options, avoiding jsdom's real window which makes PointerEvent
+  // constructor throw (caught silently, preventing our dispatchEvent spy from firing).
+  const mockDoc = { defaultView: null, querySelectorAll: () => [], querySelector: () => null };
 
   const triggerButton = {
     tagName: 'BUTTON',
@@ -218,6 +224,7 @@ test('DomObserver.findElement resolves hover-triggered flyout items by dispatchi
     offsetParent: {},
     getClientRects: () => [{}],
     getAttribute: () => null,
+    ownerDocument: mockDoc,
     dispatchEvent: (evt: Event) => { dispatchedEvents.push(evt.type); },
   };
 
@@ -228,9 +235,10 @@ test('DomObserver.findElement resolves hover-triggered flyout items by dispatchi
     offsetParent: {},
     getClientRects: () => [{}],
     getAttribute: () => null,
+    ownerDocument: mockDoc,
   };
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelectorAll(selector: string) {
       if (selector === '#nav-account' || selector.includes('#nav-account')) return [triggerButton];
       if (selector === '#nav-logout' || selector.includes('#nav-logout')) return [flyoutItem];
@@ -241,7 +249,14 @@ test('DomObserver.findElement resolves hover-triggered flyout items by dispatchi
       if (selector === '#nav-logout') return flyoutItem;
       return null;
     },
-  };
+  });
+
+  // Stub PointerEvent to a dummy class so jsdom doesn't throw a TypeError
+  // ("member view is not of type Window") when dispatching on our plain object mock.
+  vi.stubGlobal('PointerEvent', class {
+    type: string;
+    constructor(type: string) { this.type = type; }
+  });
 
   try {
     const found = DomObserver.findElement({
@@ -249,16 +264,15 @@ test('DomObserver.findElement resolves hover-triggered flyout items by dispatchi
       text: 'Sign out',
       hoverTrigger: { css: '#nav-account' },
     });
-    assert.strictEqual(found, flyoutItem);
-    assert.ok(dispatchedEvents.includes('mouseover') || dispatchedEvents.includes('mouseenter'));
+    expect(found).toBe(flyoutItem);
+    expect(dispatchedEvents.includes('mouseover') || dispatchedEvents.includes('mouseenter') || dispatchedEvents.includes('pointerover')).toBeTruthy();
   } finally {
-    globalThis.document = originalDocument;
+    vi.unstubAllGlobals();
+    restoreDocument();
   }
 });
 
 test('DomObserver.findElement respects container scoping to disambiguate identical elements', () => {
-  const originalDocument = globalThis.document;
-
   const bgButton = createButton('Submit');
   (bgButton as Record<string, unknown>).id = 'bg-submit';
 
@@ -277,7 +291,7 @@ test('DomObserver.findElement respects container scoping to disambiguate identic
     },
   };
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelector(selector: string) {
       if (selector.includes('dialog') || selector.includes('.modal')) return modalDialog;
       if (selector === '#bg-submit') return bgButton;
@@ -288,7 +302,7 @@ test('DomObserver.findElement respects container scoping to disambiguate identic
       if (selector === 'button') return [bgButton, modalButton];
       return [];
     },
-  };
+  });
 
   try {
     const found = DomObserver.findElement({
@@ -296,23 +310,23 @@ test('DomObserver.findElement respects container scoping to disambiguate identic
       text: 'Submit',
       container: 'dialog[open], [role="dialog"], .modal',
     });
-    assert.strictEqual(found, modalButton);
+    expect(found).toBe(modalButton);
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });
 
 test('safeIdSelector and sanitizeCssSelector handle colon IDs and invalid CSS identifiers', () => {
-  assert.strictEqual(safeIdSelector(':6j'), '[id=":6j"]');
-  assert.strictEqual(safeIdSelector(':a7'), '[id=":a7"]');
-  assert.strictEqual(safeIdSelector('123'), '[id="123"]');
-  assert.strictEqual(safeIdSelector('normal-id'), '#normal-id');
-  assert.strictEqual(safeIdSelector('btn_save'), '#btn_save');
+  expect(safeIdSelector(':6j')).toBe('[id=":6j"]');
+  expect(safeIdSelector(':a7')).toBe('[id=":a7"]');
+  expect(safeIdSelector('123')).toBe('[id="123"]');
+  expect(safeIdSelector('normal-id')).toBe('#normal-id');
+  expect(safeIdSelector('btn_save')).toBe('#btn_save');
 
-  assert.strictEqual(sanitizeCssSelector('#:6j'), '[id=":6j"]');
-  assert.strictEqual(sanitizeCssSelector('#:a7'), '[id=":a7"]');
-  assert.strictEqual(sanitizeCssSelector('div #:6j button'), 'div [id=":6j"] button');
-  assert.strictEqual(sanitizeCssSelector('#safe-id'), '#safe-id');
+  expect(sanitizeCssSelector('#:6j')).toBe('[id=":6j"]');
+  expect(sanitizeCssSelector('#:a7')).toBe('[id=":a7"]');
+  expect(sanitizeCssSelector('div #:6j button')).toBe('div [id=":6j"] button');
+  expect(sanitizeCssSelector('#safe-id')).toBe('#safe-id');
 });
 
 test('DomObserver.createTargetSelector generates safe selector for elements with colon ID (:6j, :a7)', () => {
@@ -325,15 +339,14 @@ test('DomObserver.createTargetSelector generates safe selector for elements with
   };
 
   const target = DomObserver.createTargetSelector(el);
-  assert.strictEqual(target.css, '[id=":6j"]');
+  expect(target.css).toBe('[id=":6j"]');
 });
 
 test('DomObserver.findElement heals invalid selector string like #:6j without throwing', () => {
-  const originalDocument = globalThis.document;
   const targetElement = createButton('Compose');
   (targetElement as Record<string, unknown>).id = ':6j';
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelectorAll(selector: string) {
       if (selector === '#:6j') {
         throw new Error("Failed to execute 'querySelectorAll' on 'Document': '#:6j' is not a valid selector.");
@@ -342,18 +355,17 @@ test('DomObserver.findElement heals invalid selector string like #:6j without th
       return [];
     },
     querySelector() { return null; },
-  };
+  });
 
   try {
     const found = DomObserver.findElement({ css: '#:6j' });
-    assert.strictEqual(found, targetElement);
+    expect(found).toBe(targetElement);
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });
 
 test('DomEventListener safely handles invalid selector like #:6j without throwing SyntaxError', () => {
-  const originalDocument = globalThis.document;
   let registeredListener: ((e: unknown) => void) | null = null;
 
   const targetElement: MockElement = {
@@ -372,7 +384,7 @@ test('DomEventListener safely handles invalid selector like #:6j without throwin
     getAttribute: () => null,
   };
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     addEventListener(evt: string, handler: (e: unknown) => void) {
       registeredListener = handler;
     },
@@ -383,26 +395,24 @@ test('DomEventListener safely handles invalid selector like #:6j without throwin
       return [];
     },
     querySelector() { return null; },
-  };
+  });
 
   try {
     let triggered = false;
     const unsub = DomEventListener.listen({ css: '#:6j' }, 'click', () => { triggered = true; });
 
-    assert.doesNotThrow(() => {
+    expect(() => {
       registeredListener!({ target: targetElement, key: undefined });
-    });
+    }).not.toThrow();
 
-    assert.strictEqual(triggered, true);
+    expect(triggered).toBe(true);
     unsub();
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });
 
 test('DomObserver prioritizes leaf interactive control (e.g. Paper size dropdown) over the modal dialog container itself when modal is open', () => {
-  const originalDocument = globalThis.document;
-
   const paperSizeDropdown = {
     tagName: 'DIV',
     className: 'goog-inline-block goog-flat-menu-button',
@@ -431,7 +441,7 @@ test('DomObserver prioritizes leaf interactive control (e.g. Paper size dropdown
     },
   };
 
-  (globalThis as Record<string, unknown>).document = {
+  stubDocument({
     querySelectorAll(sel: string) {
       if (sel.includes('dialog') || sel.includes('modal')) return [modalDialog];
       if (sel.includes('goog-flat-menu-button') || sel.includes('listbox')) return [paperSizeDropdown];
@@ -441,15 +451,15 @@ test('DomObserver prioritizes leaf interactive control (e.g. Paper size dropdown
       if (sel.includes('dialog') || sel.includes('modal')) return modalDialog;
       return null;
     },
-  };
+  });
 
   try {
     const found = DomObserver.findElement({
       css: '.modal-dialog, [role="dialog"], [role="listbox"], .goog-flat-menu-button',
       text: 'A4',
     });
-    assert.strictEqual(found, paperSizeDropdown, 'Should return the dropdown control, NOT the modal dialog container');
+    expect(found, 'Should return the dropdown control, NOT the modal dialog container').toBe(paperSizeDropdown);
   } finally {
-    globalThis.document = originalDocument;
+    restoreDocument();
   }
 });

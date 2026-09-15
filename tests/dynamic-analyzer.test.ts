@@ -1,5 +1,3 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert';
 import { DynamicPageAnalyzer, TutorialParser, GeminiDomAnalyzer, IntentRegistry, LlmReranker } from '../packages/engine/src/index.ts';
 
 // ---------------------------------------------------------------------------
@@ -80,16 +78,16 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     });
 
     const analysis = DynamicPageAnalyzer.analyzePage(mockDoc, 'https://example.com/login');
-    assert.strictEqual(analysis.pageType, 'loginForm');
+    expect(analysis.pageType).toBe('loginForm');
 
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/login');
-    assert.strictEqual(tutorial.steps.length, 3);
-    assert.strictEqual(tutorial.steps[0].id, 'dynamic_step_username');
-    assert.strictEqual(tutorial.steps[1].id, 'dynamic_step_password');
-    assert.strictEqual(tutorial.steps[2].id, 'dynamic_step_submit');
+    expect(tutorial.steps.length).toBe(3);
+    expect(tutorial.steps[0].id).toBe('dynamic_step_username');
+    expect(tutorial.steps[1].id).toBe('dynamic_step_password');
+    expect(tutorial.steps[2].id).toBe('dynamic_step_submit');
 
     const parseResult = TutorialParser.parse(tutorial);
-    assert.strictEqual(parseResult.success, true);
+    expect(parseResult.success).toBe(true);
   });
 
   test('Classifies and generates E-Commerce walkthrough', () => {
@@ -103,12 +101,12 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     });
 
     const analysis = DynamicPageAnalyzer.analyzePage(mockDoc, 'https://store.example.com/product/123');
-    assert.strictEqual(analysis.pageType, 'ecommerceProduct');
+    expect(analysis.pageType).toBe('ecommerceProduct');
 
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://store.example.com/product/123');
-    assert.ok(tutorial.steps.length >= 2);
-    assert.strictEqual(tutorial.steps[0].id, 'dynamic_step_search');
-    assert.strictEqual(tutorial.steps[1].id, 'dynamic_step_add_cart');
+    expect(tutorial.steps.length >= 2).toBeTruthy();
+    expect(tutorial.steps[0].id).toBe('dynamic_step_search');
+    expect(tutorial.steps[1].id).toBe('dynamic_step_add_cart');
   });
 
   test('Classifies and generates Search Page walkthrough', () => {
@@ -119,10 +117,10 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     });
 
     const analysis = DynamicPageAnalyzer.analyzePage(mockDoc, 'https://example.com/search');
-    assert.strictEqual(analysis.pageType, 'searchPage');
+    expect(analysis.pageType).toBe('searchPage');
 
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/search');
-    assert.strictEqual(tutorial.steps[0].id, 'dynamic_step_search_query');
+    expect(tutorial.steps[0].id).toBe('dynamic_step_search_query');
   });
 
   test('Classifies Settings / Configuration page', () => {
@@ -137,10 +135,10 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     });
 
     const analysis = DynamicPageAnalyzer.analyzePage(mockDoc, 'https://example.com/settings');
-    assert.strictEqual(analysis.pageType, 'settingsPage');
+    expect(analysis.pageType).toBe('settingsPage');
 
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/settings');
-    assert.ok(tutorial.steps.length >= 2);
+    expect(tutorial.steps.length >= 2).toBeTruthy();
   });
 
   test('Generates custom steps matching user input prompt keywords', () => {
@@ -154,8 +152,8 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     });
 
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/dashboard', 'share project');
-    assert.strictEqual(tutorial.name, 'Guide: share project');
-    assert.ok(tutorial.steps.some((s: { title: string }) => s.title.includes('Share')));
+    expect(tutorial.name).toBe('Guide: share project');
+    expect(tutorial.steps.some((s: { title: string }) => s.title.includes('Share'))).toBeTruthy();
   });
 
   test('Parses raw JSON prompt directly as tutorial schema', () => {
@@ -169,9 +167,9 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     });
 
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com', jsonPrompt);
-    assert.strictEqual(tutorial.id, 'custom-json-guide');
-    assert.strictEqual(tutorial.name, 'Custom JSON Walkthrough');
-    assert.strictEqual(tutorial.steps.length, 1);
+    expect(tutorial.id).toBe('custom-json-guide');
+    expect(tutorial.name).toBe('Custom JSON Walkthrough');
+    expect(tutorial.steps.length).toBe(1);
   });
 
   test('Target DOM elements using explicit CSS selectors in user prompt', () => {
@@ -182,9 +180,9 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     });
 
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://store.com', 'click #buy-now-btn');
-    assert.strictEqual(tutorial.steps.length, 1);
-    assert.strictEqual(tutorial.steps[0].target.css, '#buy-now-btn');
-    assert.strictEqual(tutorial.steps[0].validation.type, 'click');
+    expect(tutorial.steps.length).toBe(1);
+    expect(tutorial.steps[0].target.css).toBe('#buy-now-btn');
+    expect(tutorial.steps[0].validation.type).toBe('click');
   });
 
   test('Target multiple DOM elements in sequence via comma/arrow prompt', () => {
@@ -199,13 +197,13 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
 
     const prompt = 'step 1: #user-email -> step 2: #user-password -> step 3: #submit-login';
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com', prompt);
-    assert.strictEqual(tutorial.steps.length, 3);
-    assert.strictEqual(tutorial.steps[0].target.css, '#user-email');
-    assert.strictEqual(tutorial.steps[0].validation.type, 'input');
-    assert.strictEqual(tutorial.steps[1].target.css, '#user-password');
-    assert.strictEqual(tutorial.steps[1].validation.type, 'input');
-    assert.strictEqual(tutorial.steps[2].target.css, '#submit-login');
-    assert.strictEqual(tutorial.steps[2].validation.type, 'click');
+    expect(tutorial.steps.length).toBe(3);
+    expect(tutorial.steps[0].target.css).toBe('#user-email');
+    expect(tutorial.steps[0].validation.type).toBe('input');
+    expect(tutorial.steps[1].target.css).toBe('#user-password');
+    expect(tutorial.steps[1].validation.type).toBe('input');
+    expect(tutorial.steps[2].target.css).toBe('#submit-login');
+    expect(tutorial.steps[2].validation.type).toBe('click');
   });
 
   test('GeminiDomAnalyzer extracts structured interactive elements', () => {
@@ -216,10 +214,10 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     });
 
     const domList = GeminiDomAnalyzer.extractInteractiveDom(mockDoc);
-    assert.ok(Array.isArray(domList));
-    assert.ok(domList.length >= 2);
-    assert.ok(domList.some((el: { id: string; tag: string }) => el.id === 'checkout-btn' && el.tag === 'button'));
-    assert.ok(domList.some((el: { id: string; tag: string }) => el.id === 'search-box' && el.tag === 'input'));
+    expect(Array.isArray(domList)).toBeTruthy();
+    expect(domList.length >= 2).toBeTruthy();
+    expect(domList.some((el: { id: string; tag: string }) => el.id === 'checkout-btn' && el.tag === 'button')).toBeTruthy();
+    expect(domList.some((el: { id: string; tag: string }) => el.id === 'search-box' && el.tag === 'input')).toBeTruthy();
   });
 
   test('GeminiDomAnalyzer excludes hidden interactive elements from the current DOM scan', () => {
@@ -238,8 +236,8 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     const mockDoc = { querySelectorAll: () => [visibleButton, hiddenMenuItem] };
 
     const domList = GeminiDomAnalyzer.extractInteractiveDom(mockDoc);
-    assert.ok(domList.some((el: { text: string }) => el.text === 'File'));
-    assert.ok(!domList.some((el: { text: string }) => el.text === 'New'));
+    expect(domList.some((el: { text: string }) => el.text === 'File')).toBeTruthy();
+    expect(!domList.some((el: { text: string }) => el.text === 'New')).toBeTruthy();
   });
 
   test('GeminiDomAnalyzer synthesizes valid tutorial schema with mock fetch', async () => {
@@ -294,9 +292,9 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
       fetchFn: mockFetch,
     });
 
-    assert.strictEqual(tutorial.id, 'gemini-test-guide');
-    assert.strictEqual(tutorial.steps.length, 1);
-    assert.strictEqual(tutorial.steps[0].target.css, '#add-bag');
+    expect(tutorial.id).toBe('gemini-test-guide');
+    expect(tutorial.steps.length).toBe(1);
+    expect(tutorial.steps[0].target.css).toBe('#add-bag');
   });
 
   test('DynamicPageAnalyzer.generateDynamicTutorialAsync falls back to local selector matching if API key missing', async () => {
@@ -311,8 +309,8 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
       'click #confirm-order-btn'
     );
 
-    assert.ok(tutorial);
-    assert.strictEqual(tutorial.steps[0].target.css, '#confirm-order-btn');
+    expect(tutorial).toBeTruthy();
+    expect(tutorial.steps[0].target.css).toBe('#confirm-order-btn');
   });
 
   test('DynamicPageAnalyzer routes via backendUrl proxy when provided', async () => {
@@ -355,9 +353,9 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
       { backendUrl: 'http://localhost:4000', fetchFn: mockFetch }
     );
 
-    assert.strictEqual(requestedUrl, 'http://localhost:4000/api/ai/dom-guide');
-    assert.strictEqual(tutorial.id, 'proxy-guide-123');
-    assert.strictEqual(tutorial.steps.length, 1);
+    expect(requestedUrl).toBe('http://localhost:4000/api/ai/dom-guide');
+    expect(tutorial.id).toBe('proxy-guide-123');
+    expect(tutorial.steps.length).toBe(1);
   });
 
   test('Disambiguation: Prioritizes button inside active dialog over identical background button', () => {
@@ -418,9 +416,9 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     (backgroundButton as Record<string, unknown>).ownerDocument = mockDoc;
 
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/app', 'click save changes');
-    assert.ok(tutorial.steps.length > 0);
-    assert.strictEqual(tutorial.steps[0].target.css, '#modal-save-btn');
-    assert.strictEqual(tutorial.steps[0].target.container, 'dialog[open], [role="dialog"], .modal');
+    expect(tutorial.steps.length > 0).toBeTruthy();
+    expect(tutorial.steps[0].target.css).toBe('#modal-save-btn');
+    expect(tutorial.steps[0].target.container).toBe('dialog[open], [role="dialog"], .modal');
   });
 
   test('Layout Primacy: Prioritizes button in <main> over identical button in <footer>', () => {
@@ -461,8 +459,8 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
     (footerActionBtn as Record<string, unknown>).ownerDocument = mockDoc;
 
     const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com', 'get started');
-    assert.ok(tutorial.steps.length > 0);
-    assert.strictEqual(tutorial.steps[0].target.css, '#main-action');
+    expect(tutorial.steps.length > 0).toBeTruthy();
+    expect(tutorial.steps[0].target.css).toBe('#main-action');
   });
 
   test('Spatial Proximity: Prioritizes button physically close to previousElement', () => {
@@ -517,17 +515,23 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
       { previousElement: prevInput }
     );
 
-    assert.ok(tutorial.steps.length > 0);
-    assert.strictEqual(tutorial.steps[0].target.css, '#close-submit-btn');
+    expect(tutorial.steps.length > 0).toBeTruthy();
+    expect(tutorial.steps[0].target.css).toBe('#close-submit-btn');
   });
 
   test('Hover Resolution: Dispatches synthetic hover on menu trigger and sets target.hoverTrigger', () => {
     const dispatchedEvents: string[] = [];
 
+    // ownerDocument.defaultView must be null so dispatchHoverEvents uses view:null
+    // in event options instead of jsdom's real window, which causes PointerEvent
+    // constructor to throw silently before our spy can record events.
+    const mockOwnerDoc = { defaultView: null, querySelectorAll: () => [], querySelector: () => null };
+
     const triggerBtn = {
       tagName: 'BUTTON',
       id: 'user-profile-toggle',
       textContent: 'Account',
+      ownerDocument: mockOwnerDoc,
       getAttribute: (attr: string) => (attr === 'aria-haspopup' ? 'true' : null),
       dispatchEvent: (evt: Event) => { dispatchedEvents.push(evt.type); },
       matches: (sel: string) => sel.includes('button') || sel.includes('aria-haspopup'),
@@ -551,6 +555,7 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
       id: 'settings-menu-item',
       textContent: 'Settings and Preferences',
       parentElement: dropdownList,
+      ownerDocument: mockOwnerDoc,
       getAttribute: (attr: string) => (attr === 'role' ? 'menuitem' : null),
       closest: () => null,
     };
@@ -566,20 +571,34 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
         }
         return [];
       },
-      querySelector: () => null,
+      querySelector: (selector: string) => {
+        if (selector.includes('#user-profile-toggle')) return triggerBtn;
+        return null;
+      },
     };
 
-    (flyoutItem as Record<string, unknown>).ownerDocument = mockDoc;
-    (triggerBtn as Record<string, unknown>).ownerDocument = mockDoc;
+    (flyoutItem as Record<string, unknown>).ownerDocument = mockOwnerDoc;
+    (triggerBtn as Record<string, unknown>).ownerDocument = mockOwnerDoc;
 
-    const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/dashboard', 'settings');
+    // Stub PointerEvent to a dummy class so jsdom doesn't throw a TypeError
+    // ("member view is not of type Window") when dispatching on our plain object mock.
+    vi.stubGlobal('PointerEvent', class {
+      type: string;
+      constructor(type: string) { this.type = type; }
+    });
 
-    assert.ok(tutorial.steps.length > 0);
-    assert.ok(dispatchedEvents.includes('mouseover') || dispatchedEvents.includes('mouseenter'));
-    const step = tutorial.steps[0];
-    assert.strictEqual(step.target.css, '#settings-menu-item');
-    assert.ok(step.target.hoverTrigger);
-    assert.strictEqual(step.target.hoverTrigger.css, '#user-profile-toggle');
+    try {
+      const tutorial = DynamicPageAnalyzer.generateDynamicTutorial(mockDoc, 'https://example.com/dashboard', 'settings');
+
+      expect(tutorial.steps.length > 0).toBeTruthy();
+      expect(dispatchedEvents.includes('mouseover') || dispatchedEvents.includes('mouseenter') || dispatchedEvents.includes('pointerover')).toBeTruthy();
+      const step = tutorial.steps[0];
+      expect(step.target.css).toBe('#settings-menu-item');
+      expect(step.target.hoverTrigger).toBeTruthy();
+      expect(step.target.hoverTrigger.css).toBe('#user-profile-toggle');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   test('DynamicPageAnalyzer.generateDynamicTutorialAsync uses intent-resolver path when reranker is configured', async () => {
@@ -615,11 +634,11 @@ describe('DynamicPageAnalyzer Unit Tests', () => {
       { reranker }
     );
 
-    assert.ok(tutorial, 'Tutorial must be generated');
-    assert.ok(tutorial.id.startsWith('intent-guide-'), 'Tutorial id must start with intent-guide-');
-    assert.ok(Array.isArray(tutorial.steps), 'Steps must be an array');
-    assert.ok(tutorial.steps.length > 0, 'At least one step');
-    assert.ok(tutorial.steps[0].target?.css, 'Step must have target css');
-    assert.ok(tutorial.steps[0].validation?.type, 'Step must have validation type');
+    expect(tutorial, 'Tutorial must be generated').toBeTruthy();
+    expect(tutorial.id.startsWith('intent-guide-'), 'Tutorial id must start with intent-guide-').toBeTruthy();
+    expect(Array.isArray(tutorial.steps), 'Steps must be an array').toBeTruthy();
+    expect(tutorial.steps.length > 0, 'At least one step').toBeTruthy();
+    expect(tutorial.steps[0].target?.css, 'Step must have target css').toBeTruthy();
+    expect(tutorial.steps[0].validation?.type, 'Step must have validation type').toBeTruthy();
   });
 });

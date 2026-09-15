@@ -12,7 +12,9 @@
     "dev": "npm run --prefix apps/chrome-extension dev",
     "build": "npm run --prefix apps/chrome-extension build",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test \"tests/**/*.test.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "clean": "node --input-type=module -e \"import fs from 'fs'; ['node_modules', 'apps/chrome-extension/node_modules', 'packages/chrome-adapter/node_modules', 'packages/engine/node_modules', 'packages/tutorial-ui/node_modules', 'apps/chrome-extension/.output', 'apps/chrome-extension/.wxt'].forEach(p => fs.rmSync(p, { recursive: true, force: true })); console.log('Cleaned build artifacts successfully.');\""
   },
   "keywords": [
@@ -33,9 +35,12 @@
     "@types/node": "^26.5.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitest/coverage-v8": "^5.0.0",
     "esbuild": "^0.28.2",
+    "jsdom": "^30.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   }
 }

@@ -1,5 +1,3 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert';
 import {
   FuseFilter,
   LlmReranker,
@@ -37,23 +35,23 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
     const results = FuseFilter.filterCandidates(largePool, 'Repositories', 15);
     const duration = performance.now() - startTime;
 
-    assert.ok(duration < 60, `Filtering took ${duration.toFixed(2)}ms (must be <60ms)`);
-    assert.ok(results.length <= 15, 'Pruned down to top candidates');
-    assert.strictEqual(results[0].desc.id, 'repo-tab', 'Repositories must be top-ranked candidate');
+    expect(duration < 60, `Filtering took ${duration.toFixed(2)}ms (must be <60ms)`).toBeTruthy();
+    expect(results.length <= 15).toBeTruthy();
+    expect(results[0].desc.id).toBe('repo-tab');
   });
 
   test('Stage 1 (FuseFilter) handles spelling typos (e.g. "repostry" -> "Repositories")', () => {
     const results = FuseFilter.filterCandidates(sampleCandidates, 'repostry', 5);
-    assert.ok(results.length > 0);
-    assert.strictEqual(results[0].desc.id, 'repo-tab', 'Should match Repositories despite typo');
+    expect(results.length > 0).toBeTruthy();
+    expect(results[0].desc.id).toBe('repo-tab');
   });
 
   test('Stage 2 BackendIntentApiClient sends clean payload and extracts stepIds', async () => {
     const mockFetch = async (url: string, options: RequestInit) => {
-      assert.ok(url.endsWith('/api/ai/intent-rerank'));
+      expect(url.endsWith('/api/ai/intent-rerank')).toBeTruthy();
       const parsedBody = JSON.parse(options.body as string);
-      assert.strictEqual(parsedBody.prompt, 'invite new team members');
-      assert.ok(Array.isArray(parsedBody.candidates));
+      expect(parsedBody.prompt).toBe('invite new team members');
+      expect(Array.isArray(parsedBody.candidates)).toBeTruthy();
 
       return {
         ok: true,
@@ -73,12 +71,12 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
     ];
 
     const stepIds = await client.rerank('invite new team members', candidates);
-    assert.deepStrictEqual(stepIds, ['cand-4']);
+    expect(stepIds).toEqual(['cand-4']);
   });
 
   test('Stage 2 LlmReranker resolves semantic synonyms via mock LLM', async () => {
     const mockFetch = async (_url: string, options: RequestInit) => {
-      assert.ok((options.body as string).includes('invite colleagues'));
+      expect((options.body as string).includes('invite colleagues')).toBeTruthy();
       return {
         ok: true,
         status: 200,
@@ -96,7 +94,7 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
     ];
 
     const stepIds = await reranker.rerank('invite colleagues', candidates);
-    assert.deepStrictEqual(stepIds, ['cand-1']);
+    expect(stepIds).toEqual(['cand-1']);
   });
 
   test('Stage 2 LlmReranker supports OpenRouter / OpenAI provider and strips reasoning tokens', async () => {
@@ -128,8 +126,8 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
       fetchFn: mockFetch,
     });
 
-    assert.strictEqual(reranker.endpoint, 'https://openrouter.ai/api/v1/chat/completions');
-    assert.strictEqual(reranker.model, 'openai/gpt-4o-mini');
+    expect(reranker.endpoint).toBe('https://openrouter.ai/api/v1/chat/completions');
+    expect(reranker.model).toBe('openai/gpt-4o-mini');
 
     const candidates = [
       { candidateId: 'cand-0', desc: { category: 'navigation', label: 'Overview' }, score: 0.5 },
@@ -137,9 +135,9 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
     ];
 
     const stepIds = await reranker.rerank('share project', candidates);
-    assert.strictEqual(capturedUrl, 'https://openrouter.ai/api/v1/chat/completions');
-    assert.strictEqual(capturedHeaders['Authorization'], 'Bearer sk-or-v1-test-key');
-    assert.deepStrictEqual(stepIds, ['cand-1']);
+    expect(capturedUrl).toBe('https://openrouter.ai/api/v1/chat/completions');
+    expect(capturedHeaders['Authorization']).toBe('Bearer sk-or-v1-test-key');
+    expect(stepIds).toEqual(['cand-1']);
   });
 
   test('IntentResolver gracefully falls back to Stage 1 when API client errors or times out', async () => {
@@ -153,8 +151,8 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
     const resolver = new IntentResolver({ reranker: failingClient });
     const results = await resolver.resolve(sampleCandidates, 'Repositories');
 
-    assert.ok(results.length > 0, 'Must not throw, should fall back to local Stage 1');
-    assert.strictEqual(results[0].id, 'repo-tab');
+    expect(results.length > 0, 'Must not throw, should fall back to local Stage 1').toBeTruthy();
+    expect(results[0].id).toBe('repo-tab');
   });
 
   test('IntentResolver enforces single-input discipline and synthesizes dynamic result click', async () => {
@@ -164,21 +162,21 @@ describe('Hybrid Two-Stage Intent Resolver Unit Tests', () => {
     const results = await resolver.resolve(sampleCandidates, prompt);
 
     const inputSteps = results.filter((r: { category: string }) => r.category === 'input');
-    assert.strictEqual(inputSteps.length, 1, 'Enforces maximum of 1 input step');
+    expect(inputSteps.length).toBe(1);
 
     const resultStep = results.find((r: { isDynamicResult?: boolean }) => r.isDynamicResult);
-    assert.ok(resultStep, 'Dynamic result step must be created');
-    assert.strictEqual((resultStep as Record<string, unknown>).label, 'mytube');
+    expect(resultStep, 'Dynamic result step must be created').toBeTruthy();
+    expect((resultStep as Record<string, unknown>).label).toBe('mytube');
   });
 
   test('IntentRegistry instantiates appropriate provider based on environment variables', () => {
     const backendClient = IntentRegistry.fromEnv({ WXT_BACKEND_URL: 'http://localhost:5000' });
-    assert.ok(backendClient instanceof BackendIntentApiClient);
+    expect(backendClient instanceof BackendIntentApiClient).toBeTruthy();
 
     const llmClient = IntentRegistry.fromEnv({ WXT_AI_API_KEY: 'sk-test' });
-    assert.ok(llmClient instanceof LlmReranker);
+    expect(llmClient instanceof LlmReranker).toBeTruthy();
 
     const localClient = IntentRegistry.fromEnv({});
-    assert.ok(localClient instanceof LocalFallbackReranker);
+    expect(localClient instanceof LocalFallbackReranker).toBeTruthy();
   });
 });

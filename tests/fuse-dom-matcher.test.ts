@@ -1,5 +1,3 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert';
 import {
   harvestInteractiveElements,
   safeIdSelector,
@@ -67,10 +65,10 @@ describe('Fuse.js DOM Scanner & Grounded Matcher Tests', () => {
     const doc = createMockDoc([btn1, input1, hidden]);
     const candidates = harvestInteractiveElements(doc);
 
-    assert.strictEqual(candidates.length, 2);
-    assert.strictEqual(candidates[0].text, 'Share');
-    assert.strictEqual(candidates[0].id, 'btn-share');
-    assert.strictEqual(candidates[1].placeholder, 'Search anything...');
+    expect(candidates.length).toBe(2);
+    expect(candidates[0].text).toBe('Share');
+    expect(candidates[0].id).toBe('btn-share');
+    expect(candidates[1].placeholder).toBe('Search anything...');
   });
 
   test('matchDomElementWithFuse matches exact and fuzzy targetQuery', () => {
@@ -83,14 +81,14 @@ describe('Fuse.js DOM Scanner & Grounded Matcher Tests', () => {
 
     // Exact match
     const match1 = matchDomElementWithFuse(candidates, { targetQuery: 'Share', action: 'click' });
-    assert.ok(match1);
-    assert.strictEqual(match1.id, 'btn-share');
-    assert.strictEqual(match1.derivedSelector, '#btn-share');
+    expect(match1).toBeTruthy();
+    expect(match1.id).toBe('btn-share');
+    expect(match1.derivedSelector).toBe('#btn-share');
 
     // Fuzzy typo match ("shre" -> "Share")
     const match2 = matchDomElementWithFuse(candidates, { targetQuery: 'shre', action: 'click' });
-    assert.ok(match2);
-    assert.strictEqual(match2.id, 'btn-share');
+    expect(match2).toBeTruthy();
+    expect(match2.id).toBe('btn-share');
   });
 
   test('matchDomElementWithFuse prioritizes elements inside active modals', () => {
@@ -101,17 +99,17 @@ describe('Fuse.js DOM Scanner & Grounded Matcher Tests', () => {
     const candidates = harvestInteractiveElements(doc);
 
     const match = matchDomElementWithFuse(candidates, { targetQuery: 'Close', action: 'click' });
-    assert.ok(match);
-    assert.strictEqual(match.id, 'modal-close');
+    expect(match).toBeTruthy();
+    expect(match.id).toBe('modal-close');
   });
 
   test('deriveConcreteSelector generates safe selector escaping special characters', () => {
-    assert.strictEqual(safeIdSelector(':6j'), '[id=":6j"]');
-    assert.strictEqual(safeIdSelector('normal-id'), '#normal-id');
+    expect(safeIdSelector(':6j')).toBe('[id=":6j"]');
+    expect(safeIdSelector('normal-id')).toBe('#normal-id');
 
     const elColons = createMockElement('button', { id: ':r1:' });
     const selector = deriveConcreteSelector({ id: ':r1:', element: elColons, tag: 'button' });
-    assert.strictEqual(selector, '[id=":r1:"]');
+    expect(selector).toBe('[id=":r1:"]');
   });
 
   test('synthesizeGroundedTutorial produces schema compliant with SchemaValidator', () => {
@@ -126,13 +124,13 @@ describe('Fuse.js DOM Scanner & Grounded Matcher Tests', () => {
       category: 'share',
     });
 
-    assert.ok(tutorial);
-    assert.strictEqual(tutorial.steps.length, 1);
-    assert.strictEqual(tutorial.steps[0].target.css, '#share-btn');
-    assert.strictEqual(tutorial.steps[0].validation.type, 'click');
+    expect(tutorial).toBeTruthy();
+    expect(tutorial.steps.length).toBe(1);
+    expect(tutorial.steps[0].target.css).toBe('#share-btn');
+    expect(tutorial.steps[0].validation.type).toBe('click');
 
     const validation = SchemaValidator.validateTutorial(tutorial);
-    assert.strictEqual(validation.valid, true, `Validation errors: ${validation.errors.join(', ')}`);
+    expect(validation.valid, `Validation errors: ${validation.errors.join(', ')}`).toBe(true);
   });
 
   test('DynamicPageAnalyzer integrates Fuse.js matcher seamlessly when intent is provided', async () => {
@@ -152,10 +150,10 @@ describe('Fuse.js DOM Scanner & Grounded Matcher Tests', () => {
       }
     );
 
-    assert.ok(tutorial);
-    assert.strictEqual(tutorial.steps[0].target.css, '#export-btn');
+    expect(tutorial).toBeTruthy();
+    expect(tutorial.steps[0].target.css).toBe('#export-btn');
     const validation = SchemaValidator.validateTutorial(tutorial);
-    assert.strictEqual(validation.valid, true);
+    expect(validation.valid).toBe(true);
   });
 
   test('harvestInteractiveElements extracts collapsed menu elements and records parentMenu', () => {
@@ -186,8 +184,8 @@ describe('Fuse.js DOM Scanner & Grounded Matcher Tests', () => {
     const candidates = harvestInteractiveElements(doc);
 
     const setupCand = candidates.find((c: { text: string }) => c.text === 'Page setup');
-    assert.ok(setupCand, 'Collapsed item should be captured');
-    assert.strictEqual((setupCand as Record<string, unknown>).parentMenu, 'File');
+    expect(setupCand, 'Collapsed item should be captured').toBeTruthy();
+    expect((setupCand as Record<string, unknown>).parentMenu).toBe('File');
   });
 
   test('synthesizeGroundedTutorial produces a valid 2-step hierarchy when item has parentMenu', () => {
@@ -200,22 +198,22 @@ describe('Fuse.js DOM Scanner & Grounded Matcher Tests', () => {
     };
 
     const tutorial = synthesizeGroundedTutorial(matched, { targetQuery: 'Page setup', action: 'click' });
-    assert.ok(tutorial);
-    assert.strictEqual(tutorial.steps.length, 2, 'Should create 2 sequential steps');
+    expect(tutorial).toBeTruthy();
+    expect(tutorial.steps.length).toBe(2);
 
     // Step 1: Open parent menu
-    assert.strictEqual(tutorial.steps[0].id, 'step-1');
-    assert.ok(tutorial.steps[0].title.en.includes('File'));
-    assert.strictEqual(tutorial.steps[0].target.text, 'File');
-    assert.strictEqual(tutorial.steps[0].validation.type, 'click');
+    expect(tutorial.steps[0].id).toBe('step-1');
+    expect(tutorial.steps[0].title.en.includes('File')).toBeTruthy();
+    expect(tutorial.steps[0].target.text).toBe('File');
+    expect(tutorial.steps[0].validation.type).toBe('click');
 
     // Step 2: Target item inside menu
-    assert.strictEqual(tutorial.steps[1].id, 'step-2');
-    assert.ok(tutorial.steps[1].title.en.includes('Page setup'));
-    assert.strictEqual(tutorial.steps[1].target.css, '#page-setup-btn');
-    assert.strictEqual(tutorial.steps[1].validation.type, 'click');
+    expect(tutorial.steps[1].id).toBe('step-2');
+    expect(tutorial.steps[1].title.en.includes('Page setup')).toBeTruthy();
+    expect(tutorial.steps[1].target.css).toBe('#page-setup-btn');
+    expect(tutorial.steps[1].validation.type).toBe('click');
 
     const validation = SchemaValidator.validateTutorial(tutorial);
-    assert.strictEqual(validation.valid, true, `Validation errors: ${validation.errors.join(', ')}`);
+    expect(validation.valid, `Validation errors: ${validation.errors.join(', ')}`).toBe(true);
   });
 });

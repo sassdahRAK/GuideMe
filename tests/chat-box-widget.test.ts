@@ -1,5 +1,4 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert';
+// @vitest-environment node
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -28,11 +27,11 @@ describe('ChatBoxWidgetOverlay Component Unit Tests', () => {
 
     try {
       const { ChatBoxWidgetOverlay } = await import(pathToFileURL(tmpFile).href);
-      assert.ok(ChatBoxWidgetOverlay, 'ChatBoxWidgetOverlay component must export cleanly');
+      expect(ChatBoxWidgetOverlay, 'ChatBoxWidgetOverlay component must export cleanly').toBeTruthy();
 
       // 1. Closed state returns null
       const closedHtml = renderToString(React.createElement(ChatBoxWidgetOverlay, { isOpen: false }));
-      assert.strictEqual(closedHtml, '', 'Closed state should return null / empty string');
+      expect(closedHtml).toBe('');
 
       // 2. Open Idle state — renders GuideMe AI Coach header and prompt input
       const openHtml = renderToString(
@@ -42,9 +41,9 @@ describe('ChatBoxWidgetOverlay Component Unit Tests', () => {
           availableTutorials: [{ id: 'tut-1', name: 'Google Docs Tour' }],
         })
       );
-      assert.ok(openHtml.includes('GuideMe AI'), 'Should render GuideMe AI header');
-      assert.ok(openHtml.includes('Coach'), 'Should render Coach badge');
-      assert.ok(openHtml.includes('Google Docs Tour'), 'Should render catalog suggestion chip');
+      expect(openHtml.includes('GuideMe AI'), 'Should render GuideMe AI header').toBeTruthy();
+      expect(openHtml.includes('Coach'), 'Should render Coach badge').toBeTruthy();
+      expect(openHtml.includes('Google Docs Tour'), 'Should render catalog suggestion chip').toBeTruthy();
 
       // 3. Active Walkthrough state on host tab
       const activeGuideHtml = renderToString(
@@ -60,9 +59,9 @@ describe('ChatBoxWidgetOverlay Component Unit Tests', () => {
           },
         })
       );
-      assert.ok(activeGuideHtml.includes('Search Tutorial'), 'Should render active guide title');
-      assert.ok(activeGuideHtml.includes('1/3'), 'Should render step counter pill');
-      assert.ok(activeGuideHtml.includes('Click Search Bar'), 'Should render step title');
+      expect(activeGuideHtml.includes('Search Tutorial'), 'Should render active guide title').toBeTruthy();
+      expect(activeGuideHtml.includes('1/3'), 'Should render step counter pill').toBeTruthy();
+      expect(activeGuideHtml.includes('Click Search Bar'), 'Should render step title').toBeTruthy();
 
       // 4. Cross-Tab / Different Tab Notice
       const crossTabHtml = renderToString(
@@ -72,24 +71,24 @@ describe('ChatBoxWidgetOverlay Component Unit Tests', () => {
           engineState: { isActive: false },
         })
       );
-      assert.ok(crossTabHtml.length > 0, 'Should render overlay');
+      expect(crossTabHtml.length > 0, 'Should render overlay').toBeTruthy();
 
       // 5. Message Timestamps: Verifies Khmer "ឥឡូវនេះ" timestamp for recent messages
       const nowKhmerHtml = renderToString(
         React.createElement(ChatBoxWidgetOverlay, { isOpen: true, language: 'km' })
       );
-      assert.ok(
+      expect(
         nowKhmerHtml.includes('ឥឡូវនេះ'),
         'Initial assistant message should display "ឥឡូវនេះ" for recent timestamp'
-      );
+      ).toBeTruthy();
 
       const nowEnHtml = renderToString(
         React.createElement(ChatBoxWidgetOverlay, { isOpen: true, language: 'en' })
       );
-      assert.ok(
+      expect(
         nowEnHtml.includes('Just now'),
         'Initial assistant message should display "Just now" in English'
-      );
+      ).toBeTruthy();
     } finally {
       if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
     }

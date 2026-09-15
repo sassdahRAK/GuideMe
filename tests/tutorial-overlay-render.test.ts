@@ -1,5 +1,4 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert';
+// @vitest-environment node
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,7 +47,7 @@ describe('TutorialOverlay Component & Scope Integrity Tests', () => {
       }
     }
 
-    assert.ok(filesToInspect.length > 0, 'Should find UI component files to inspect');
+    expect(filesToInspect.length > 0, 'Should find UI component files to inspect').toBeTruthy();
 
     const failures: FailureRecord[] = [];
     for (const file of filesToInspect) {
@@ -79,11 +78,7 @@ describe('TutorialOverlay Component & Scope Integrity Tests', () => {
       });
     }
 
-    assert.deepStrictEqual(
-      failures,
-      [],
-      `Found undeclared variables in UI components: ${JSON.stringify(failures)}`
-    );
+    expect(failures).toEqual([]);
   });
 
   test('TutorialOverlay renders cleanly in active guide state without exceptions', async () => {
@@ -103,7 +98,7 @@ describe('TutorialOverlay Component & Scope Integrity Tests', () => {
 
     try {
       const { TutorialOverlay } = await import(tmpFile);
-      assert.ok(TutorialOverlay, 'TutorialOverlay component must export cleanly');
+      expect(TutorialOverlay, 'TutorialOverlay component must export cleanly').toBeTruthy();
 
       // 1. Active State — walkthrough in progress on the webpage
       const mockActiveState = {
@@ -125,14 +120,14 @@ describe('TutorialOverlay Component & Scope Integrity Tests', () => {
       };
 
       const activeHtml = renderToString(React.createElement(TutorialOverlay, { state: mockActiveState }));
-      assert.ok(activeHtml.includes('guideme-root-overlay'), 'Should render root overlay container');
-      assert.ok(activeHtml.includes('guideme-target-glow'), 'Should render target spotlight frame');
-      assert.ok(activeHtml.includes('Share'), 'Should include target step content');
+      expect(activeHtml.includes('guideme-root-overlay'), 'Should render root overlay container').toBeTruthy();
+      expect(activeHtml.includes('guideme-target-glow'), 'Should render target spotlight frame').toBeTruthy();
+      expect(activeHtml.includes('Share'), 'Should include target step content').toBeTruthy();
 
       // 2. Idle State — no guide running, floating button persists
       const mockIdleState = { isActive: false, isCompleted: false, language: 'km' };
       const idleHtml = renderToString(React.createElement(TutorialOverlay, { state: mockIdleState }));
-      assert.ok(idleHtml.length > 0, 'Idle state should render floating assistant button');
+      expect(idleHtml.length > 0, 'Idle state should render floating assistant button').toBeTruthy();
 
       // 3. Completed State — celebration dialog
       const mockCompletedState = {
@@ -142,7 +137,7 @@ describe('TutorialOverlay Component & Scope Integrity Tests', () => {
         tutorial: { name: 'Google Docs Tour' },
       };
       const completedHtml = renderToString(React.createElement(TutorialOverlay, { state: mockCompletedState }));
-      assert.ok(completedHtml.includes('Google Docs Tour'), 'Completed state should render tutorial completion name');
+      expect(completedHtml.includes('Google Docs Tour'), 'Completed state should render tutorial completion name').toBeTruthy();
     } finally {
       if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
     }

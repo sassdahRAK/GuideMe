@@ -1,5 +1,3 @@
-import { test, describe, before, after } from 'node:test';
-import assert from 'node:assert';
 import {
   TutorialEngine,
   ValidationEngine,
@@ -68,13 +66,10 @@ class MockAdapter extends BaseTutorialAdapter {
 // Test Suite
 // ---------------------------------------------------------------------------
 describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
-  let prevDocument: typeof globalThis.document;
   const documentListeners = new Map<string, Set<(e: unknown) => void>>();
 
-  before(() => {
-    prevDocument = globalThis.document;
-
-    (globalThis as Record<string, unknown>).document = {
+  beforeAll(() => {
+    vi.stubGlobal('document', {
       addEventListener: (type: string, handler: (e: unknown) => void) => {
         if (!documentListeners.has(type)) documentListeners.set(type, new Set());
         documentListeners.get(type)!.add(handler);
@@ -82,12 +77,11 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
       removeEventListener: (type: string, handler: (e: unknown) => void) => {
         if (documentListeners.has(type)) documentListeners.get(type)!.delete(handler);
       },
-    };
+    });
   });
 
-  after(() => {
-    if (prevDocument) globalThis.document = prevDocument;
-    else delete (globalThis as Record<string, unknown>).document;
+  afterAll(() => {
+    vi.unstubAllGlobals();
   });
 
   function dispatchDocumentClick(eventData: unknown): void {
@@ -113,9 +107,9 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
       { hesitationTimeoutMs: 30, onHesitation: () => { hesitated = true; } }
     );
 
-    assert.strictEqual(hesitated, false);
+    expect(hesitated).toBe(false);
     await new Promise((resolve) => setTimeout(resolve, 50));
-    assert.strictEqual(hesitated, true);
+    expect(hesitated).toBe(true);
 
     cleanup();
   });
@@ -142,11 +136,11 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
 
     // At 50ms total (25ms since last input), hesitation must NOT have fired yet
     await new Promise((resolve) => setTimeout(resolve, 25));
-    assert.strictEqual(hesitated, false);
+    expect(hesitated).toBe(false);
 
     // After remaining time with no input, hesitation fires
     await new Promise((resolve) => setTimeout(resolve, 30));
-    assert.strictEqual(hesitated, true);
+    expect(hesitated).toBe(true);
 
     cleanup();
   });
@@ -178,8 +172,8 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
       composedPath: () => [randomDiv],
     });
 
-    assert.ok(misclickPayload !== null);
-    assert.strictEqual((misclickPayload!.coordinates as Record<string, unknown>).x, 500);
+    expect(misclickPayload).not.toBe(null);
+    expect((misclickPayload!.coordinates as Record<string, unknown>).x).toBe(500);
 
     cleanup();
   });
@@ -193,12 +187,11 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
     };
 
     let misclicked = false;
-    let validated = false;
 
     const cleanup = ValidationEngine.bindValidation(
       step,
       adapter,
-      (res: { valid: boolean }) => { validated = res.valid; },
+      (_res: { valid: boolean }) => {},
       {
         targetBoundingBox: { left: 100, right: 180, top: 200, bottom: 232 },
         onMisclick: () => { misclicked = true; },
@@ -212,7 +205,7 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
       composedPath: () => [adapter.mockTargetElement],
     });
 
-    assert.strictEqual(misclicked, false);
+    expect(misclicked).toBe(false);
 
     cleanup();
   });
@@ -247,7 +240,7 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
       composedPath: () => [langBtn, uiNode],
     });
 
-    assert.strictEqual(misclicked, false);
+    expect(misclicked).toBe(false);
 
     cleanup();
   });
@@ -279,12 +272,12 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
     engine.events.on(EngineEvent.MISCLICK_DETECTED, () => { misclickEventReceived = true; });
 
     await engine.start(tutorial);
-    assert.strictEqual(engine.getStateSnapshot().alertState, AlertState.NORMAL);
+    expect(engine.getStateSnapshot().alertState).toBe(AlertState.NORMAL);
 
     // 1. Wait for hesitation timer
     await new Promise((resolve) => setTimeout(resolve, 55));
-    assert.strictEqual(hesitationEventReceived, true);
-    assert.strictEqual(engine.getStateSnapshot().alertState, AlertState.HESITATION);
+    expect(hesitationEventReceived).toBe(true);
+    expect(engine.getStateSnapshot().alertState).toBe(AlertState.HESITATION);
 
     // 2. Simulate misclick outside target
     const randomDiv = { tagName: 'DIV', id: 'outside-area' };
@@ -295,13 +288,13 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
       composedPath: () => [randomDiv],
     });
 
-    assert.strictEqual(misclickEventReceived, true);
-    assert.strictEqual(engine.getStateSnapshot().alertState, AlertState.MISCLICK);
+    expect(misclickEventReceived).toBe(true);
+    expect(engine.getStateSnapshot().alertState).toBe(AlertState.MISCLICK);
 
     // 3. Complete step — alertState resets to NORMAL
     adapter.triggerElementEvent({ css: '#submit-button' }, 'click');
     await new Promise((resolve) => setTimeout(resolve, 10));
-    assert.strictEqual(engine.getStateSnapshot().alertState, AlertState.NORMAL);
+    expect(engine.getStateSnapshot().alertState).toBe(AlertState.NORMAL);
   });
 
   test('TutorialEngine handles missing target gracefully and recovers on retryLocateTarget', async () => {
@@ -328,18 +321,18 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
     await engine.start(tutorial);
 
     const snapshot1 = engine.getStateSnapshot();
-    assert.strictEqual(snapshot1.targetMissing, true);
-    assert.strictEqual(snapshot1.boundingBox, null);
+    expect(snapshot1.targetMissing).toBe(true);
+    expect(snapshot1.boundingBox).toBe(null);
 
     // Simulate element rendering then user clicking "Try Again"
     adapter.customTargetBox = { x: 120, y: 250, width: 100, height: 40, top: 250, left: 120, bottom: 290, right: 220 };
     await engine.retryLocateTarget();
 
     const snapshot2 = engine.getStateSnapshot();
-    assert.strictEqual(snapshot2.targetMissing, false);
-    assert.notStrictEqual(snapshot2.boundingBox, null);
-    assert.strictEqual(snapshot2.boundingBox.width, 100);
-    assert.strictEqual(snapshot2.boundingBox.height, 40);
+    expect(snapshot2.targetMissing).toBe(false);
+    expect(snapshot2.boundingBox).not.toBe(null);
+    expect(snapshot2.boundingBox.width).toBe(100);
+    expect(snapshot2.boundingBox.height).toBe(40);
   });
 
   test('ValidationEngine validates generic input without expectedValue on Enter key', async () => {
@@ -358,7 +351,7 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
     );
 
     adapter.triggerElementEvent({ css: '#search-field' }, 'keydown', { key: 'Enter', targetValue: 'TOUB_POS' });
-    assert.strictEqual(validated, true);
+    expect(validated).toBe(true);
     cleanup();
   });
 
@@ -378,10 +371,10 @@ describe('Day 2: Hesitation & Misclick Rescue Engine Unit Tests', () => {
     );
 
     adapter.triggerElementEvent({ css: '#search-field' }, 'input', { targetValue: 'TOUB_POS' });
-    assert.strictEqual(validated, false); // Debounce waiting for user to finish
+    expect(validated).toBe(false); // Debounce waiting for user to finish
 
     await new Promise((resolve) => setTimeout(resolve, 750));
-    assert.strictEqual(validated, true);
+    expect(validated).toBe(true);
     cleanup();
   });
 });

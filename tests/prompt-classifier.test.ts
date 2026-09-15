@@ -1,5 +1,3 @@
-import { test, describe } from 'node:test';
-import assert from 'node:assert';
 import { classifyPrompt } from '../packages/engine/src/intent/prompt-classifier.ts';
 
 describe('Prompt Classifier Unit Tests', () => {
@@ -25,9 +23,9 @@ describe('Prompt Classifier Unit Tests', () => {
     for (const greeting of greetings) {
       test(`classifies "${greeting}" as greeting`, () => {
         const result = classifyPrompt(greeting);
-        assert.strictEqual(result.type, 'greeting', `Expected greeting for "${greeting}", got ${result.type}`);
-        assert.ok(result.responses.km, 'Should have Khmer response');
-        assert.ok(result.responses.en, 'Should have English response');
+        expect(result.type, `Expected greeting for "${greeting}", got ${result.type}`).toBe('greeting');
+        expect(result.responses.km, 'Should have Khmer response').toBeTruthy();
+        expect(result.responses.en, 'Should have English response').toBeTruthy();
       });
     }
   });
@@ -49,20 +47,20 @@ describe('Prompt Classifier Unit Tests', () => {
     for (const input of unclearInputs) {
       test(`classifies "${input}" as unclear`, () => {
         const result = classifyPrompt(input);
-        assert.strictEqual(result.type, 'unclear', `Expected unclear for "${input}", got ${result.type}`);
-        assert.ok(result.responses.km, 'Should have Khmer clarification prompt');
-        assert.ok(result.responses.en, 'Should have English clarification prompt');
+        expect(result.type, `Expected unclear for "${input}", got ${result.type}`).toBe('unclear');
+        expect(result.responses.km, 'Should have Khmer clarification prompt').toBeTruthy();
+        expect(result.responses.en, 'Should have English clarification prompt').toBeTruthy();
       });
     }
 
     test('classifies empty string as unclear', () => {
-      assert.strictEqual(classifyPrompt('').type, 'unclear');
-      assert.strictEqual(classifyPrompt('  ').type, 'unclear');
+      expect(classifyPrompt('').type).toBe('unclear');
+      expect(classifyPrompt('  ').type).toBe('unclear');
     });
 
     test('classifies very short non-action text as unclear', () => {
-      assert.strictEqual(classifyPrompt('ab').type, 'unclear');
-      assert.strictEqual(classifyPrompt('go').type, 'unclear');
+      expect(classifyPrompt('ab').type).toBe('unclear');
+      expect(classifyPrompt('go').type).toBe('unclear');
     });
   });
 
@@ -100,18 +98,18 @@ describe('Prompt Classifier Unit Tests', () => {
     for (const input of actionableInputs) {
       test(`classifies "${input}" as actionable`, () => {
         const result = classifyPrompt(input);
-        assert.strictEqual(result.type, 'actionable', `Expected actionable for "${input}", got ${result.type}`);
+        expect(result.type, `Expected actionable for "${input}", got ${result.type}`).toBe('actionable');
       });
     }
 
     test('classifies quoted entities as actionable', () => {
-      assert.strictEqual(classifyPrompt('"mytube" repo').type, 'actionable');
-      assert.strictEqual(classifyPrompt("find 'settings'").type, 'actionable');
+      expect(classifyPrompt('"mytube" repo').type).toBe('actionable');
+      expect(classifyPrompt("find 'settings'").type).toBe('actionable');
     });
 
     test('classifies capitalized single words (UI labels) as actionable', () => {
-      assert.strictEqual(classifyPrompt('Settings').type, 'actionable');
-      assert.strictEqual(classifyPrompt('Profile').type, 'actionable');
+      expect(classifyPrompt('Settings').type).toBe('actionable');
+      expect(classifyPrompt('Profile').type).toBe('actionable');
     });
   });
 
@@ -120,29 +118,29 @@ describe('Prompt Classifier Unit Tests', () => {
   describe('edge cases', () => {
     test('greeting + action verb is actionable, not greeting', () => {
       const result = classifyPrompt('hello world click button');
-      assert.strictEqual(result.type, 'actionable');
+      expect(result.type).toBe('actionable');
     });
 
     test('greeting + help me share is actionable, not greeting', () => {
       const result = classifyPrompt('hi bro help me share doc');
-      assert.strictEqual(result.type, 'actionable');
+      expect(result.type).toBe('actionable');
     });
 
     test('"show me" alone is unclear (no specific target)', () => {
-      assert.strictEqual(classifyPrompt('show me').type, 'unclear');
+      expect(classifyPrompt('show me').type).toBe('unclear');
     });
 
     test('"show me how to login" is actionable', () => {
       const result = classifyPrompt('show me how to login');
-      assert.strictEqual(result.type, 'actionable');
+      expect(result.type).toBe('actionable');
     });
 
     test('response objects always have km and en keys', () => {
       const inputs = ['hi', 'help', 'click button', 'hi broooo'];
       for (const input of inputs) {
         const result = classifyPrompt(input);
-        assert.ok('km' in result.responses, `Missing km response for "${input}"`);
-        assert.ok('en' in result.responses, `Missing en response for "${input}"`);
+        expect('km' in result.responses, `Missing km response for "${input}"`).toBeTruthy();
+        expect('en' in result.responses, `Missing en response for "${input}"`).toBeTruthy();
       }
     });
   });
