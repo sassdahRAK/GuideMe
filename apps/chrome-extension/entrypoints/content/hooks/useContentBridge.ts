@@ -1,7 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
-import { TutorialEngine, DynamicPageAnalyzer, GeminiDomAnalyzer, TtsRegistry, IntentRegistry, ExtensionMessageAction, Language, EngineEvent } from '@guideme/engine';
+// NOTE: DynamicPageAnalyzer / IntentRegistry are deliberately NOT imported —
+// the local heuristic fallback they powered was removed so AI generation
+// failures surface a real error instead of a silent lower-quality guide.
+import { TutorialEngine, GeminiDomAnalyzer, TtsRegistry, ExtensionMessageAction, Language, EngineEvent, DEMO_MODE_ONLY_HARDCODED } from '@guideme/engine';
 import { ChromeAdapter } from '@guideme/chrome-adapter';
+import { EventLog } from '@guideme/reporting';
 import { TUTORIAL_CATALOG, getTutorialsForUrl } from '../../../src/catalog.ts';
+import { matchHardcodedPromptGuide } from '../../../src/hardcoded-prompt-guides.js';
+import { saveStepProgress } from '../../../src/lib/progress-sync.ts';
 // import { getCapturedStepStorageKey, createCapturedTutorial } from './useCaptureMode.js';
 
 /**
@@ -42,9 +48,51 @@ function createCapturedTutorial(target: any) {
 }
 
 /**
- * Resolves AI provider credentials and options dynamically from storage or environment variables.
+ * Module-level cache for AI options so the chrome.storage round-trip
+ * (1-5 ms) is paid at most once per settings change, not on every prompt.
+ * Invalidated via chrome.storage.onChanged whenever any relevant key changes.
+ */
+let _aiOptionsCache = null;
+const _AI_OPTION_KEYS = [
+  'guideme_ai_provider',
+  'guideme_gemini_api_key',
+  'guideme_gemini_model',
+  'guideme_ai_preset',
+  'guideme_ai_endpoint',
+  'guideme_ai_api_key',
+  'guideme_ai_model',
+  'guideme_backend_url',
+];
+if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes) => {
+    if (_AI_OPTION_KEYS.some((k) => k in changes)) {
+      _aiOptionsCache = null;
+    }
+  });
+}
+
+/**
+ * Module-level pre-warmed DOM snapshot. The popup fires GUIDEME_PREWARM_DOM
+ * the moment the user submits a prompt (in parallel with validate-intent),
+ * so the synchronous DOM walk is already done by the time generate-steps runs.
+ */
+let _prewarmedDomElements = null;
+
+/**
+ * Resolves AI provider credentials and options dynamically from storage or
+ * environment variables. Results are cached at module level and invalidated
+ * automatically when storage changes.
  */
 async function resolveAiOptions(engineInstance: any) {
+  // Return cached options immediately — language is the only runtime-variable
+  // field so we patch it in without re-reading storage.
+  if (_aiOptionsCache) {
+    return {
+      ..._aiOptionsCache,
+      language: engineInstance?.getLanguage ? engineInstance.getLanguage() : 'km',
+    };
+  }
+
   let provider = import.meta.env?.WXT_AI_PROVIDER || 'openai';
   let geminiKey = import.meta.env?.WXT_GEMINI_API_KEY || import.meta.env?.VITE_GEMINI_API_KEY || '';
   let geminiModel = '';
@@ -56,16 +104,7 @@ async function resolveAiOptions(engineInstance: any) {
 
   if (typeof chrome !== 'undefined' && chrome.runtime?.id && chrome.storage?.local) {
     try {
-      const stored = (await chrome.storage.local.get([
-        'guideme_ai_provider',
-        'guideme_gemini_api_key',
-        'guideme_gemini_model',
-        'guideme_ai_preset',
-        'guideme_ai_endpoint',
-        'guideme_ai_api_key',
-        'guideme_ai_model',
-        'guideme_backend_url',
-      ])) as Record<string, any>;
+      const stored = (await chrome.storage.local.get(_AI_OPTION_KEYS)) as Record<string, any>;
       if (stored?.guideme_ai_provider) provider = String(stored.guideme_ai_provider);
       if (stored?.guideme_gemini_api_key) geminiKey = String(stored.guideme_gemini_api_key);
       if (stored?.guideme_gemini_model) geminiModel = String(stored.guideme_gemini_model);
@@ -80,15 +119,11 @@ async function resolveAiOptions(engineInstance: any) {
     }
   }
 
+  // Store everything except language (which varies per call)
+  _aiOptionsCache = { provider, geminiApiKey: geminiKey, geminiModel, aiPreset, aiEndpoint, aiApiKey, aiModel, backendUrl };
+
   return {
-    provider,
-    geminiApiKey: geminiKey,
-    geminiModel,
-    aiPreset,
-    aiEndpoint,
-    aiApiKey,
-    aiModel,
-    backendUrl,
+    ..._aiOptionsCache,
     language: engineInstance?.getLanguage ? engineInstance.getLanguage() : 'km',
   };
 }
@@ -234,7 +269,10 @@ function waitForHostUiSettled(): Promise<void> {
 }
 
 /**
- * Tries backend Stage 2 LLM first, falls back to local DynamicPageAnalyzer.
+ * Calls the backend Stage 2 LLM to generate guide steps. Throws a
+ * user-facing error on any failure (no backend configured, network error,
+ * timeout, empty response) instead of silently substituting a local
+ * heuristic guide — a failure should be visible, not disguised as a result.
  */
 async function generateGuideWithFallback(
   prompt: string,
@@ -244,6 +282,7 @@ async function generateGuideWithFallback(
 ) {
   const baseUrl = aiOptions.backendUrl;
   let tutorial: any = null;
+  let backendError: any = null;
   const backendTimeoutMs = 15000;
 
   // Try backend Stage 2 LLM first
@@ -251,26 +290,98 @@ async function generateGuideWithFallback(
     let timedOut = false;
     let timeoutId;
     try {
-      const domElements = GeminiDomAnalyzer.extractInteractiveDom(document, 400);
-      const controller = new AbortController();
-      timeoutId = setTimeout(() => {
-        timedOut = true;
-        controller.abort();
-      }, backendTimeoutMs);
+      // Use pre-warmed snapshot if available (populated by GUIDEME_PREWARM_DOM
+      // which the popup fires in parallel with validate-intent), otherwise
+      // extract synchronously now.
+      const domElements = _prewarmedDomElements || GeminiDomAnalyzer.extractInteractiveDom(document, 400);
+      _prewarmedDomElements = null; // consume — next call will re-extract fresh
 
-      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/ai/generate-steps`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          elements: domElements,
-          language: engineInstance?.getLanguage ? engineInstance.getLanguage() : 'km',
-          currentUrl: window.location.href,
-          mode: generationOptions.mode || 'initial',
-          completedActions: generationOptions.completedActions || [],
-        }),
-        signal: controller.signal,
+      const requestBody = JSON.stringify({
+        prompt,
+        elements: domElements,
+        language: engineInstance?.getLanguage ? engineInstance.getLanguage() : 'km',
+        currentUrl: window.location.href,
+        mode: generationOptions.mode || 'initial',
+        completedActions: generationOptions.completedActions || [],
+        // Structured intent resolved earlier by /api/ai/assistant-chat
+        // (targetQuery/action/role/category) — forwarded as an optional
+        // grounding hint instead of being silently dropped (GM-017).
+        intent: generationOptions.intent || null,
       });
+
+      timeoutId = setTimeout(() => { timedOut = true; }, backendTimeoutMs);
+
+      // Route through the background service worker so Chrome's Private Network
+      // Access policy doesn't block calls to loopback (localhost) from public
+      // page origins. The background runs in the extension origin and is
+      // allowed to reach loopback freely.
+      const proxyRes = await new Promise((resolve, reject) => {
+        try {
+          chrome.runtime.sendMessage(
+            {
+              action: 'GUIDEME_PROXY_FETCH',
+              payload: {
+                url: `${baseUrl.replace(/\/$/, '')}/api/ai/generate-steps`,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: requestBody,
+              },
+            },
+            (res) => {
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+              } else {
+                resolve(res);
+              }
+            }
+          );
+        } catch (err) {
+          reject(err);
+        }
+        // Mirror the timeout so the promise doesn't hang forever
+        setTimeout(() => reject(Object.assign(new Error('timeout'), { _timeout: true })), backendTimeoutMs + 500);
+      });
+
+      if (timedOut || proxyRes?._timeout) {
+        timedOut = true;
+        throw new Error('timeout');
+      }
+
+      // Treat proxy errors (background unreachable, network error) as fetch failures
+      if (!proxyRes || proxyRes.error) {
+        throw new TypeError(proxyRes?.error || 'Failed to fetch');
+      }
+
+      /**
+       * The generate-steps endpoint now responds with text/event-stream (SSE).
+       * The body looks like:
+       *   data: {"tutorial":{...}}\n\ndata: [DONE]\n\n
+       * Parse the first non-[DONE] data: line as JSON.
+       * Falls back to plain JSON.parse for non-SSE responses (Gemini path,
+       * or any future change back to plain JSON).
+       */
+      const parseSseOrJson = (text) => {
+        if (!text) throw new SyntaxError('Empty response body');
+        // Try SSE first — find first data: line that is not [DONE]
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const payload = trimmed.slice(5).trim();
+          if (payload === '[DONE]') continue;
+          return JSON.parse(payload);
+        }
+        // Fallback: plain JSON body (non-streaming response)
+        return JSON.parse(text);
+      };
+
+      // Build a response-like object from the proxy's text body
+      const res = {
+        ok: proxyRes.ok,
+        status: proxyRes.status,
+        json: () => Promise.resolve(parseSseOrJson(proxyRes.body)),
+        text: () => Promise.resolve(proxyRes.body),
+      };
 
       if (res.ok) {
         const data = await res.json();
@@ -282,43 +393,72 @@ async function generateGuideWithFallback(
           hydrateGeneratedTargets(tutorial, domElements);
           // Backend may omit matchUrls — add default so SchemaValidator passes
           if (!tutorial.matchUrls) tutorial.matchUrls = ['<all_urls>'];
-          console.log(`[GuideMe] Backend generate-steps returned ${tutorial.steps.length} steps for "${prompt}":`, tutorial.steps.map((s: any) => s.title));
+          // Stringified inline (title + target selector per step) so a plain
+          // copy-paste always shows the actual selectors, not a collapsed
+          // "Array(1)" — this is what makes a self-referential or mistargeted
+          // selector (e.g. one that accidentally matches GuideMe's own overlay)
+          // visible immediately, before the overlay even mounts.
+          console.log(`[GuideMe] Backend generate-steps returned ${tutorial.steps.length} steps for "${prompt}": ${JSON.stringify(
+            tutorial.steps.map((s: any) => ({ title: s.title, target: s.target }))
+          )}`);
         } else {
           console.warn('[GuideMe] Backend generate-steps returned no/empty steps:', JSON.stringify(data).slice(0, 300));
+          throw Object.assign(
+            new Error(data?.error || 'The AI backend could not generate steps for this page. Please try rephrasing your request.'),
+            { _guidemeUserFacing: true }
+          );
         }
       } else {
-        console.warn(`[GuideMe] Backend generate-steps HTTP ${res.status}:`, (await res.text().catch(() => '')).slice(0, 300));
+        const body = (proxyRes.body || '').slice(0, 300);
+        console.warn(`[GuideMe] Backend generate-steps HTTP ${res.status}:`, body);
+        throw new Error(
+          `The AI server returned an error (HTTP ${res.status}). Please check your backend and try again.`
+        );
       }
     } catch (err: any) {
-      const reason = timedOut ? `timed out after ${backendTimeoutMs}ms` : (err?.message || 'unknown error');
-      console.info('[GuideMe] Backend generate-steps failed, using local fallback:', reason);
+      // Build a specific, user-facing diagnostic — thrown below once we've
+      // finished normalizing whichever failure this was (timeout, connection
+      // lost, generic network error) into a clear message. No silent local
+      // fallback: an AI failure must surface a real, specific error to the
+      // user, never a quietly-substituted lower-quality guide.
+      if (err._guidemeUserFacing) {
+        backendError = err;
+      } else {
+        const msg = err?.message || '';
+        if (timedOut || err._timeout || msg === 'timeout') {
+          backendError = Object.assign(
+            new Error(`The AI backend did not respond within ${backendTimeoutMs / 1000} seconds. Please check that your backend server is running and try again.`),
+            { _guidemeUserFacing: true }
+          );
+        } else if (msg.includes('Could not establish connection') || msg.includes('Extension context')) {
+          // Background service worker unreachable (extension context invalidated, etc.)
+          backendError = Object.assign(
+            new Error('The extension lost its connection to the background worker. Please reload the page and try again.'),
+            { _guidemeUserFacing: true }
+          );
+        } else {
+          backendError = Object.assign(
+            new Error(`Failed to reach the AI backend: ${msg || 'unknown error'}. Please try again.`),
+            { _guidemeUserFacing: true }
+          );
+        }
+      }
+      console.warn('[GuideMe] Backend generate-steps failed:', backendError.message);
     } finally {
       clearTimeout(timeoutId);
     }
+  } else {
+    backendError = Object.assign(
+      new Error('No AI backend is configured. Please set a backend URL in settings and try again.'),
+      { _guidemeUserFacing: true }
+    );
   }
 
-  // Fall back to local DynamicPageAnalyzer
-  if (!tutorial) {
-    // Do not immediately issue a second network request after a backend timeout.
-    // The local path must remain deterministic and available offline.
-    const fallbackOptions = baseUrl
-      ? {
-          ...aiOptions,
-          provider: 'local',
-          backendUrl: '',
-          apiKey: '',
-          nvidiaApiKey: '',
-          geminiApiKey: '',
-          reranker: null,
-        }
-      : { ...aiOptions, reranker: IntentRegistry.fromEnv(import.meta.env) };
-    tutorial = await DynamicPageAnalyzer.generateDynamicTutorialAsync(
-      document,
-      window.location.href,
-      prompt,
-      fallbackOptions
-    );
-    console.log(`[GuideMe] LOCAL DynamicPageAnalyzer returned ${tutorial?.steps?.length ?? 0} steps for "${prompt}"`);
+  // No silent substitute: if the AI backend didn't produce a tutorial, tell
+  // the user exactly why instead of quietly swapping in the local heuristic
+  // DynamicPageAnalyzer as if it were a real result.
+  if ((!tutorial || !tutorial.steps?.length) && backendError) {
+    throw backendError;
   }
 
   return tutorial;
@@ -364,6 +504,24 @@ export function useContentBridge({
     const adapter = new ChromeAdapter();
     const ttsProvider = TtsRegistry.fromEnv(import.meta.env);
 
+    // Apply the user's Settings-tab voice preference (Web Speech fallback
+    // only — the backend Edge-TTS path uses its own fixed neural voice).
+    // Read once on mount, then track live edits made while a tutorial is
+    // already running so the dashboard's Settings tab takes effect
+    // immediately instead of requiring a reload.
+    const ttsProviderAny = ttsProvider as any;
+    if (typeof ttsProviderAny.setVoiceName === 'function' && typeof chrome !== 'undefined' && chrome.storage?.local) {
+      chrome.storage.local.get(['guideme_voice_speaker']).then((res) => {
+        if (res?.guideme_voice_speaker) ttsProviderAny.setVoiceName(res.guideme_voice_speaker);
+      }).catch(() => {});
+    }
+    const onVoiceSettingChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'local' && changes.guideme_voice_speaker && typeof ttsProviderAny.setVoiceName === 'function') {
+        ttsProviderAny.setVoiceName(changes.guideme_voice_speaker.newValue || '');
+      }
+    };
+    chrome.storage?.onChanged?.addListener(onVoiceSettingChanged);
+
     const engine = new TutorialEngine({
       adapter,
       ttsProvider,
@@ -386,9 +544,37 @@ export function useContentBridge({
             { mode: 'next_action', completedActions: context.completed }
           );
           const existingKeys = new Set(tutorial.steps.map((item: any) => `${item.title}|${item.target?.text || item.target?.css || ''}`));
-          const remainingSteps = (continuation?.steps || []).filter((item: any) => (
-            item && !existingKeys.has(`${item.title}|${item.target?.text || item.target?.css || ''}`)
+          // The backend only ever sees a short free-text history ("Already
+          // completed: 1. ...; 2. ..."), not real click state, so it can
+          // re-propose an action carrying the same visible label as one
+          // that's already done (e.g. the Share dialog still contains text
+          // matching "Share" after the Share button itself was clicked).
+          // existingKeys above only catches an exact title+target repeat —
+          // this also rejects a same-labeled repeat regardless of target.
+          const normalizeLabel = (val: any): string => {
+            const text = typeof val === 'object' && val !== null ? (val.km || val.en || '') : val;
+            return typeof text === 'string' ? text.trim().toLowerCase() : '';
+          };
+          const completedLabels = new Set(context.completed.map(normalizeLabel));
+          const candidateSteps = (continuation?.steps || []).filter((item: any) => (
+            item &&
+            !existingKeys.has(`${item.title}|${item.target?.text || item.target?.css || ''}`) &&
+            !completedLabels.has(normalizeLabel(item.title))
           )).slice(0, 1);
+
+          // Ground the candidate against the live page before accepting it —
+          // the backend can hallucinate a selector (a build-hashed class name
+          // that was never in the DOM snapshot it was given) or drift onto an
+          // action that has nothing to do with the current page state. Only
+          // append a step that actually resolves to a real, visible element.
+          const remainingSteps = candidateSteps.filter((item: any) => {
+            if (!item.target) return true; // manual/no-target steps (e.g. modal) are always safe to append
+            const resolved = engineRef.current?.adapter?.describeTarget?.(item.target);
+            if (!resolved) {
+              console.warn('[GuideMe] Discarding ungrounded continuation step (target not found on page):', JSON.stringify({ title: item.title, target: item.target }));
+            }
+            return Boolean(resolved);
+          });
 
           if (remainingSteps.length > 0) {
             engineRef.current?.appendSteps(remainingSteps);
@@ -416,6 +602,12 @@ export function useContentBridge({
       },
     });
     engineRef.current = engine;
+
+    // Local-first reporting: one EventLog per engine lifecycle, tracking the
+    // fields needed to distinguish a completed step from a skipped one and
+    // to report the last successful step if the guide is abandoned.
+    const eventLog = new EventLog();
+    const reportingState = { tutorialId: null, lastSuccessfulStepId: null, lastSuccessfulStepIndex: null, lastStepIndex: null as number | null };
 
     // Sync TTS backend URL with the same dynamic resolution used by the popup's AI chat,
     // reading from chrome.storage.local or falling back to env/production URL.
@@ -509,12 +701,31 @@ export function useContentBridge({
 
     // ── Realtime Step Progress Broadcasts (PiP and Background Sync) ──
     const onStepStart = ({ step, stepIndex }: { step: any; stepIndex: number }) => {
+      reportingState.tutorialId = engine.activeTutorial?.id || reportingState.tutorialId;
+      eventLog.guideStepStarted({ tutorialId: reportingState.tutorialId, stepId: step?.id, stepIndex });
+
+      // Reaching step N means step N-1 was just completed, regardless of how
+      // it validated (click/input/url_change/manual_next/skip all funnel
+      // through nextStep() before the next STEP_START fires) — recording
+      // progress here, rather than only on the click/input STEP_SUCCESS
+      // event, is what makes manual_next/skip steps count toward the
+      // dashboard's real stats instead of being silently invisible to it.
+      if (stepIndex > 0 && reportingState.tutorialId) {
+        saveStepProgress(reportingState.tutorialId, stepIndex - 1).catch(() => {});
+      }
+      reportingState.lastStepIndex = stepIndex;
+
       const resolvedTarget = engine.adapter?.describeTarget?.(step?.target);
-      console.info(`[GuideMe] Overlay target for step ${stepIndex + 1}/${engine.activeTutorial?.steps?.length || 0}:`, {
+      // Stringified inline (not passed as an object) so a plain copy-paste of
+      // the console output always captures full detail — DevTools collapses
+      // an un-expanded object/array argument to the literal text "Object" /
+      // "Array(1)" when copied, which silently discards the very data needed
+      // to diagnose a mistargeted overlay.
+      console.info(`[GuideMe] Overlay target for step ${stepIndex + 1}/${engine.activeTutorial?.steps?.length || 0}: ${JSON.stringify({
         title: step?.title,
         target: step?.target,
         resolvedElement: resolvedTarget,
-      });
+      })}`);
 
       const stepData = {
         id: step?.id,
@@ -545,6 +756,16 @@ export function useContentBridge({
     };
 
     const onTutorialComplete = ({ tutorial }: { tutorial: any }) => {
+      eventLog.guideCompleted({ tutorialId: tutorial?.id || reportingState.tutorialId, totalSteps: tutorial?.steps?.length || 0 });
+
+      // The final step's own completion has no subsequent STEP_START to
+      // trigger the "previous step done" recording above — record it
+      // explicitly here so the backend sees the completed:true transition.
+      const finalGuideId = tutorial?.id || reportingState.tutorialId;
+      if (finalGuideId && reportingState.lastStepIndex !== null) {
+        saveStepProgress(finalGuideId, reportingState.lastStepIndex).catch(() => {});
+      }
+
       const payload = {
         active: false,
         isCompleted: true,
@@ -580,13 +801,65 @@ export function useContentBridge({
     };
 
     const onTutorialStop = () => {
+      // engine.stop() clears activeTutorial before emitting TUTORIAL_STOP, so
+      // this always represents an explicit abandon (complete() takes the
+      // TUTORIAL_COMPLETE path instead and never emits TUTORIAL_STOP).
+      if (reportingState.tutorialId) {
+        eventLog.guideAbandoned({
+          tutorialId: reportingState.tutorialId,
+          lastSuccessfulStepId: reportingState.lastSuccessfulStepId,
+          lastSuccessfulStepIndex: reportingState.lastSuccessfulStepIndex,
+        });
+      }
+      reportingState.tutorialId = null;
+      reportingState.lastSuccessfulStepId = null;
+      reportingState.lastSuccessfulStepIndex = null;
+
       try {
         chrome.storage?.local?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session']);
         chrome.storage?.session?.remove(['guideme_active_guide_state', 'guideme_active_tutorial_session', 'guideme_multi_page_plan']).catch?.(() => {});
       } catch {}
     };
 
+    const onStepSuccessReport = ({ step, eventData }) => {
+      reportingState.lastSuccessfulStepId = step?.id ?? reportingState.lastSuccessfulStepId;
+      reportingState.lastSuccessfulStepIndex = engine.currentStepIndex;
+      eventLog.guideStepCompleted({ tutorialId: reportingState.tutorialId, stepId: step?.id, stepIndex: engine.currentStepIndex });
+      // Surfaces exactly which listener validated the step (real target click/input
+      // vs. the broader completion-button/dialog-menu heuristics), and for
+      // click/input validation, HOW the clicked element matched the target
+      // (direct = clicked the actual resolved element; css/closest = matched
+      // via selector, which is where a too-broad AI selector can misfire) —
+      // so an unexpected advance can be diagnosed from the console instead of
+      // guessed at. Stringified inline — see the Overlay-target log above for why.
+      console.info(`[GuideMe] Step ${engine.currentStepIndex + 1} validated: ${JSON.stringify({
+        reason: eventData?.reason || 'target_interaction',
+        matchType: eventData?.matchType || undefined,
+        clickedElement: eventData?.originalEvent?.target?.outerHTML?.slice(0, 120),
+        title: step?.title,
+      })}`);
+    };
+
+    const onStepSkippedReport = ({ step, stepIndex }) => {
+      eventLog.guideStepSkipped({ tutorialId: reportingState.tutorialId, stepId: step?.id, stepIndex });
+    };
+
+    const onTargetResolvedReport = ({ step, stepIndex, selector, tier, source, versionMismatch }) => {
+      eventLog.targetResolved({ tutorialId: reportingState.tutorialId, stepId: step?.id, stepIndex, tier, source, selector });
+      if (versionMismatch) {
+        console.warn('[GuideMe] Canvas map version mismatch — falling back to Tier 2 container highlight:', versionMismatch);
+      }
+    };
+
+    const onTargetResolutionFailedReport = ({ step, stepIndex, selector }) => {
+      eventLog.targetResolutionFailed({ tutorialId: reportingState.tutorialId, stepId: step?.id, stepIndex, selector });
+    };
+
     engine.events.on(EngineEvent.STEP_START, onStepStart);
+    engine.events.on(EngineEvent.STEP_SUCCESS, onStepSuccessReport);
+    engine.events.on(EngineEvent.STEP_SKIPPED, onStepSkippedReport);
+    engine.events.on(EngineEvent.TARGET_RESOLVED, onTargetResolvedReport);
+    engine.events.on(EngineEvent.TARGET_RESOLUTION_FAILED, onTargetResolutionFailedReport);
     engine.events.on(EngineEvent.TUTORIAL_COMPLETE, onTutorialComplete);
     engine.events.on(EngineEvent.TUTORIAL_STOP, onTutorialStop);
 
@@ -637,18 +910,13 @@ export function useContentBridge({
         }
 
         case ExtensionMessageAction.OPEN_FLOATING_PROMPT: {
+          // Previously tried a separate floating PiP launcher window first
+          // (GUIDEME_POPOUT_LAUNCHER) and fell back to the in-page prompt on
+          // failure. That PiP window was never actually implemented (no
+          // pip.html existed — GM-016), so it always failed silently; opening
+          // the in-page prompt directly is the real, working behavior.
           setIsDismissed?.(false);
-          try {
-            chrome.runtime?.sendMessage({ action: 'GUIDEME_POPOUT_LAUNCHER' }, (res) => {
-              if (chrome.runtime?.lastError || !res?.success) {
-                setIsPromptOpen(true);
-              } else {
-                setIsPromptOpen(false);
-              }
-            });
-          } catch {
-            setIsPromptOpen(true);
-          }
+          setIsPromptOpen(true);
           sendResponse({ success: true });
           break;
         }
@@ -656,6 +924,20 @@ export function useContentBridge({
         case 'OPEN_FULL_POPUP': {
           setIsDismissed?.(false);
           setIsFullPopupOpen(true);
+          sendResponse({ success: true });
+          break;
+        }
+
+        // ── Pre-warm DOM snapshot in parallel with popup's validate-intent call ──
+        // The popup fires this speculatively the moment the user submits a prompt.
+        // Storing the snapshot here means generateGuideWithFallback skips the
+        // synchronous DOM walk entirely on the hot path.
+        case 'GUIDEME_PREWARM_DOM': {
+          try {
+            _prewarmedDomElements = GeminiDomAnalyzer.extractInteractiveDom(document, 100);
+          } catch {
+            _prewarmedDomElements = null;
+          }
           sendResponse({ success: true });
           break;
         }
@@ -678,7 +960,40 @@ export function useContentBridge({
           (async () => {
             try {
               const prompt = message.payload?.prompt || message.payload?.userPrompt || '';
-              const aiOptions = await resolveAiOptions(engine);
+              // Hardcoded case: a small set of known prompts always show the
+              // same pre-built tutorial instead of generating one via AI.
+              const hardcodedTutorial = matchHardcodedPromptGuide(prompt);
+              if (hardcodedTutorial) {
+                setIsDismissed(false);
+                setIsPromptOpen(false);
+                setIsFullPopupOpen(false);
+                const started = await engine.start(hardcodedTutorial, 0);
+                sendResponse(
+                  started
+                    ? { success: true, tutorialId: hardcodedTutorial.id, dynamic: false, hardcoded: true }
+                    : { success: false, tutorialId: hardcodedTutorial.id, errors: ['Hardcoded tutorial rejected by schema validator'] }
+                );
+                return;
+              }
+
+              // Demo mode: AI-generated guides are disabled for anything else.
+              if (DEMO_MODE_ONLY_HARDCODED) {
+                sendResponse({ success: false, error: 'AI guide generation is disabled in this demo', demoModeBlocked: true });
+                return;
+              }
+
+              // Resolve AI options and pre-warm DOM snapshot in parallel.
+              // resolveAiOptions hits the module-level cache (no storage I/O on
+              // repeat calls); DOM extraction is synchronous but moved here so
+              // it runs concurrently with any remaining async setup.
+              const [aiOptions] = await Promise.all([
+                resolveAiOptions(engine),
+                // Kick off DOM prewarm if the popup didn't do it already
+                Promise.resolve(
+                  !_prewarmedDomElements &&
+                    (() => { try { _prewarmedDomElements = GeminiDomAnalyzer.extractInteractiveDom(document, 400); } catch {} })()
+                ),
+              ]);
               const tutorial = await generateGuideWithFallback(prompt, aiOptions, engine);
               if (tutorial) {
                 dynamicGuideRef.current = {
@@ -806,6 +1121,10 @@ export function useContentBridge({
         case 'GUIDEME_MULTI_PAGE_NEXT': {
           const { prompt: mpPrompt } = (message.payload || {}) as { prompt?: string; page?: any };
           if (mpPrompt) {
+            if (DEMO_MODE_ONLY_HARDCODED) {
+              sendResponse({ success: false, error: 'AI guide generation is disabled in this demo', demoModeBlocked: true });
+              break;
+            }
             (async () => {
               try {
                 const aiOptions = await resolveAiOptions(engine);
@@ -886,23 +1205,64 @@ export function useContentBridge({
       isMounted = false;
       unsubscribe();
       engine.events.off(EngineEvent.STEP_START, onStepStart);
+      engine.events.off(EngineEvent.STEP_SUCCESS, onStepSuccessReport);
+      engine.events.off(EngineEvent.STEP_SKIPPED, onStepSkippedReport);
+      engine.events.off(EngineEvent.TARGET_RESOLVED, onTargetResolvedReport);
+      engine.events.off(EngineEvent.TARGET_RESOLUTION_FAILED, onTargetResolutionFailedReport);
       engine.events.off(EngineEvent.TUTORIAL_COMPLETE, onTutorialComplete);
       engine.events.off(EngineEvent.TUTORIAL_STOP, onTutorialStop);
       chrome.runtime?.onMessage?.removeListener(messageHandler);
+      chrome.storage?.onChanged?.removeListener(onVoiceSettingChanged);
+      eventLog.flush();
+      eventLog.destroy();
       engine.destroy();
     };
   }, []);
 
-  const handleStartDynamicGuide = async (prompt: string) => {
+  // Returns true when a guide actually started, false otherwise — callers
+  // (the chat widget) use this to surface a real error/retry message instead
+  // of closing on an optimistic assumption of success (GM-015). Every early
+  // return below used to be a silent no-op with only a console warning.
+  //
+  // `intent` is the structured {targetQuery, action, role, category} the
+  // chat widget already resolved via /api/ai/assistant-chat — forwarded to
+  // generate-steps as a grounding hint instead of being silently dropped
+  // (GM-017). `image` is accepted for signature parity with existing call
+  // sites but intentionally unused: /api/ai/generate-steps has no vision
+  // support today (only the Q&A assistant-chat endpoint does), so wiring it
+  // through would silently do nothing — a real fix needs backend vision
+  // support first, tracked separately.
+  const handleStartDynamicGuide = async (
+    prompt: string,
+    _image?: string | null,
+    intent?: Record<string, unknown> | null
+  ): Promise<boolean> => {
     try {
       // Guard: if the extension context was invalidated (e.g. after a hot-reload),
       // bail out cleanly instead of crashing with "Extension context invalidated".
       if (typeof chrome === 'undefined' || !chrome.runtime?.id) {
         console.warn('[GuideMe] Extension context unavailable — reload the extension or the page.');
-        return;
+        return false;
       }
+
+      // Hardcoded case: a small set of known prompts always show the same
+      // pre-built tutorial instead of generating one via AI.
+      const hardcodedTutorial = matchHardcodedPromptGuide(prompt);
+      if (hardcodedTutorial) {
+        setIsPromptOpen(false);
+        setIsFullPopupOpen(false);
+        engineRef.current?.start(hardcodedTutorial, 0);
+        return true;
+      }
+
+      // Demo mode: AI-generated guides are disabled for anything else.
+      if (DEMO_MODE_ONLY_HARDCODED) {
+        console.warn('[GuideMe] AI guide generation is disabled in this demo.');
+        return false;
+      }
+
       const aiOptions = await resolveAiOptions(engineRef.current);
-      const tutorial = await generateGuideWithFallback(prompt, aiOptions, engineRef.current);
+      const tutorial = await generateGuideWithFallback(prompt, aiOptions, engineRef.current, { intent });
       if (tutorial) {
         dynamicGuideRef.current = {
           prompt,
@@ -913,9 +1273,12 @@ export function useContentBridge({
         setIsPromptOpen(false);
         setIsFullPopupOpen(false);
         engineRef.current?.start(tutorial, 0);
+        return true;
       }
+      return false;
     } catch (err) {
       console.error('[GuideMe] Dynamic guide generation failed:', err);
+      return false;
     }
   };
 

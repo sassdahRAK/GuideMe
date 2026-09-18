@@ -13,10 +13,10 @@
       --text: #f8fafc;
       --muted: #94a3b8;
       --border: #2a2f3b;
-      --accent: #f59e0b;
-      --accent-hover: #d97706;
-      --accent-text: #000000;
-      --accent-glow: rgba(245, 158, 11, 0.38);
+      --accent: #8b5cf6;
+      --accent-hover: #7c3aed;
+      --accent-text: #ffffff;
+      --accent-glow: rgba(139, 92, 246, 0.38);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -162,7 +162,7 @@
 
     input:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+      box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
     }
 
     /* Simulated Share Modal */
@@ -209,7 +209,7 @@
     .target-highlight-box {
       position: fixed;
       border: 2px solid var(--accent);
-      box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.25), 0 0 24px var(--accent-glow);
+      box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.25), 0 0 24px var(--accent-glow);
       border-radius: 8px;
       pointer-events: none;
       transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -235,11 +235,11 @@
   <!-- Top Guide Controller Banner -->
   <div class="guide-banner">
     <div style="display: flex; align-items: center; gap: 10px;">
-      <span style="font-weight: 800; color: #f59e0b; font-size: 13px;">⚡ QUICK TESTBED LAUNCHER:</span>
+      <span style="font-weight: 800; color: #8b5cf6; font-size: 13px;">⚡ QUICK TESTBED LAUNCHER:</span>
       <span style="font-size: 12px; color: #94a3b8;">Start a walkthrough directly or open the extension popup:</span>
     </div>
     <div style="display: flex; gap: 8px;">
-      <button id="btn-start-guideme-demo" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;">
+      <button id="btn-start-guideme-demo" class="btn btn-primary" style="font-size: 12px; padding: 6px 14px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff;">
         🤖 Start GuideMe Live Coach
       </button>
       <button id="btn-start-share-guide" class="btn btn-secondary" style="font-size: 12px; padding: 6px 14px;">
@@ -264,7 +264,7 @@
   <div style="background-color: #1b212d; border-bottom: 1px solid var(--border); padding: 4px 24px; display: flex; gap: 4px;">
     <button class="btn btn-secondary" style="background: transparent; border: none; padding: 6px 12px; font-size: 13px;">File</button>
     <button class="btn btn-secondary" style="background: transparent; border: none; padding: 6px 12px; font-size: 13px;">Home</button>
-    <button id="insert-tab" class="btn btn-secondary" style="background: #252d3d; border: 1px solid #3e495e; padding: 6px 14px; font-size: 13px; font-weight: 700; color: #f59e0b;" aria-label="Insert">
+    <button id="insert-tab" class="btn btn-secondary" style="background: #252d3d; border: 1px solid #3e495e; padding: 6px 14px; font-size: 13px; font-weight: 700; color: #8b5cf6;" aria-label="Insert">
       Insert
     </button>
     <button class="btn btn-secondary" style="background: transparent; border: none; padding: 6px 12px; font-size: 13px;">Page Layout</button>
@@ -379,7 +379,7 @@
 
     <div id="testbed-card" class="testbed-card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <span id="step-badge" style="font-size: 10px; font-weight: 700; color: #f59e0b; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); padding: 2px 8px; border-radius: 4px;">
+        <span id="step-badge" style="font-size: 10px; font-weight: 700; color: #8b5cf6; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); padding: 2px 8px; border-radius: 4px;">
           STEP 1 / 4
         </span>
         <button id="btn-close-guide" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px;">✕</button>

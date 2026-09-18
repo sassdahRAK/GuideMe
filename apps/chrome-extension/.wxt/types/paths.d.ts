@@ -6,6 +6,7 @@ declare module "wxt/browser" {
     | "/"
     | "/background.js"
     | "/content-scripts/content.js"
+    | "/guideme-embed.js"
     | "/icon-128.png"
     | "/icon-16.png"
     | "/icon-32.png"

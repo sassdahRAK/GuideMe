@@ -16,6 +16,7 @@
   "dependencies": {
     "@guideme/chrome-adapter": "workspace:*",
     "@guideme/engine": "workspace:*",
+    "@guideme/reporting": "workspace:*",
     "@guideme/tutorial-ui": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

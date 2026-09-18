@@ -6,6 +6,14 @@ import { triggerQueueSync } from '../src/lib/progress-sync.ts';
 const STORAGE_KEY_ACTIVE_SESSION = 'guideme_active_tutorial_session';
 const STORAGE_KEY_MULTI_PAGE_PLAN = 'guideme_multi_page_plan';
 
+// Chat widget storage keys — cleared on browser startup so each fresh
+// browser launch begins a new chat session instead of restoring old tabs.
+const CHAT_STORAGE_KEYS = [
+  'guideme_chat_tabs',
+  'guideme_active_chat_tab_id',
+  'guideme_chat_messages',
+];
+
 /**
  * Get the storage area for active session (session storage with local fallback)
  */
@@ -36,10 +44,13 @@ export default defineBackground(() => {
   // Try syncing pending actions when browser opens
   chrome.runtime.onStartup?.addListener(() => {
     triggerQueueSync();
-  });
 
-  // Track active PiP window ID
-  let activePipWindowId: number | null = null;
+    // Fresh browser launch — clear persisted chat tabs so the widget
+    // re-initializes with a single new default chat session.
+    chrome.storage.local.remove(CHAT_STORAGE_KEYS, () => {
+      if (chrome.runtime.lastError) { /* ignore */ }
+    });
+  });
 
   // ── Tab Navigation & Tab Activation Handlers for Seamless Session Sync ──
   chrome.tabs.onUpdated?.addListener((tabId, changeInfo, tab) => {
@@ -136,20 +147,7 @@ export default defineBackground(() => {
     });
   });
 
-  // Track window closures to clean up PiP reference
-  chrome.windows.onRemoved?.addListener((windowId) => {
-    if (windowId === activePipWindowId) {
-      activePipWindowId = null;
-      chrome.storage?.local?.remove('guideme_pip_window_id');
-      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-        if (tab?.id) {
-          chrome.tabs.sendMessage(tab.id, { action: 'GUIDEME_LAUNCHER_DOCKED' }, () => {});
-        }
-      });
-    }
-  });
-
-  // Handle messages forwarded between popup, content scripts, and PiP
+  // Handle messages forwarded between popup and content scripts
   chrome.runtime.onMessage.addListener((message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
     // ── Session State Persistence: Save / Update active session ──
     if (message.action === 'GUIDEME_UPDATE_SESSION') {
@@ -284,10 +282,13 @@ export default defineBackground(() => {
     ) {
       const { active, currentStepIndex, totalSteps } = message.payload || {};
 
-      if ((active || currentStepIndex !== undefined) && sender.tab?.id) {
+      const stepNum   = typeof currentStepIndex === 'number' ? currentStepIndex + 1 : null;
+      const stepTotal = typeof totalSteps       === 'number' && totalSteps > 0 ? totalSteps : null;
+
+      if ((active || currentStepIndex !== undefined) && sender.tab?.id && stepNum !== null && stepTotal !== null) {
         chrome.action.setBadgeText({
           tabId: sender.tab.id,
-          text: `${(currentStepIndex || 0) + 1}/${totalSteps || 1}`,
+          text: `${stepNum}/${stepTotal}`,
         });
         chrome.action.setBadgeBackgroundColor({
           tabId: sender.tab.id,
@@ -322,148 +323,6 @@ export default defineBackground(() => {
           } catch {}
         }, 3000);
       }
-    }
-
-    // ── Extract Separate UI / Popout PiP Launcher Window ──
-    if (message.action === 'GUIDEME_POPOUT_LAUNCHER') {
-      try {
-        const pipUrl = chrome.runtime.getURL('pip.html');
-
-        const storeAndLaunch = (tabId?: number, windowId?: number, tabUrl?: string): void => {
-          const openPip = (): void => {
-            if (activePipWindowId) {
-              chrome.windows.get(activePipWindowId, (existing) => {
-                if (existing && !chrome.runtime.lastError) {
-                  chrome.windows.update(activePipWindowId!, { focused: true });
-                  sendResponse({ success: true, windowId: activePipWindowId });
-                } else {
-                  createPipWindow(pipUrl, sendResponse);
-                }
-              });
-            } else {
-              createPipWindow(pipUrl, sendResponse);
-            }
-          };
-
-          if (tabId) {
-            chrome.storage?.local?.set(
-              { guideme_target_tab_id: tabId, guideme_target_window_id: windowId, guideme_target_tab_url: tabUrl || '' },
-              () => openPip()
-            );
-          } else {
-            openPip();
-          }
-        };
-
-        if (sender.tab?.id) {
-          storeAndLaunch(sender.tab.id, sender.tab.windowId, sender.tab.url || '');
-        } else {
-          chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-            const webTab = (tabs || []).find(
-              (t) => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://')
-            );
-            storeAndLaunch(webTab?.id, webTab?.windowId, webTab?.url || '');
-          });
-        }
-      } catch (err: any) {
-        console.error('[GuideMe Background] GUIDEME_POPOUT_LAUNCHER error:', err);
-        sendResponse({ success: false, error: err?.message || String(err) });
-      }
-      return true; // async response
-    }
-
-    function createPipWindow(pipUrl: string, responseCallback: (res: any) => void): void {
-      const DEFAULT_SCREEN = { left: 0, top: 0, width: 1920, height: 1080 };
-      const SCREEN_EDGE_MARGIN = 24;
-
-      const clampIntoView = (
-        screen: { left: number; top: number; width: number; height: number },
-        left: number,
-        top: number,
-        width: number,
-        height: number
-      ) => {
-        const minLeft = screen.left;
-        const minTop = screen.top;
-        const maxLeft = screen.left + screen.width - width;
-        const maxTop = screen.top + screen.height - height;
-        return {
-          left: Math.max(minLeft, Math.min(left, maxLeft)),
-          top: Math.max(minTop, Math.min(top, maxTop)),
-        };
-      };
-
-      const openPip = (screen: { left: number; top: number; width: number; height: number }) => {
-        chrome.storage?.local?.get(['guideme_chat_messages', 'guideme_active_guide_state'], (res: Record<string, any>) => {
-          const hasMessages = Array.isArray(res?.guideme_chat_messages) && res.guideme_chat_messages.length > 0;
-          const hasActiveGuide = Boolean(res?.guideme_active_guide_state?.active);
-          const pipWidth = 550;
-          const initialHeight = (hasMessages || hasActiveGuide) ? 360 : 160;
-
-          let rawLeft = screen.left + screen.width - pipWidth - SCREEN_EDGE_MARGIN;
-          let rawTop = screen.top + screen.height - 160;
-          if (hasMessages || hasActiveGuide) rawTop = Math.max(screen.top + 10, rawTop - 200);
-
-          const { left, top } = clampIntoView(screen, rawLeft, rawTop, pipWidth, initialHeight);
-
-          chrome.windows.create({
-            url: pipUrl,
-            type: 'popup',
-            width: pipWidth,
-            height: initialHeight,
-            left,
-            top,
-            focused: true,
-          }, (newWindow) => {
-            if (chrome.runtime.lastError || !newWindow?.id) {
-              console.error('[GuideMe Background] PiP creation failed:', chrome.runtime.lastError?.message);
-              responseCallback({ success: false, error: chrome.runtime.lastError?.message });
-            } else {
-              activePipWindowId = newWindow.id;
-              chrome.storage.local.set({ guideme_pip_window_id: newWindow.id });
-              console.log('[GuideMe Background] PiP window created:', newWindow.id);
-              responseCallback({ success: true, windowId: newWindow.id });
-            }
-          });
-        });
-      };
-
-      chrome.storage?.local?.get(['guideme_target_window_id'], (stored: Record<string, any>) => {
-        const resolveFromWindow = (win?: chrome.windows.Window) => {
-          if (win && win.width) {
-            openPip({ left: win.left || 0, top: win.top || 0, width: win.width, height: win.height || 1080 });
-          } else {
-            openPip(DEFAULT_SCREEN);
-          }
-        };
-
-        const targetWindowId = typeof stored?.guideme_target_window_id === 'number' ? stored.guideme_target_window_id : null;
-        if (targetWindowId !== null && typeof chrome.windows?.get === 'function') {
-          chrome.windows.get(targetWindowId, (win) => {
-            if (chrome.runtime.lastError || !win) {
-              chrome.windows.getLastFocused({}, resolveFromWindow);
-            } else {
-              resolveFromWindow(win);
-            }
-          });
-        } else if (!targetWindowId && typeof chrome.windows?.getLastFocused === 'function') {
-          chrome.windows.getLastFocused({}, resolveFromWindow);
-        } else {
-          openPip(DEFAULT_SCREEN);
-        }
-      });
-    }
-
-    // ── PiP window docked (closed by user) — forward to content script ──
-    if (message.action === 'GUIDEME_LAUNCHER_DOCKED') {
-      activePipWindowId = null;
-      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-        if (tab?.id) {
-          chrome.tabs.sendMessage(tab.id, { action: 'GUIDEME_LAUNCHER_DOCKED' }, () => {});
-        }
-      });
-      sendResponse({ success: true });
-      return false;
     }
 
     // ── Open real Chrome extension popup ──
@@ -524,12 +383,92 @@ export default defineBackground(() => {
       return false;
     }
 
+    // ── Proxy Fetch — routes content-script API calls through the service worker
+    //    so that requests to loopback (localhost) are not blocked by Chrome's
+    //    Private Network Access policy, which forbids public-origin pages from
+    //    directly fetching loopback addresses. ──
+    if (message.action === 'GUIDEME_PROXY_FETCH') {
+      const { url, method = 'GET', headers = {}, body } = message.payload || {};
+      if (!url) {
+        sendResponse({ ok: false, status: 0, error: 'Missing URL' });
+        return false;
+      }
+      (async () => {
+        try {
+          // GM-011: this proxy runs in the privileged extension origin
+          // specifically to bypass Chrome's Private Network Access policy
+          // for loopback calls — restrict it to the user's actually
+          // configured backend origin (defaulting to the build-time one)
+          // rather than letting it fetch an arbitrary URL, as defense-in-
+          // depth against a future bug (or a compromised call site) passing
+          // page-influenced data into this handler.
+          let targetOrigin: string;
+          try {
+            targetOrigin = new URL(url).origin;
+          } catch {
+            sendResponse({ ok: false, status: 0, error: 'Invalid URL' });
+            return;
+          }
+
+          const stored = await new Promise<Record<string, any>>((resolve) => {
+            chrome.storage?.local?.get(['guideme_backend_url'], (res) => resolve(res || {}));
+          });
+          const configuredBackend = stored?.guideme_backend_url || (import.meta as any).env?.WXT_API_URL || '';
+          let allowedOrigin = '';
+          try {
+            allowedOrigin = configuredBackend ? new URL(configuredBackend).origin : '';
+          } catch { /* ignore malformed stored value */ }
+
+          if (!allowedOrigin || targetOrigin !== allowedOrigin) {
+            console.warn('[GuideMe Background] Rejected GUIDEME_PROXY_FETCH to untrusted origin:', targetOrigin);
+            sendResponse({ ok: false, status: 0, error: 'Proxy target not allowed' });
+            return;
+          }
+
+          const res = await fetch(url, {
+            method,
+            headers,
+            ...(body !== undefined ? { body } : {}),
+          });
+          const text = await res.text();
+          sendResponse({ ok: res.ok, status: res.status, body: text });
+        } catch (err: any) {
+          sendResponse({ ok: false, status: 0, error: err?.message || String(err) });
+        }
+      })();
+      return true; // async response
+    }
+
     return false;
   });
 
   // ── Handle external messages from Next.js web application ──
+  // Chrome already restricts *who can reach this listener at all* to the
+  // origins listed in manifest.externally_connectable.matches, but we also
+  // re-check sender.origin here as defense-in-depth (GM-005) in case that
+  // list is ever widened, and do basic shape validation on message payloads
+  // rather than trusting them blindly (GM-007) — this is not a full replay-
+  // proof handshake (that needs a nonce round-tripped through the web app's
+  // login flow, tracked separately), but it stops obviously malformed or
+  // wrong-origin messages from writing into extension storage.
+  const TRUSTED_EXTERNAL_ORIGINS = (chrome.runtime.getManifest()?.externally_connectable?.matches || [])
+    .map((pattern: string) => {
+      try {
+        return new URL(pattern.replace(/\/\*$/, '/')).origin;
+      } catch {
+        return null;
+      }
+    })
+    .filter((origin: string | null): origin is string => !!origin);
+
   chrome.runtime.onMessageExternal?.addListener((message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
     console.log('[GuideMe Background] Received external message:', message?.type, 'from:', sender?.url);
+
+    const senderOrigin = sender?.origin || (sender?.url ? (() => { try { return new URL(sender.url!).origin; } catch { return null; } })() : null);
+    if (!senderOrigin || !TRUSTED_EXTERNAL_ORIGINS.includes(senderOrigin)) {
+      console.warn('[GuideMe Background] Rejected external message from untrusted origin:', senderOrigin);
+      return false;
+    }
 
     if (message?.type === 'GUIDEME_PING') {
       sendResponse({ status: 'PONG', version: chrome.runtime.getManifest()?.version });
@@ -546,10 +485,15 @@ export default defineBackground(() => {
     if (message?.type === 'GUIDEME_AUTH_SUCCESS') {
       const { token, user } = message.payload || {};
 
+      if (typeof token !== 'string' || !token.trim() || typeof user !== 'object' || user === null) {
+        sendResponse({ status: 'ERROR', message: 'Invalid auth payload' });
+        return false;
+      }
+
       chrome.storage.local.set(
         {
-          authToken: token || null,
-          userProfile: user || null,
+          authToken: token,
+          userProfile: user,
         },
         () => {
           sendResponse({ status: 'SUCCESS' });

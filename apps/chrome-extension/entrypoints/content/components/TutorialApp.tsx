@@ -1,6 +1,7 @@
 import React, { useState, useEffect, type ReactNode } from 'react';
 import { TutorialOverlay } from '@guideme/tutorial-ui';
 import { useContentBridge } from '../hooks/useContentBridge.ts';
+import { useStuckDetector } from '../hooks/useStuckDetector.js';
 
 interface TutorialErrorBoundaryProps {
   children: ReactNode;
@@ -107,6 +108,24 @@ export function TutorialApp({ uiContainer }: TutorialAppProps): React.ReactEleme
 
   const lang = engineState?.language || 'km';
 
+  // ── 2. Proactive Stuck Detection ──────────────────────────────────────────
+  // Monitors page idle time and surfaces a nudge card when the user appears
+  // stuck — ONLY when no tutorial is already running.
+  useStuckDetector({
+    engineState,
+    uiContainer,
+    language: lang,
+    onNudgeAccepted: () => {
+      // Open the floating prompt widget so the user can describe what they need
+      setIsPromptOpen(true);
+      try {
+        chrome.storage?.local?.set({ guideme_is_chat_open: true });
+      } catch { }
+    },
+    idleThresholdMs: 45_000,   // 45 seconds of inactivity triggers the nudge
+    snoozeMs:        3 * 60 * 1000, // snooze 3 minutes after dismiss
+  });
+
   const OverlayComponent = TutorialOverlay as React.ComponentType<any>;
 
   return (
@@ -151,7 +170,13 @@ export function TutorialApp({ uiContainer }: TutorialAppProps): React.ReactEleme
           onReplayAudio={() => engineRef.current?.getAudioEngine()?.replay()}
           onToggleMute={() => engineRef.current?.toggleMute()}
           onVolumeChange={(vol: number) => engineRef.current?.setVolume(vol)}
-          onNext={() => engineRef.current?.nextStep(true)}
+          // No bypass here (GM-014) — the engine already no-ops nextStep()
+          // when validation isn't satisfied yet; StepCard disables/dims the
+          // button using canAdvanceNext (read from `state` above) so this is
+          // a real gate, not a silent do-nothing click. skipStep() remains
+          // the explicit, visibly-labeled bypass for a user who wants to
+          // move on anyway.
+          onNext={() => engineRef.current?.nextStep()}
           onPrev={() => engineRef.current?.prevStep()}
           onSkip={() => engineRef.current?.skipStep()}
           onClose={() => engineRef.current?.stop()}
