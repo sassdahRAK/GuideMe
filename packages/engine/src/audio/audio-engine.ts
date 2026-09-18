@@ -66,10 +66,22 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
   private _abortController: AbortController | null = null;
   private _currentBlobUrl: string | null = null;
   private _currentSpeechId: number = 0;
+  private _voiceName: string = '';
 
   constructor({ backendUrl = 'http://localhost:4000' }: PlaceholderTtsProviderOptions = {}) {
     super();
     this.backendUrl = backendUrl;
+  }
+
+  /**
+   * Set the preferred Web Speech voice by (partial, case-insensitive) name,
+   * e.g. 'Samantha', 'Daniel', 'Karen'. Only affects the browser
+   * speechSynthesis fallback (step 4 of speak()) — has no effect on the
+   * backend Edge-TTS path, which uses its own fixed neural voice. Silently
+   * has no effect if the named voice isn't installed on this OS/browser.
+   */
+  setVoiceName(name: string): void {
+    this._voiceName = (name || '').trim();
   }
 
   override setVolume(volume: number): void {
@@ -150,12 +162,16 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
         const base = this.backendUrl.replace(/\/+$/, '');
         const endpoints = [`${base}/api/tts/synthesize`];
 
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        const authToken = await this._getAuthToken();
+        if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
         let data: any = null;
         for (const endpoint of endpoints) {
           try {
             const res = await fetch(endpoint, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers,
               body: JSON.stringify({ text, language, speed }),
               signal: this._abortController.signal,
             });
@@ -213,6 +229,13 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
         utterance.rate = rate;
         utterance.lang = 'en-US';
         utterance.volume = this.isMuted ? 0 : this.volume;
+        if (this._voiceName) {
+          try {
+            const match = window.speechSynthesis.getVoices()
+              .find((v) => v.name.toLowerCase().includes(this._voiceName.toLowerCase()));
+            if (match) utterance.voice = match;
+          } catch {}
+        }
         utterance.onstart = () => {
           if (this._currentSpeechId === speechId && onStart) onStart();
         };
@@ -319,6 +342,16 @@ export class PlaceholderTtsProvider extends BaseTtsProvider {
       console.warn('[GuideMe Audio] HTML5 Audio initialization failed:', err);
       if (onStart) onStart();
       if (onEnd) onEnd();
+    }
+  }
+
+  private async _getAuthToken(): Promise<string | null> {
+    if (typeof chrome === 'undefined' || !chrome.storage?.local) return null;
+    try {
+      const res = await chrome.storage.local.get(['authToken']) as { authToken?: string };
+      return res?.authToken || null;
+    } catch {
+      return null;
     }
   }
 
