@@ -1,0 +1,261 @@
+{
+  "id": "spreadsheet-number-products-sequence",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "របៀបដាក់លេខរៀងអោយទំនិញនីមួយៗ",
+    "en": "How to Number Each Product Sequentially"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបប្រើប្រអប់ឈ្មោះ (Name Box) ដើម្បីលោតទៅក្រឡា ហើយអូសបំពេញលេខរៀងស្វ័យប្រវត្តិសម្រាប់ទំនិញនីមួយៗ។",
+    "en": "Learn how to use the Name Box to jump to a cell and drag-fill an automatic sequence number for each product."
+  },
+  "matchUrls": [
+    "*://*/*Spreadsheet_Demo*",
+    "*://*/*spreadsheet*",
+    "*://*/*excel*",
+    "*://*/*demo*"
+  ],
+  "steps": [
+    {
+      "id": "step_click_name_box",
+      "title": {
+        "km": "ចុចលើប្រអប់ឈ្មោះ (Name Box)",
+        "en": "Click the Name Box"
+      },
+      "description": {
+        "km": "ចុចលើប្រអប់ឈ្មោះ (Name Box) នៅជ្រុងខាងឆ្វេងខាងលើតារាងទិន្នន័យ។",
+        "en": "Click the Name Box in the upper-left corner of the spreadsheet."
+      },
+      "target": {
+        "css": "#t-name-box, #formula-bar-name-box-wrapper input, input[aria-label*='Name box' i]",
+        "ariaLabel": "Name box"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចលើប្រអប់ឈ្មោះ (Name Box)",
+          "en": "Click the Name Box"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "ចុចលើប្រអប់ឈ្មោះ (Name Box) នៅជ្រុងខាងឆ្វេងខាងលើតារាងទិន្នន័យ។",
+          "en": "Click the Name Box in the upper-left corner of the spreadsheet."
+        },
+        "actionText": {
+          "km": "ចុចទីនេះ",
+          "en": "CLICK HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើប្រអប់ឈ្មោះ (Name Box) នៅជ្រុងខាងឆ្វេងខាងលើតារាងទិន្នន័យ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Name Box in the upper-left corner of the spreadsheet.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_type_a2_coordinate",
+      "title": {
+        "km": "វាយបញ្ចូលកូអរដោនេក្រឡា A2",
+        "en": "Type Cell Coordinate A2"
+      },
+      "description": {
+        "km": "វាយអក្សរ A2 ក្នុងប្រអប់ឈ្មោះ រួចចុច Enter ដើម្បីលោតទៅក្រឡា A2។",
+        "en": "Type A2 into the Name Box and press Enter to jump to cell A2."
+      },
+      "target": {
+        "css": "#t-name-box, #formula-bar-name-box-wrapper input, input[aria-label*='Name box' i]",
+        "ariaLabel": "Name box"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "វាយបញ្ចូល A2",
+          "en": "Type A2"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "វាយអក្សរ A2 ក្នុងប្រអប់ឈ្មោះ រួចចុច Enter ដើម្បីលោតទៅក្រឡា A2។",
+          "en": "Type A2 into the Name Box and press Enter to jump to cell A2."
+        },
+        "actionText": {
+          "km": "វាយបញ្ចូល",
+          "en": "TYPE HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយអក្សរ A2 ក្នុងប្រអប់ឈ្មោះ រួចចុច Enter ដើម្បីលោតទៅក្រឡា A2។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type A2 into the Name Box and press Enter to jump to cell A2.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input",
+        "expectedValue": "a2"
+      }
+    },
+    {
+      "id": "step_type_number_1_a2",
+      "title": {
+        "km": "វាយលេខ 1 ក្នុងក្រឡា A2",
+        "en": "Type Number 1 in Cell A2"
+      },
+      "description": {
+        "km": "នៅពេលក្រឡា A2 ត្រូវបានជ្រើសរើសរួច សូមវាយលេខ 1 រួចចុច Enter។",
+        "en": "With cell A2 selected, type the number 1 and press Enter."
+      },
+      "target": {
+        "css": ".grid-container"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "វាយលេខ 1",
+          "en": "Type 1"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "នៅពេលក្រឡា A2 ត្រូវបានជ្រើសរើសរួច សូមវាយលេខ 1 រួចចុច Enter។ ចុច Next នៅពេលរួចរាល់។",
+          "en": "With cell A2 selected, type the number 1 and press Enter. Click Next once you're done."
+        },
+        "actionText": {
+          "km": "វាយបញ្ចូល",
+          "en": "TYPE HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "នៅពេលក្រឡា A2 ត្រូវបានជ្រើសរើសរួច សូមវាយលេខ 1 រួចចុច Enter។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "With cell A2 selected, type the number 1 and press Enter.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_type_number_2_a3",
+      "title": {
+        "km": "វាយលេខ 2 ក្នុងក្រឡា A3",
+        "en": "Type Number 2 in Cell A3"
+      },
+      "description": {
+        "km": "បន្ទាប់មកសូមចុចលើក្រឡា A3 រួចវាយលេខ 2 រួចចុច Enter។",
+        "en": "Next, click cell A3, type the number 2, and press Enter."
+      },
+      "target": {
+        "css": ".grid-container"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "វាយលេខ 2",
+          "en": "Type 2"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "បន្ទាប់មកសូមចុចលើក្រឡា A3 រួចវាយលេខ 2 រួចចុច Enter។ ចុច Next នៅពេលរួចរាល់។",
+          "en": "Next, click cell A3, type the number 2, and press Enter. Click Next once you're done."
+        },
+        "actionText": {
+          "km": "វាយបញ្ចូល",
+          "en": "TYPE HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "បន្ទាប់មកសូមចុចលើក្រឡា A3 រួចវាយលេខ 2 រួចចុច Enter។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Next, click cell A3, type the number 2, and press Enter.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_drag_fill_handle",
+      "title": {
+        "km": "អូសដើម្បីបំពេញលេខរៀងស្វ័យប្រវត្តិ",
+        "en": "Drag to Auto-Fill the Sequence"
+      },
+      "description": {
+        "km": "ជ្រើសរើសក្រឡា A2 និង A3 ទាំងពីរ រួចអូសកន្លែងចាប់តូចៗ (Fill Handle) នៅជ្រុងខាងក្រោមស្តាំចុះក្រោម ដើម្បីបំពេញលេខរៀងបន្តដោយស្វ័យប្រវត្តិ។",
+        "en": "Select both cells A2 and A3, then drag the small fill handle at the bottom-right corner downward to auto-fill the rest of the sequence."
+      },
+      "target": {
+        "css": ".grid-container"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "អូសកន្លែងចាប់ (Fill Handle)",
+          "en": "Drag the Fill Handle"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "ជ្រើសរើសក្រឡា A2 និង A3 ទាំងពីរ រួចអូសកន្លែងចាប់តូចៗ (Fill Handle) នៅជ្រុងខាងក្រោមស្តាំចុះក្រោម ដើម្បីបំពេញលេខរៀងបន្តដោយស្វ័យប្រវត្តិ។ ចុច Next នៅពេលរួចរាល់។",
+          "en": "Select both cells A2 and A3, then drag the small fill handle at the bottom-right corner downward to auto-fill the rest of the sequence. Click Next once you're done."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ជ្រើសរើសក្រឡា A2 និង A3 ទាំងពីរ រួចអូសកន្លែងចាប់តូចៗ ដើម្បីបំពេញលេខរៀងបន្តដោយស្វ័យប្រវត្តិ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Select both cells A2 and A3, then drag the fill handle downward to auto-fill the sequence.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

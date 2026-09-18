@@ -1,0 +1,258 @@
+{
+  "id": "spreadsheet-calculate-total-price",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "គណនាតម្លៃសរុបទំនិញនីមួយៗនៅ Total",
+    "en": "Calculate Each Product's Total Price"
+  },
+  "description": {
+    "km": "រៀនប្រើរូបមន្តគុណ ដើម្បីគណនាតម្លៃសរុបនៃទំនិញនីមួយៗ ហើយបង្ហាញលទ្ធផលនៅជួរឈរ Total។",
+    "en": "Learn how to use a multiplication formula to calculate each product's total price and display it in the Total column."
+  },
+  "matchUrls": [
+    "*://*/*Spreadsheet_Demo*",
+    "*://*/*spreadsheet*",
+    "*://*/*excel*",
+    "*://*/*demo*"
+  ],
+  "steps": [
+    {
+      "id": "step_click_name_box",
+      "title": {
+        "km": "ចុចលើប្រអប់ឈ្មោះ (Name Box)",
+        "en": "Click the Name Box"
+      },
+      "description": {
+        "km": "ចុចលើប្រអប់ឈ្មោះ (Name Box) នៅជ្រុងខាងឆ្វេងខាងលើតារាងទិន្នន័យ។",
+        "en": "Click the Name Box in the upper-left corner of the spreadsheet."
+      },
+      "target": {
+        "css": "#t-name-box, #formula-bar-name-box-wrapper input, input[aria-label*='Name box' i]",
+        "ariaLabel": "Name box"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចលើប្រអប់ឈ្មោះ (Name Box)",
+          "en": "Click the Name Box"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "ចុចលើប្រអប់ឈ្មោះ (Name Box) នៅជ្រុងខាងឆ្វេងខាងលើតារាងទិន្នន័យ។",
+          "en": "Click the Name Box in the upper-left corner of the spreadsheet."
+        },
+        "actionText": {
+          "km": "ចុចទីនេះ",
+          "en": "CLICK HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចលើប្រអប់ឈ្មោះ (Name Box) នៅជ្រុងខាងឆ្វេងខាងលើតារាងទិន្នន័យ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Name Box in the upper-left corner of the spreadsheet.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_type_e2_coordinate",
+      "title": {
+        "km": "វាយបញ្ចូលកូអរដោនេក្រឡា E2",
+        "en": "Type Cell Coordinate E2"
+      },
+      "description": {
+        "km": "វាយអក្សរ E2 ក្នុងប្រអប់ឈ្មោះ រួចចុច Enter ដើម្បីលោតទៅក្រឡាដំបូងនៃជួរឈរ Total។",
+        "en": "Type E2 into the Name Box and press Enter to jump to the first cell in the Total column."
+      },
+      "target": {
+        "css": "#t-name-box, #formula-bar-name-box-wrapper input, input[aria-label*='Name box' i]",
+        "ariaLabel": "Name box"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "វាយបញ្ចូល E2",
+          "en": "Type E2"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "វាយអក្សរ E2 ក្នុងប្រអប់ឈ្មោះ រួចចុច Enter ដើម្បីលោតទៅក្រឡាដំបូងនៃជួរឈរ Total។",
+          "en": "Type E2 into the Name Box and press Enter to jump to the first cell in the Total column."
+        },
+        "actionText": {
+          "km": "វាយបញ្ចូល",
+          "en": "TYPE HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយអក្សរ E2 ក្នុងប្រអប់ឈ្មោះ រួចចុច Enter ដើម្បីលោតទៅក្រឡាដំបូងនៃជួរឈរ Total។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type E2 into the Name Box and press Enter to jump to the first cell in the Total column.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input",
+        "expectedValue": "e2"
+      }
+    },
+    {
+      "id": "step_type_multiplication_formula",
+      "title": {
+        "km": "វាយបញ្ចូលរូបមន្តគុណ",
+        "en": "Type the Multiplication Formula"
+      },
+      "description": {
+        "km": "វាយបញ្ចូលរូបមន្ត =C2*D2 (បរិមាណ គុណនឹង ថ្លៃឯកតា) រួចចុច Enter ដើម្បីគណនាតម្លៃសរុប។",
+        "en": "Type the formula =C2*D2 (Quantity multiplied by Unit Price), then press Enter to calculate the total."
+      },
+      "target": {
+        "css": ".grid-container"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "វាយបញ្ចូល =C2*D2",
+          "en": "Type =C2*D2"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "វាយបញ្ចូលរូបមន្ត =C2*D2 (បរិមាណ គុណនឹង ថ្លៃឯកតា) រួចចុច Enter ដើម្បីគណនាតម្លៃសរុប។ ចុច Next នៅពេលរួចរាល់។",
+          "en": "Type the formula =C2*D2 (Quantity multiplied by Unit Price), then press Enter to calculate the total. Click Next once you're done."
+        },
+        "actionText": {
+          "km": "វាយបញ្ចូល",
+          "en": "TYPE HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយបញ្ចូលរូបមន្ត C2 គុណនឹង D2 រួចចុច Enter ដើម្បីគណនាតម្លៃសរុប។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type the formula C2 multiplied by D2, then press Enter to calculate the total.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_drag_fill_formula",
+      "title": {
+        "km": "អូសបំពេញរូបមន្តទៅជួរដទៃទៀត",
+        "en": "Drag to Fill the Formula Down"
+      },
+      "description": {
+        "km": "អូសកន្លែងចាប់តូចៗ (Fill Handle) នៅជ្រុងខាងក្រោមស្តាំរបស់ក្រឡា E2 ចុះក្រោម ដើម្បីចម្លងរូបមន្តទៅគណនាតម្លៃសរុបសម្រាប់ទំនិញផ្សេងទៀត។",
+        "en": "Drag the small fill handle at the bottom-right corner of cell E2 downward to copy the formula and calculate the total for every other product."
+      },
+      "target": {
+        "css": ".grid-container"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "អូសកន្លែងចាប់ (Fill Handle)",
+          "en": "Drag the Fill Handle"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "អូសកន្លែងចាប់តូចៗ (Fill Handle) នៅជ្រុងខាងក្រោមស្តាំរបស់ក្រឡា E2 ចុះក្រោម ដើម្បីចម្លងរូបមន្តទៅគណនាតម្លៃសរុបសម្រាប់ទំនិញផ្សេងទៀត។ ចុច Next នៅពេលរួចរាល់។",
+          "en": "Drag the small fill handle at the bottom-right corner of cell E2 downward to copy the formula for every other product. Click Next once you're done."
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "អូសកន្លែងចាប់តូចៗនៅជ្រុងខាងក្រោមស្តាំរបស់ក្រឡា E2 ចុះក្រោម ដើម្បីចម្លងរូបមន្តទៅគណនាតម្លៃសរុបសម្រាប់ទំនិញផ្សេងទៀត។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Drag the fill handle downward to copy the formula for every other product.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    },
+    {
+      "id": "step_done",
+      "title": {
+        "km": "រួចរាល់!",
+        "en": "All Set!"
+      },
+      "description": {
+        "km": "អ្នកបានគណនាតម្លៃសរុបនៃទំនិញនីមួយៗដោយជោគជ័យ",
+        "en": "You've successfully calculated the total price for each product."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "គណនាតម្លៃសរុបជោគជ័យ!",
+          "en": "Total Price Calculated!"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "អបអរសាទរ! ជួរឈរ Total ឥឡូវនេះបង្ហាញតម្លៃសរុបនៃទំនិញនីមួយៗដោយស្វ័យប្រវត្តិ។",
+          "en": "Congratulations! The Total column now automatically shows the total price for every product."
+        },
+        "subtitle": {
+          "km": "Completed tutorial",
+          "en": "Well done!"
+        },
+        "placement": "center"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "អបអរសាទរ! ជួរឈរ Total ឥឡូវនេះបង្ហាញតម្លៃសរុបនៃទំនិញនីមួយៗដោយស្វ័យប្រវត្តិ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Congratulations! The Total column now automatically shows the total price for every product.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

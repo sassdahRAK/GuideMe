@@ -1,0 +1,216 @@
+{
+  "id": "spreadsheet-share-file-email",
+  "version": "1.0.0",
+  "defaultLanguage": "km",
+  "supportedLanguages": ["km", "en"],
+  "name": {
+    "km": "ចែករំលែកឯកសារតាមអ៊ីមែលក្នុង Spreadsheet",
+    "en": "Share the Spreadsheet File by Email"
+  },
+  "description": {
+    "km": "រៀនពីរបៀបចែករំលែកសៀវភៅបញ្ជីតាមអ៊ីមែល ដោយបញ្ចូលអាសយដ្ឋានអ៊ីមែលអ្នកទទួល និងផ្ញើការអញ្ជើញ។",
+    "en": "Learn how to share your spreadsheet by entering a recipient's email address and sending an invite."
+  },
+  "matchUrls": [
+    "*://*/*Spreadsheet_Demo*",
+    "*://*/*spreadsheet*",
+    "*://*/*excel*",
+    "*://*/*demo*",
+    "*://*/*test-demo.html*"
+  ],
+  "steps": [
+    {
+      "id": "step_open_share",
+      "title": {
+        "km": "ចុចប៊ូតុងចែករំលែក (Share)",
+        "en": "Click the Share Button"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Share' នៅជ្រុងខាងស្តាំខាងលើដើម្បីបើកផ្ទាំងចែករំលែក។",
+        "en": "Click the 'Share' button in the top-right corner to open the sharing dialog."
+      },
+      "target": {
+        "css": "#docs-share-button, #demo-share-btn, button[aria-label='Share with others'], [aria-label*='Share' i]",
+        "text": "Share",
+        "ariaLabel": "Share with others"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុចប៊ូតុង Share",
+          "en": "Click Share"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Share' នៅជ្រុងខាងស្តាំខាងលើដើម្បីបើកផ្ទាំងចែករំលែក។",
+          "en": "Click the 'Share' button in the top-right corner to open the sharing dialog."
+        },
+        "actionText": {
+          "km": "ចុចទីនេះ",
+          "en": "CLICK HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Share នៅជ្រុងខាងស្តាំខាងលើដើម្បីបើកផ្ទាំងចែករំលែក។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Share button in the top-right corner to open the sharing dialog.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_enter_email",
+      "title": {
+        "km": "វាយបញ្ចូលអាសយដ្ឋានអ៊ីមែល",
+        "en": "Enter the Recipient's Email Address"
+      },
+      "description": {
+        "km": "វាយបញ្ចូលអាសយដ្ឋានអ៊ីមែលរបស់អ្នកទទួលក្នុងប្រអប់ 'Add people and groups'។",
+        "en": "Type the recipient's email address into the 'Add people and groups' field."
+      },
+      "target": {
+        "css": "#demo-email-input, input[type='email'], [aria-label*='Add people' i]",
+        "ariaLabel": "Add people and groups"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "វាយបញ្ចូលអ៊ីមែល",
+          "en": "Enter Email"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "វាយបញ្ចូលអាសយដ្ឋានអ៊ីមែលរបស់អ្នកទទួលក្នុងប្រអប់ 'Add people and groups'។",
+          "en": "Type the recipient's email address into the 'Add people and groups' field."
+        },
+        "actionText": {
+          "km": "វាយបញ្ចូល",
+          "en": "TYPE HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "វាយបញ្ចូលអាសយដ្ឋានអ៊ីមែលរបស់អ្នកទទួលក្នុងប្រអប់ Add people and groups។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Type the recipient's email address into the Add people and groups field.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "input"
+      }
+    },
+    {
+      "id": "step_click_send",
+      "title": {
+        "km": "ចុចផ្ញើការអញ្ជើញ (Send)",
+        "en": "Click Send"
+      },
+      "description": {
+        "km": "ចុចប៊ូតុង 'Send' ដើម្បីផ្ញើការអញ្ជើញតាមអ៊ីមែលទៅកាន់អ្នកទទួល។",
+        "en": "Click the 'Send' button to email the invitation to the recipient."
+      },
+      "target": {
+        "css": "#demo-save-share-btn, button[aria-label*='Send' i], [data-mdc-dialog-action='ok']",
+        "text": "Send"
+      },
+      "action": {
+        "type": "spotlight",
+        "title": {
+          "km": "ចុច Send",
+          "en": "Click Send"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "ចុចប៊ូតុង 'Send' ដើម្បីផ្ញើការអញ្ជើញតាមអ៊ីមែលទៅកាន់អ្នកទទួល។",
+          "en": "Click the 'Send' button to email the invitation to the recipient."
+        },
+        "actionText": {
+          "km": "ចុចទីនេះ",
+          "en": "CLICK HERE"
+        },
+        "placement": "bottom"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "ចុចប៊ូតុង Send ដើម្បីផ្ញើការអញ្ជើញតាមអ៊ីមែលទៅកាន់អ្នកទទួល។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Click the Send button to email the invitation to the recipient.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "click"
+      }
+    },
+    {
+      "id": "step_all_set",
+      "title": {
+        "km": "រួចរាល់ហើយ!",
+        "en": "All Set!"
+      },
+      "description": {
+        "km": "អ្នកបានចែករំលែកឯកសារតាមអ៊ីមែលដោយជោគជ័យ",
+        "en": "You've successfully shared the file by email."
+      },
+      "action": {
+        "type": "modal",
+        "title": {
+          "km": "ចែករំលែកជោគជ័យ!",
+          "en": "Sharing Complete!"
+        },
+        "coachTitle": {
+          "km": "GuideMe - AI Live Coach",
+          "en": "GuideMe - AI Live Coach"
+        },
+        "content": {
+          "km": "អបអរសាទរ! ការអញ្ជើញតាមអ៊ីមែលត្រូវបានផ្ញើទៅកាន់អ្នកទទួលរួចរាល់ហើយ។",
+          "en": "Congratulations! The email invitation has been sent to the recipient."
+        },
+        "subtitle": {
+          "km": "Completed tutorial",
+          "en": "Well done!"
+        },
+        "placement": "center"
+      },
+      "audio": {
+        "km": {
+          "ttsText": "អបអរសាទរ! ការអញ្ជើញតាមអ៊ីមែលត្រូវបានផ្ញើទៅកាន់អ្នកទទួលរួចរាល់ហើយ។",
+          "transcript": "កំពុងអានការណែនាំជាសំឡេង..."
+        },
+        "en": {
+          "ttsText": "Congratulations! The email invitation has been sent to the recipient.",
+          "transcript": "Playing English voice guidance..."
+        },
+        "autoPlay": true
+      },
+      "validation": {
+        "type": "manual_next"
+      }
+    }
+  ]
+}

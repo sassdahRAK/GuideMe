@@ -12,6 +12,7 @@ export * from './runtime/variable-store.ts';
 export * from './runtime/session-manager.ts';
 export * from './dynamic/dynamic-analyzer.ts';
 export { GeminiDomAnalyzer } from './dynamic/gemini-dom-analyzer.ts';
+export * from './dynamic/hardcoded-demo-prompts.js';
 export * from './i18n/i18n-manager.ts';
 export * from './audio/audio-engine.ts';
 export * from './audio/audio-cache.ts';
