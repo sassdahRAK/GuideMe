@@ -83,6 +83,11 @@ models/
 *.gguf
 
 # ==============================================================================
+# TYPESCRIPT BUILD ARTIFACTS
+# ==============================================================================
+*.tsbuildinfo
+
+# ==============================================================================
 # TESTING, COVERAGE & CI ARTIFACTS
 # ==============================================================================
 coverage/
@@ -119,3 +124,23 @@ $RECYCLE.BIN/
 *.sln
 *.swp
 *Note.md
+
+# ==============================================================================
+# USER SIMULATION TEST HARNESS
+# ==============================================================================
+# Generated browser profiles (contain cookies, cache, extension state)
+tests/user-simulation/.playwright-profile*/
+
+# Test run outputs (screenshots, raw results, evaluation reports)
+tests/user-simulation/results/
+
+# Leftover diagnostic files
+tests/user-simulation/diag-screenshot.png
+tests/user-simulation/diag.mjs
+
+# Test dependencies (installed separately inside the test dir)
+tests/user-simulation/node_modules/
+tests/user-simulation/package-lock.json
+
+# Test environment variables (contains fake credentials — still .env rule)
+tests/user-simulation/.env.test
