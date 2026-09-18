@@ -97,7 +97,9 @@ describe('TutorialOverlay Component & Scope Integrity Tests', () => {
     });
 
     try {
-      const { TutorialOverlay } = await import(tmpFile);
+      // Wrapped as a file:// URL (not a plain path) because dynamic import() of
+      // an absolute path fails on Windows, especially with backslash separators.
+      const { TutorialOverlay } = await import(new URL(`file:///${tmpFile.replace(/\\/g, '/')}`) as unknown as string);
       expect(TutorialOverlay, 'TutorialOverlay component must export cleanly').toBeTruthy();
 
       // 1. Active State — walkthrough in progress on the webpage

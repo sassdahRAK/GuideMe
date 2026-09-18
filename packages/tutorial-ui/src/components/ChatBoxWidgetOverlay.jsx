@@ -19,7 +19,8 @@ import {
 } from 'react-icons/fi';
 import { GuideMeLogo } from './GuideMeLogo.jsx';
 import { getUIString } from '../i18n/ui-strings.js';
-import { classifyPrompt } from '@guideme/engine';
+import { createDefaultTab, persistTabs, loadDraft, saveDraft } from '../lib/chat-tabs.js';
+import { classifyPrompt, isHardcodedDemoPrompt, DEMO_MODE_ONLY_HARDCODED, HARDCODED_DEMO_PROMPTS } from '@guideme/engine';
 
 /** Translate/globe icon — matches the popup header's language button. */
 function TranslateIcon({ className = 'w-4 h-4' }) {
@@ -269,6 +270,32 @@ export function ChatBoxWidgetOverlay({
   // ── Prompt & Form State ───────────────────────────────────────
   const [promptText, setPromptText] = useState('');
   const [attachedImage, setAttachedImage] = useState(null);
+
+  // ── Draft persistence — an in-progress message must survive the widget
+  // being closed (or, for the popup surface reusing this same component,
+  // the browser auto-closing it on blur) instead of silently disappearing.
+  // draftLoadedForRef guards the save-effect below from firing (and wiping
+  // out the real stored draft with '') before this tab's draft has actually
+  // been loaded into state.
+  const draftLoadedForRef = useRef(null);
+  useEffect(() => {
+    let cancelled = false;
+    draftLoadedForRef.current = null;
+    loadDraft(activeTabId).then((draft) => {
+      if (cancelled) return;
+      setPromptText(draft);
+      draftLoadedForRef.current = activeTabId;
+    });
+    return () => { cancelled = true; };
+  }, [activeTabId]);
+
+  useEffect(() => {
+    if (draftLoadedForRef.current !== activeTabId) return;
+    const timer = setTimeout(() => {
+      saveDraft(activeTabId, promptText);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [promptText, activeTabId]);
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingPercent, setProcessingPercent] = useState(67);
@@ -401,11 +428,22 @@ export function ChatBoxWidgetOverlay({
     const storageListener = (changes, areaName) => {
       if (areaName !== 'local' && areaName !== 'session') return;
 
-      if (changes.guideme_chat_tabs && changes.guideme_chat_tabs.newValue) {
+      if (changes.guideme_chat_tabs) {
         const incomingTabs = changes.guideme_chat_tabs.newValue;
         if (Array.isArray(incomingTabs) && incomingTabs.length > 0) {
           setChatTabs(incomingTabs);
           tabsRef.current = incomingTabs;
+        } else if (!incomingTabs) {
+          // Keys were removed entirely (fresh-browser-launch chat reset in
+          // background.ts) — reinitialize to one fresh default tab instead
+          // of leaving stale tabs in memory until the page reloads.
+          const lang = languageRef.current;
+          const defaultTab = createDefaultTab(lang);
+          setChatTabs([defaultTab]);
+          tabsRef.current = [defaultTab];
+          setActiveTabId(defaultTab.id);
+          activeTabIdRef.current = defaultTab.id;
+          persistTabs([defaultTab], defaultTab.id);
         }
       }
       if (changes.guideme_active_chat_tab_id && changes.guideme_active_chat_tab_id.newValue) {
@@ -745,6 +783,45 @@ export function ChatBoxWidgetOverlay({
 
     const effectiveText = text || (isKhmer ? 'សូមពិនិត្យមើលរូបភាពនេះ និងជួយខ្ញុំ' : 'Please check this image and help me');
 
+    // ── Hardcoded demo case — skip auth and every AI/backend call entirely ──
+    // A small fixed set of prompts must always show the same pre-built guide
+    // with zero network dependency, for a reliable offline demo.
+    if (isHardcodedDemoPrompt(effectiveText)) {
+      const hardcodedTabId = appendUserMessage(effectiveText, imageToSend);
+      setPromptText('');
+      setAttachedImage(null);
+      appendAiMessage(
+        isKhmer
+          ? 'យល់ហើយ! កំពុងចាប់ផ្តើមការណែនាំជាជំហានៗលើទំព័រនេះ...'
+          : 'Got it! Starting step-by-step guidance on this page...',
+        hardcodedTabId
+      );
+      if (onStartDynamicGuide) {
+        const started = await onStartDynamicGuide(effectiveText, imageToSend, null);
+        if (started) {
+          onToggleOpen?.(false);
+        } else {
+          appendAiMessage(getUIString('guideStartFailed', language), hardcodedTabId);
+        }
+      }
+      return;
+    }
+
+    // ── Demo mode: AI is currently disabled for everything else ──
+    if (DEMO_MODE_ONLY_HARDCODED) {
+      const demoTabId = appendUserMessage(effectiveText, imageToSend);
+      setPromptText('');
+      setAttachedImage(null);
+      const examples = HARDCODED_DEMO_PROMPTS.map((p) => `"${p}"`).join(', ');
+      appendAiMessage(
+        isKhmer
+          ? `AI Assistant មិនទាន់អាចប្រើប្រាស់បានទេនៅក្នុងការសាកល្បងនេះ។ សូមសាកល្បងជាមួយសំណួរណាមួយ៖ ${examples}`
+          : `The AI Assistant isn't available in this demo yet. Try one of these instead: ${examples}`,
+        demoTabId
+      );
+      return;
+    }
+
     // ── Auth gate — uses live-synced state token ─────────────────
     const earlyToken = authToken;
 
@@ -829,8 +906,12 @@ export function ChatBoxWidgetOverlay({
       appendAiMessage(startingMsg, targetTabId);
       setProcessingPercent(85);
       if (onStartDynamicGuide) {
-        onStartDynamicGuide(effectiveText, imageToSend, null);
-        onToggleOpen?.(false);
+        const started = await onStartDynamicGuide(effectiveText, imageToSend, null);
+        if (started) {
+          onToggleOpen?.(false);
+        } else {
+          appendAiMessage(getUIString('guideStartFailed', language), targetTabId);
+        }
       }
       setIsProcessing(false);
       setProcessingPercent(100);
@@ -838,8 +919,11 @@ export function ChatBoxWidgetOverlay({
     }
 
     // ── Stage 2b: not actionable → send to chat assistant ────────
+    // Skip this round trip entirely when Stage 1's regex quick-pass already
+    // produced a complete, ready-to-show reply (greeting/vague-filler) —
+    // validated.reason is shown directly via Stage 2c below instead.
     let aiResponded = false;
-    if (baseUrl && !imageToSend) {
+    if (baseUrl && !imageToSend && validated.source !== 'quick-pass') {
       // Non-actionable text prompt (greeting, question) → chat assistant
       try {
         setProcessingPercent(65);
@@ -886,8 +970,12 @@ export function ChatBoxWidgetOverlay({
             aiResponded = true;
             // Backend can still request a guide via triggerGuide flag
             if (data.triggerGuide && onStartDynamicGuide) {
-              onStartDynamicGuide(data.intentPrompt || effectiveText, null, data.intent || null);
-              onToggleOpen?.(false);
+              const started = await onStartDynamicGuide(data.intentPrompt || effectiveText, null, data.intent || null);
+              if (started) {
+                onToggleOpen?.(false);
+              } else {
+                appendAiMessage(getUIString('guideStartFailed', language), targetTabId);
+              }
             }
           }
         }
@@ -929,7 +1017,7 @@ export function ChatBoxWidgetOverlay({
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const w = widgetRef.current?.offsetWidth || cardWidth;
-    const h = widgetRef.current?.offsetHeight || 400;
+    const h = widgetRef.current?.offsetHeight || 300;
     const newLeft = Math.max(12, Math.min(initialLeft + dx, vw - w - 12));
     const newTop = Math.max(12, Math.min(initialTop + dy, vh - h - 12));
     setPosition({ top: newTop, left: newLeft });
@@ -989,7 +1077,7 @@ export function ChatBoxWidgetOverlay({
         top: `${position.top}px`,
         left: `${position.left}px`,
         width: `${cardWidth}px`,
-        height: '600px',
+        height: '300px',
         fontFamily: isKhmer
           ? "'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
           : "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -1178,12 +1266,12 @@ export function ChatBoxWidgetOverlay({
                 </div>
                 <span className="text-[10px] text-gray-500 dark:text-zinc-400 truncate">
                   {activeGuideState.stepTitle
-                    ? `${getUIString('step', language)} ${(activeGuideState.currentStepIndex || 0) + 1}: ${activeGuideState.stepTitle}`
+                    ? `${getUIString('stepOf', language)} ${(activeGuideState.currentStepIndex || 0) + 1}: ${activeGuideState.stepTitle}`
                     : `${getUIString('guiding', language)}...`}
                 </span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button type="button" onClick={onPrev} title={getUIString('prev', language)} className="w-6 h-6 rounded-md bg-white dark:bg-[#2b2746] text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-700/60 flex items-center justify-center cursor-pointer p-0">
+                <button type="button" onClick={onPrev} title={getUIString('back', language)} className="w-6 h-6 rounded-md bg-white dark:bg-[#2b2746] text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-700/60 flex items-center justify-center cursor-pointer p-0">
                   <FiChevronLeft className="w-3.5 h-3.5" />
                 </button>
                 <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-purple-200/70 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200">
@@ -1192,7 +1280,7 @@ export function ChatBoxWidgetOverlay({
                 <button type="button" onClick={onNext} title={getUIString('next', language)} className="w-6 h-6 rounded-md bg-white dark:bg-[#2b2746] text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-700/60 flex items-center justify-center cursor-pointer p-0">
                   <FiChevronRight className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" onClick={onReplayAudio} title={getUIString('replayAudio', language)} className="w-6 h-6 rounded-md bg-white dark:bg-[#2b2746] text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-700/60 flex items-center justify-center cursor-pointer p-0">
+                <button type="button" onClick={onReplayAudio} title={getUIString('replayVoiceTooltip', language)} className="w-6 h-6 rounded-md bg-white dark:bg-[#2b2746] text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-700/60 flex items-center justify-center cursor-pointer p-0">
                   <FiRotateCcw className="w-3 h-3" />
                 </button>
                 <button type="button" onClick={onToggleMute} title={activeGuideState.isMuted ? 'Unmute' : 'Mute'} className={`w-6 h-6 rounded-md flex items-center justify-center cursor-pointer p-0 border transition-colors ${activeGuideState.isMuted ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 border-rose-200 dark:border-rose-900' : 'bg-white dark:bg-[#2b2746] text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700/60'}`}>
@@ -1216,7 +1304,7 @@ export function ChatBoxWidgetOverlay({
                 return (
                   <div key={index} className="self-start items-start flex flex-col max-w-[88%]">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <div className="w-5 h-5 rounded-md bg-purple-600 flex items-center justify-center shrink-0">
+                      <div className="w-3.5 h-3.5 rounded-md overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
                         <GuideMeLogo size={14} />
                       </div>
                       <span className="text-[9.5px] font-bold text-purple-700 dark:text-purple-400">GuideMe AI</span>
@@ -1255,7 +1343,7 @@ export function ChatBoxWidgetOverlay({
                   {/* Avatar row */}
                   {!isUser && (
                     <div className="flex items-center gap-1.5 mb-1">
-                      <div className="w-5 h-5 rounded-md bg-purple-600 flex items-center justify-center shrink-0">
+                      <div className="w-3.5 h-3.5 rounded-md overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
                         <GuideMeLogo size={14} />
                       </div>
                       <span className="text-[9.5px] font-bold text-purple-700 dark:text-purple-400">GuideMe AI</span>
@@ -1275,11 +1363,23 @@ export function ChatBoxWidgetOverlay({
                           alt="Attached screenshot"
                           className="w-full max-h-[120px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
                           onClick={() => {
+                            // Built via safe DOM APIs instead of document.write +
+                            // string interpolation — msg.image is expected to be a
+                            // base64 data: URI, but writing it into a raw HTML
+                            // string is still an XSS pattern the moment that
+                            // assumption doesn't hold (e.g. tampered/replayed chat
+                            // history). `img.src` is a property assignment, not
+                            // HTML parsing, so it can't execute markup even if the
+                            // value isn't what's expected.
                             const win = window.open('', '_blank');
                             if (win) {
-                              win.document.write(
-                                `<title>GuideMe Screenshot</title><body style="margin:0;background:#0f172a;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${msg.image}" style="max-width:95vw;max-height:95vh;border-radius:8px;"/></body>`
-                              );
+                              win.document.title = 'GuideMe Screenshot';
+                              win.document.body.style.cssText =
+                                'margin:0;background:#0f172a;display:flex;align-items:center;justify-content:center;height:100vh;';
+                              const img = win.document.createElement('img');
+                              img.src = msg.image;
+                              img.style.cssText = 'max-width:95vw;max-height:95vh;border-radius:8px;';
+                              win.document.body.appendChild(img);
                             }
                           }}
                         />
@@ -1365,9 +1465,9 @@ export function ChatBoxWidgetOverlay({
                 </div>
               )}
 
-              <div className="flex items-end gap-2 p-1.5 rounded-2xl bg-gray-100/80 dark:bg-[#1f1d33] border border-purple-200/80 dark:border-[#383359] focus-within:border-purple-500 dark:focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-500/20 transition-all">
+              <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-gray-100/80 dark:bg-[#1f1d33] border border-purple-200/80 dark:border-[#383359] focus-within:border-purple-500 dark:focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-500/20 transition-all">
                 {isProcessing ? (
-                  <div className="mb-0.5 ml-1">
+                  <div className="ml-1">
                     <ProcessingSpinner percentage={processingPercent} />
                   </div>
                 ) : (

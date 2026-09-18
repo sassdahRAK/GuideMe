@@ -254,10 +254,10 @@ export function TutorialOverlay({
       <Tooltip
         targetBoundingBox={boundingBox}
         placement={actionPayload?.placement || 'bottom'}
-        title={actionPayload?.title || 'Step'}
+        title={actionPayload?.title || getUIString('stepOf', language)}
         content={actionPayload?.content || ''}
         subtitle={actionPayload?.subtitle || ''}
-        coachTitle={actionPayload?.coachTitle || 'GuideMe - AI Live Coach'}
+        coachTitle={actionPayload?.coachTitle || getUIString('coachTitleDefault', language)}
         audioStatusText={actionPayload?.audioStatusText}
         language={language || 'km'}
         stepBadgeText={stepBadgeText}

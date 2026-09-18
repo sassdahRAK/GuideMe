@@ -214,6 +214,14 @@ export const UI_STRINGS = {
     km: 'រួចរាល់',
     en: 'Finish',
   },
+  completeActionFirst: {
+    km: 'សូមធ្វើសកម្មភាពដែលបានចង្អុលបង្ហាញសិន មុននឹងបន្ត',
+    en: 'Complete the highlighted action before continuing',
+  },
+  guideStartFailed: {
+    km: 'សូមទោស! ខ្ញុំមិនអាចចាប់ផ្តើមការណែនាំបានទេឥឡូវនេះ។ សូមព្យាយាមម្តងទៀត។',
+    en: "Sorry, I couldn't start the guide just now. Please try again.",
+  },
   done: {
     km: 'រួចរាល់',
     en: 'Done',
@@ -251,6 +259,14 @@ export const UI_STRINGS = {
   cannotLocateTarget: {
     km: 'មិនអាចកំណត់ទីតាំងប៊ូតុងបានទេ សូមរមូរទំព័រ ឬចុចសាកល្បងម្ដងទៀត',
     en: 'Cannot locate target element. Please scroll into view or try again.',
+  },
+  restrictedPageTitle: {
+    km: 'GuideMe មិនអាចដំណើរការនៅលើទំព័រនេះបានទេ',
+    en: 'GuideMe is unavailable on this page',
+  },
+  restrictedPageBody: {
+    km: 'តាមគោលការណ៍សុវត្ថិភាពរបស់កម្មវិធីរុករក កម្មវិធីបន្ថែមមិនត្រូវបានអនុញ្ញាតឱ្យដំណើរការនៅលើទំព័រខាងក្នុងកម្មវិធីរុករក (ដូចជា Chrome Web Store ឬការកំណត់កម្មវិធីរុករក) ឬឯកសារ PDF/ឯកសារក្នុងម៉ាស៊ីនទេ។ សូមបើកគេហទំព័រធម្មតាមួយ រួចសាកល្បងម្ដងទៀត។',
+    en: 'For browser security reasons, extensions like GuideMe are not permitted to run on internal browser pages (such as the Chrome Web Store or browser settings) or on local PDF/file pages. Please open a regular website and try again.',
   },
   retryLocate: {
     km: 'សាកល្បងម្ដងទៀត',
@@ -415,6 +431,24 @@ export const UI_STRINGS = {
   chatGreetingShort: {
     km: 'សួស្តី! តើខ្ញុំអាចជួយអ្វីអ្នកនៅលើទំព័រនេះ?',
     en: 'Hello! How can I help you on this page?',
+  },
+
+  // ── Proactive Stuck-Detection Nudge ───────────────────────────────────────
+  stuckNudgeTitle: {
+    km: 'តើអ្នកត្រូវការជំនួយទេ?',
+    en: 'Need a hand?',
+  },
+  stuckNudgeBody: {
+    km: 'GuideMe អាចណែនាំអ្នកជាជំហានៗ។ ចុចដើម្បីចាប់ផ្តើម។',
+    en: 'GuideMe can walk you through this step by step. Click to get started.',
+  },
+  stuckNudgeCta: {
+    km: 'ណែនាំខ្ញុំ',
+    en: 'Guide me',
+  },
+  stuckNudgeDismiss: {
+    km: 'ទុកចោល',
+    en: 'Dismiss',
   },
 };
 

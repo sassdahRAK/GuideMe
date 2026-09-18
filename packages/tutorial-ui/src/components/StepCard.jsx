@@ -312,13 +312,25 @@ export function StepCard({
             </button>
           )}
 
-          {/* Next / Finish Circular Button (→) */}
+          {/* Next / Finish Circular Button (→) — disabled/dimmed until the
+              step's required action is actually performed (GM-014); use
+              Skip for the explicit "move on anyway" escape hatch instead. */}
           <button
             type="button"
-            onClick={onNext}
-            title={isLastStep ? getUIString('finish', lang) : getUIString('next', lang)}
+            onClick={canAdvanceNext ? onNext : undefined}
+            disabled={!canAdvanceNext}
+            title={
+              !canAdvanceNext
+                ? getUIString('completeActionFirst', lang)
+                : isLastStep ? getUIString('finish', lang) : getUIString('next', lang)
+            }
             aria-label={isLastStep ? getUIString('finish', lang) : getUIString('next', lang)}
-            className="w-8 h-8 rounded-full text-white flex items-center justify-center border border-purple-400/40 shadow-[0_2px_12px_rgba(139,92,246,0.5)] transition-all bg-[#8b5cf6] hover:bg-[#7c3aed] active:bg-[#6d28d9] cursor-pointer hover:scale-105 active:scale-95"
+            aria-disabled={!canAdvanceNext}
+            className={`w-8 h-8 rounded-full text-white flex items-center justify-center border border-purple-400/40 transition-all ${
+              canAdvanceNext
+                ? 'shadow-[0_2px_12px_rgba(139,92,246,0.5)] bg-[#8b5cf6] hover:bg-[#7c3aed] active:bg-[#6d28d9] cursor-pointer hover:scale-105 active:scale-95'
+                : 'bg-gray-300 dark:bg-white/10 border-transparent cursor-not-allowed opacity-60'
+            }`}
           >
             {isLastStep ? (
               <FiCheck className="w-4 h-4 stroke-[2.5]" />
