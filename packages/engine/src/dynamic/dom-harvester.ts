@@ -78,6 +78,12 @@ const INTERACTIVE_SELECTORS = [
   '.goog-flat-menu-button',
   '.goog-select',
   'summary',
+  // Spreadsheet/table grid containers (Google Sheets, similar canvas-rendered
+  // grids). Individual cells have no DOM presence to harvest, but the guide
+  // generator still needs *something* selectable for "select a range of
+  // cells" steps — without this, it has no valid target at all and falls
+  // back to reusing an unrelated selector like the formula bar.
+  '[role="grid"]',
 ];
 
 /**
@@ -141,7 +147,16 @@ export function harvestInteractiveElements(doc: any, options: HarvestOptions = {
   try {
     const allNodes = doc.querySelectorAll('*');
     for (let i = 0; i < allNodes.length; i++) {
-      const sr = allNodes[i].shadowRoot;
+      const host = allNodes[i];
+      // Never harvest GuideMe's own overlay UI as a tutorial target. It mounts
+      // as an open shadow root (guideme-tutorial-root) so it stays inspectable,
+      // which means this same traversal that finds real host-page shadow DOM
+      // (Google Docs, Web Components, etc.) would otherwise also hand the AI
+      // our own Next/Skip buttons and step-title text as "page" candidates —
+      // producing selectors like "h3.text-[15px]" that target our own card
+      // instead of anything on the actual page.
+      if ((host.tagName || '').toLowerCase() === 'guideme-tutorial-root') continue;
+      const sr = host.shadowRoot;
       if (sr && typeof sr.querySelectorAll === 'function') {
         for (const sel of INTERACTIVE_SELECTORS) {
           try {
@@ -220,7 +235,8 @@ export function harvestInteractiveElements(doc: any, options: HarvestOptions = {
       if (trigger && trigger !== el) {
         const label = trigger.getAttribute?.('aria-label') || trigger.getAttribute?.('title') || trigger.textContent || '';
         const cleanLabel = label.trim().replace(/\s+/g, ' ').substring(0, 40);
-        if (cleanLabel && !/docs-homescreen|docs\s*home|brand|logo/i.test(`${cleanLabel} ${trigger.className || ''} ${trigger.id || ''}`)) {
+        // Exclude generic brand logos or home navigation from being treated as parent menus
+        if (cleanLabel && !/docs-homescreen|\b(docs|sheets|slides|forms|drive)\s*home\b|brand|logo/i.test(`${cleanLabel} ${trigger.className || ''} ${trigger.id || ''}`)) {
           parentMenu = cleanLabel;
         }
       }

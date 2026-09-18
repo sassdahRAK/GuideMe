@@ -7,6 +7,10 @@ export interface DomEventData {
   targetChecked: boolean;
   key?: string;
   originalEvent: Event;
+  // 'direct' = clicked the actual resolved element; 'css'/'closest' = matched
+  // via selector — useful for tracing why a step validated (see matchType
+  // usage below).
+  matchType?: 'direct' | 'css' | 'closest';
 }
 
 /**
@@ -25,10 +29,34 @@ export class DomEventListener {
 
     let targetElement = DomObserver.findElement(selector);
 
+    // Pre-sanitize so .matches() / .closest() never throw on selectors like #:6j
+    const safeCss = selector?.css ? DomObserver.sanitizeCssSelector(selector.css) : '';
+
+    // How many elements on the page this selector actually matches. AI-picked
+    // selectors are frequently a shared utility/class name (e.g.
+    // ".docs-material-button") rather than a truly unique one — the bare-tag
+    // check below only rejects "button", not "button.docs-material-button"
+    // which can still match dozens of unrelated toolbar buttons. Re-checked
+    // lazily (not on every event) since the DOM can change between clicks.
+    let cachedMatchCount: number | null = null;
+    let cachedForCss: string | null = null;
+    const getMatchCount = (): number => {
+      if (!safeCss) return 0;
+      if (cachedForCss === safeCss && cachedMatchCount !== null) return cachedMatchCount;
+      try {
+        cachedMatchCount = document.querySelectorAll(safeCss).length;
+      } catch {
+        cachedMatchCount = 0;
+      }
+      cachedForCss = safeCss;
+      return cachedMatchCount;
+    };
+
     const handler = (event: any): void => {
       // Re-query if target element was not found or has been detached from document
       if (!targetElement || (typeof targetElement.isConnected === 'boolean' && !targetElement.isConnected)) {
         targetElement = DomObserver.findElement(selector);
+        cachedMatchCount = null; // DOM may have changed; recompute uniqueness lazily
       }
 
       const isDirectMatch = targetElement && (
@@ -40,22 +68,27 @@ export class DomEventListener {
       // uniquely identify the element. A bare generic tag like 'button' or 'a'
       // would match every such element on the page and cause any click anywhere
       // to validate the step.
-      const rawCss = (selector?.css || '').trim();
-      const isGenericCss = /^(button|div|a|input|span|select|textarea|p|li|ul|ol)$/i.test(rawCss);
-      const sanitizedCss = rawCss ? DomObserver.sanitizeCssSelector(rawCss) : '';
+      const isGenericCss = /^(button|div|a|input|span|select|textarea|p|li|ul|ol)$/i.test(
+        (selector?.css || '').trim()
+      );
+      // A selector matching many elements on the page (a shared class, not a
+      // unique id/attribute) can't be trusted to identify THIS step's target —
+      // clicking any of the other matches would otherwise silently validate
+      // the step without the user ever touching the intended element.
+      const isNonUniqueCss = Boolean(!isGenericCss && safeCss && getMatchCount() > 3);
 
       let isCssMatch = false;
       let isClosestMatch = false;
 
-      if (sanitizedCss && !isGenericCss && event.target) {
+      if (safeCss && !isGenericCss && !isNonUniqueCss && event.target) {
         try {
-          isCssMatch = Boolean(event.target.matches?.(sanitizedCss));
+          isCssMatch = Boolean(event.target.matches?.(safeCss));
         } catch {
           // ignore invalid selector matches error
         }
         try {
           isClosestMatch = Boolean(
-            targetElement && event.target.closest?.(sanitizedCss) === targetElement
+            targetElement && event.target.closest?.(safeCss) === targetElement
           );
         } catch {
           // ignore invalid selector closest error
@@ -69,6 +102,7 @@ export class DomEventListener {
           targetChecked: event.target?.checked ?? targetElement?.checked ?? false,
           key: event.key,
           originalEvent: event,
+          matchType: isDirectMatch ? 'direct' : isCssMatch ? 'css' : 'closest',
         };
         callback(payload);
       }

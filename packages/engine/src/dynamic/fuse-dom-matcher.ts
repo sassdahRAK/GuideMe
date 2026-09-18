@@ -54,15 +54,57 @@ export function deriveConcreteSelector(matchedItem: Partial<HarvestedElementCand
     return exactSel;
   }
 
-  // Priority 5: Safe class-based selector if unique
+  // Priority 5: Safe class-based selector, but ONLY when it actually resolves
+  // to a single element. On utility-class-framework pages (Tailwind,
+  // Bootstrap) the first class token is frequently shared by dozens of
+  // elements, so an unverified `.classes[0]` selector can silently point at
+  // the wrong one once re-queried later (GM-023).
   if (element && element.className && typeof element.className === 'string') {
     const classes = element.className.trim().split(/\s+/).filter((c: string) => c && !c.includes(':') && !c.includes('/'));
     if (classes.length > 0) {
-      return `${tag || ''}.${classes[0]}`.trim();
+      const candidate = `${tag || ''}.${classes[0]}`.trim();
+      if (isSelectorUniqueForElement(candidate, element)) {
+        return candidate;
+      }
+      // Not unique — scope it to the element's position among same-tag
+      // siblings under its parent instead of returning an ambiguous selector.
+      const scoped = buildNthOfTypeSelector(element, tag);
+      if (scoped) return scoped;
+      return candidate;
     }
   }
 
   return tag || 'button';
+}
+
+/** True if `selector` resolves to exactly one element and that element is `el`. */
+function isSelectorUniqueForElement(selector: string, el: any): boolean {
+  if (typeof document === 'undefined' || !selector) return false;
+  try {
+    const matches = document.querySelectorAll(selector);
+    return matches.length === 1 && matches[0] === el;
+  } catch {
+    return false;
+  }
+}
+
+/** Builds a `parentSelector > tag:nth-of-type(n)` selector scoped to el's own parent. */
+function buildNthOfTypeSelector(el: any, tag?: string): string | null {
+  if (typeof document === 'undefined' || !el?.parentElement) return null;
+  try {
+    const parent = el.parentElement;
+    const tagName = (tag || el.tagName || '').toLowerCase();
+    const siblings = Array.from(parent.children).filter(
+      (c: any) => c.tagName?.toLowerCase() === tagName
+    );
+    const index = siblings.indexOf(el);
+    if (index === -1) return null;
+    const parentSelector = parent.id ? safeIdSelector(parent.id) : parent.tagName?.toLowerCase();
+    if (!parentSelector) return null;
+    return `${parentSelector} > ${tagName}:nth-of-type(${index + 1})`;
+  } catch {
+    return null;
+  }
 }
 
 export interface MatchDomIntent {
@@ -213,9 +255,12 @@ export function matchDomElementWithFuse(
   const best = scored[0];
   if (!best) return null;
 
-  // Never match brand/home logo navigation icons when looking for in-app commands
-  const isNavLogo = /docs-homescreen|docs\s*home|brand|logo/i.test(
-    `${best.candidate.ariaLabel || ''} ${(best.candidate as any).selector || ''} ${best.candidate.text || ''}`
+  // Never match brand/home logo navigation icons when looking for in-app commands.
+  // Checks `.id` (not `.selector` — raw harvested candidates never have that field,
+  // it's only derived later via deriveConcreteSelector()), which is where product
+  // branding links like "docs-branding-logo-link" actually carry the "brand" marker.
+  const isNavLogo = /docs-homescreen|\b(docs|sheets|slides|forms|drive)\s*home\b|brand|logo/i.test(
+    `${best.candidate.ariaLabel || ''} ${(best.candidate as any).id || ''} ${best.candidate.text || ''}`
   );
   if (isNavLogo && !/home|logo|ទំព័រដើម/i.test(cleanTarget)) {
     return null;
@@ -262,7 +307,7 @@ export function synthesizeGroundedTutorial(
 
   const hasValidParentMenu = Boolean(
     matched.parentMenu &&
-    !/docs-homescreen|docs\s*home|brand|logo/i.test(matched.parentMenu)
+    !/docs-homescreen|\b(docs|sheets|slides|forms|drive)\s*home\b|brand|logo/i.test(matched.parentMenu)
   );
 
   return {

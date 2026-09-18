@@ -103,6 +103,25 @@ describe('Fuse.js DOM Scanner & Grounded Matcher Tests', () => {
     expect(match.id).toBe('modal-close');
   });
 
+  test('matchDomElementWithFuse never returns a product branding/home logo link as a fuzzy match', () => {
+    // Regression: Google Sheets' branding link uses id="docs-branding-logo-link"
+    // and aria-label="Sheets home" (Docs/Slides/Forms use the same component
+    // with their own product name). The exclusion regex used to only check
+    // "docs home" and a non-existent `.selector` field, so it silently let
+    // this element through as the answer for unrelated fuzzy queries.
+    const brandingLogo = createMockElement('a', { id: 'docs-branding-logo-link', ariaLabel: 'Sheets home' });
+    const doc = createMockDoc([brandingLogo]);
+    const candidates = harvestInteractiveElements(doc);
+
+    const unrelatedMatch = matchDomElementWithFuse(candidates, { targetQuery: 'insert chart', action: 'click' });
+    assert.strictEqual(unrelatedMatch, null);
+
+    // An explicit request to go home should still be able to match it.
+    const homeMatch = matchDomElementWithFuse(candidates, { targetQuery: 'Sheets home', action: 'click' });
+    assert.ok(homeMatch);
+    assert.strictEqual(homeMatch.id, 'docs-branding-logo-link');
+  });
+
   test('deriveConcreteSelector generates safe selector escaping special characters', () => {
     expect(safeIdSelector(':6j')).toBe('[id=":6j"]');
     expect(safeIdSelector('normal-id')).toBe('#normal-id');

@@ -463,3 +463,39 @@ test('DomObserver prioritizes leaf interactive control (e.g. Paper size dropdown
     restoreDocument();
   }
 });
+
+test('DomObserver prefers a real interactive control over a heading/label sharing identical text (regression: guide step targeted a section heading instead of the button beneath it)', () => {
+  const heading = {
+    tagName: 'H2',
+    className: 'section-title',
+    textContent: 'Change Password',
+    offsetParent: {},
+    getClientRects: () => [{ width: 300, height: 24 }],
+    getAttribute: () => null,
+  };
+
+  const button = {
+    tagName: 'BUTTON',
+    id: 'btn-change-password',
+    textContent: 'Change Password',
+    offsetParent: {},
+    getClientRects: () => [{ width: 120, height: 36 }],
+    getAttribute: () => null,
+  };
+
+  stubDocument({
+    querySelectorAll(sel: string) {
+      if (sel === 'h2.section-title') return [heading];
+      if (sel === '*') return [];
+      if (sel.includes('button')) return [button];
+      return [];
+    },
+  });
+
+  try {
+    const found = DomObserver.findElement({ css: 'h2.section-title', text: 'Change Password' });
+    expect(found, 'Should prefer the real button over the heading with identical text').toBe(button);
+  } finally {
+    restoreDocument();
+  }
+});

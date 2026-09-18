@@ -460,7 +460,7 @@ export class DynamicPageAnalyzer {
         if (!this._isInteractable(el, { isHoverRevealed })) return;
 
         // Exclude site brand logos and home navigation buttons when user is requesting an in-app action
-        const isNavLogo = /docs-homescreen|docs\s*home|brand|logo|app-launcher/i.test(
+        const isNavLogo = /docs-homescreen|\b(docs|sheets|slides|forms|drive)\s*home\b|brand|logo|app-launcher/i.test(
           `${el.className || ''} ${el.getAttribute?.('aria-label') || ''} ${el.id || ''}`
         );
         if (isNavLogo && !/home|logo|ទំព័រដើម/i.test(promptText)) {
@@ -1027,6 +1027,8 @@ export class DynamicPageAnalyzer {
           const allChildren = node.querySelectorAll('*');
           for (let i = 0; i < allChildren.length; i++) {
             const child = allChildren[i];
+            // Never descend into GuideMe's own overlay UI shadow root.
+            if (child && (child.tagName || '').toLowerCase() === 'guideme-tutorial-root') continue;
             if (child && child.shadowRoot) {
               traverse(child.shadowRoot);
             }

@@ -174,6 +174,11 @@ export class DomObserver {
           const allChildren = node.querySelectorAll('*');
           for (let i = 0; i < allChildren.length; i++) {
             const child = allChildren[i];
+            // Never descend into GuideMe's own overlay UI shadow root — it
+            // mounts as an open shadow root (guideme-tutorial-root) so it stays
+            // inspectable, but its own Next/Skip buttons and step text must
+            // never be resolvable as a tutorial target on the host page.
+            if (child && (child.tagName || '').toLowerCase() === 'guideme-tutorial-root') continue;
             if (child && child.shadowRoot) {
               traverse(child.shadowRoot);
             }
@@ -208,6 +213,7 @@ export class DomObserver {
         const allChildren = root.querySelectorAll('*');
         for (let i = 0; i < allChildren.length; i++) {
           const child = allChildren[i];
+          if (child && (child.tagName || '').toLowerCase() === 'guideme-tutorial-root') continue;
           if (child && child.shadowRoot) {
             const shadowMatch = this.querySelectorDeep(child.shadowRoot, selector);
             if (shadowMatch) return shadowMatch;
@@ -249,6 +255,7 @@ export class DomObserver {
     try {
       const allNodes = doc.querySelectorAll ? doc.querySelectorAll('*') : [];
       for (let i = 0; i < allNodes.length; i++) {
+        if ((allNodes[i].tagName || '').toLowerCase() === 'guideme-tutorial-root') continue;
         const sr = allNodes[i].shadowRoot;
         if (!sr) continue;
 
@@ -378,15 +385,47 @@ export class DomObserver {
   }
 
   /**
+   * Whether an element is actually visible on screen — NOT the same as being
+   * laid out. `getClientRects().length > 0` (and `offsetParent !== null`) are
+   * both true for a `position: absolute`/`fixed` element moved far off-canvas
+   * (e.g. `top: -9998px`) or collapsed to 0 width — a common pattern for
+   * helper/proxy elements apps keep focusable for IME or accessibility
+   * purposes without ever showing them. Google Sheets' `#waffle-rich-text-editor`
+   * is exactly this: it shares its class and role with the real, visible
+   * formula bar, so without this check it gets treated as a legitimate target.
+   * @param {HTMLElement} element
+   * @returns {boolean}
+   */
+  static isVisible(element) {
+    if (!element) return false;
+    try {
+      if (typeof element.getBoundingClientRect === 'function') {
+        const rect = element.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return false;
+        const viewportW = typeof window !== 'undefined' ? window.innerWidth : Infinity;
+        const viewportH = typeof window !== 'undefined' ? window.innerHeight : Infinity;
+        if (rect.right <= 0 || rect.bottom <= 0 || rect.left >= viewportW || rect.top >= viewportH) {
+          return false;
+        }
+        return true;
+      }
+    } catch {}
+    return Boolean(
+      element.offsetParent !== null ||
+      element.getClientRects?.().length > 0
+    );
+  }
+
+  /**
    * Find an element immediately using fallback strategies.
    */
   static findElement(selector: StepTarget | null | undefined): any | null {
     if (!selector || typeof document === 'undefined') return null;
 
-    const isVisible = (element: any): boolean => Boolean(
-      element && (
-        element.offsetParent !== null ||
-        (element.getClientRects && element.getClientRects().length > 0)
+    const isVisible = (element: any): boolean => this.isVisible(element);
+    const isDialogContainer = (element: any): boolean => Boolean(
+      element && element.closest?.(
+        '[role="dialog"], [role="alertdialog"], dialog, [aria-modal="true"]'
       )
     );
     const targetText = selector.text ? this.normalizeText(selector.text) : '';
@@ -410,7 +449,7 @@ export class DomObserver {
           if (selector.css && typeof selector.css === 'string') {
             const cleanSubCss = selector.css.replace(selector.container, '').trim();
             const innerMatch = this.querySelectorDeep(containerEl, cleanSubCss || selector.css);
-            if (innerMatch && (innerMatch.offsetParent !== null || innerMatch.getClientRects().length > 0)) {
+            if (innerMatch && this.isVisible(innerMatch)) {
               if (!targetText || this.normalizeText(innerMatch.textContent) === targetText || this.normalizeText(innerMatch.value) === targetText) {
                 return innerMatch;
               }
@@ -420,7 +459,7 @@ export class DomObserver {
             const containerButtons = this.querySelectorAllDeep(containerEl, 'button, [role="button"], input[type="submit"], a, input');
             for (const btn of containerButtons) {
               if (this.normalizeText(btn.textContent) === targetText || this.normalizeText(btn.value) === targetText) {
-                if (btn.offsetParent !== null || btn.getClientRects().length > 0) {
+                if (this.isVisible(btn)) {
                   return btn;
                 }
               }
@@ -432,38 +471,98 @@ export class DomObserver {
       }
     }
 
-    // 1. Direct CSS Selector Strategy (Traverses Open Shadow Roots with Auto-Sanitization)
+    const HEADING_OR_LABEL_TAG = /^(h1|h2|h3|h4|h5|h6|label)$/i;
+    const INTERACTIVE_DISAMBIGUATION_SELECTOR = 'button, a, input, select, textarea, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="option"], summary';
+
+    // 1. Direct CSS Selector Strategy (Traverses Open Shadow Roots)
     if (selector.css) {
-      const sanitized = this.sanitizeCssSelector(selector.css);
-      try {
-        const matches = this.querySelectorAllDeep(document, sanitized);
-        if (matches.length > 0) {
-          if (!targetText && !targetAria) {
-            const firstVisible = matches.find((el) => !isDialogContainer(el) && (el.offsetParent !== null || (el.getClientRects && el.getClientRects().length > 0)));
-            if (firstVisible) return firstVisible;
-          }
+      // Sanitize any CSS selector that would throw on querySelectorAll / matches
+      // (e.g. bare ID selectors with colons: #:6j → [id=":6j"]).
+      const safeCss = this.sanitizeCssSelector(selector.css);
 
-          // Prioritize non-dialog matches matching text or aria
-          for (const el of matches) {
-            if (isDialogContainer(el) && targetText) continue;
-            const elText = this.normalizeText(el.textContent);
-            const elAria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || el.getAttribute?.('data-tooltip') || '').trim().toLowerCase();
-            const elVal = this.normalizeText(el.value || el.getAttribute?.('value') || '');
+      // For composite selectors (A, B, C), also try each part independently.
+      // This ensures that if a broad composite hits a container element first,
+      // we can also search the narrower leaf-control parts in isolation.
+      const cssParts = safeCss.includes(',')
+        ? safeCss.split(',').map((p) => p.trim()).filter(Boolean)
+        : [safeCss];
 
+      const isContainerRole = (el) => {
+        const role = el.getAttribute?.('role') || '';
+        return /^(dialog|alertdialog|region|main|complementary|banner|navigation|form)$/.test(role) ||
+          el.tagName === 'DIALOG' ||
+          el.getAttribute?.('aria-modal') === 'true';
+      };
+
+      // Helper: score + collect visible candidates from a set of matches
+      const collectCandidates = (matches) => {
+        const scored = [];
+        for (const el of matches) {
+          if (!isVisible(el)) continue;
+          const elText = this.normalizeText(el.textContent);
+          const elAria = (el.getAttribute?.('aria-label') || el.getAttribute?.('title') || el.getAttribute?.('data-tooltip') || '').trim().toLowerCase();
+          const elVal = this.normalizeText(el.value || el.getAttribute?.('value') || '');
+
+          if (targetText || targetAria) {
             const exactText = targetText && (elText === targetText || elVal === targetText);
             const exactAria = targetAria && (elAria === targetAria || elAria.includes(targetAria));
             const partialText = allowPartialText && targetText && (elText.includes(targetText) || elVal.includes(targetText));
             const partialAria = targetAria && elAria.includes(targetAria);
-
-            if ((exactText || exactAria || partialText || partialAria) && isVisible(el)) {
-              return el;
+            if (exactText || exactAria || partialText || partialAria) {
+              // Penalize container/dialog wrappers so leaf controls win
+              scored.push({ el, score: isContainerRole(el) ? 0 : 1 });
             }
+          } else {
+            // No text/aria constraint — keep for first-visible return
+            scored.push({ el, score: isContainerRole(el) ? 0 : 1 });
+          }
+        }
+        return scored;
+      };
+
+      try {
+        let allScored = [];
+
+        if (cssParts.length > 1) {
+          // Query each part of the composite selector independently so results
+          // from specific leaf-control parts can be ranked above container parts.
+          for (const part of cssParts) {
+            try {
+              const partMatches = this.querySelectorAllDeep(document, part);
+              allScored.push(...collectCandidates(partMatches));
+            } catch {}
+          }
+        } else {
+          const matches = this.querySelectorAllDeep(document, safeCss);
+          allScored = collectCandidates(matches);
+        }
+
+        if (allScored.length > 0) {
+          allScored.sort((a, b) => b.score - a.score);
+          let winner = allScored[0].el;
+
+          // Heading/label vs. interactive-control disambiguation: a step's
+          // `css` selector can resolve to a heading or label that happens to
+          // share the exact same visible text as the real actionable control
+          // (e.g. a section title "ប្ដូរ Password" sitting above a button
+          // labeled "ប្ដូរ Password"). Headings/labels are never themselves
+          // a click/input target, so when text is present, prefer a real
+          // interactive element with matching text if one exists elsewhere
+          // on the page.
+          if (targetText && HEADING_OR_LABEL_TAG.test(winner.tagName || '')) {
+            try {
+              const interactiveCandidates = this.querySelectorAllDeep(document, INTERACTIVE_DISAMBIGUATION_SELECTOR);
+              const betterMatch = interactiveCandidates.find((el) => {
+                if (!isVisible(el)) return false;
+                const elText = this.normalizeText(el.textContent);
+                const elVal = this.normalizeText(el.value || el.getAttribute?.('value') || '');
+                return elText === targetText || elVal === targetText;
+              });
+              if (betterMatch) winner = betterMatch;
+            } catch {}
           }
 
-          if (!isGenericCss && !targetText && !targetAria) {
-            const visibleMatch = matches.find((el) => el.offsetParent !== null || (el.getClientRects && el.getClientRects().length > 0));
-            if (visibleMatch) return visibleMatch;
-          }
+          return winner;
         }
       } catch {
         // Continue to fallbacks
@@ -497,7 +596,7 @@ export class DomObserver {
       for (const el of ariaCandidates) {
         const aria = (el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('data-tooltip') || '').toLowerCase();
         if (aria.includes(targetAria || ariaQuery.toLowerCase())) {
-          if (el.offsetParent !== null || (el.getClientRects && el.getClientRects().length > 0)) {
+          if (this.isVisible(el)) {
             return el;
           }
         }
@@ -527,7 +626,7 @@ export class DomObserver {
             );
 
         if (isMatch) {
-          if (el.offsetParent !== null || (el.getClientRects && el.getClientRects().length > 0)) {
+          if (this.isVisible(el)) {
             return el;
           }
         }
@@ -539,7 +638,7 @@ export class DomObserver {
         if (text === searchTxt) {
           const parentBtn = node.closest ? node.closest('button, [role="button"], [role="menuitem"], [role="tab"], a') : null;
           const targetEl = parentBtn || node;
-          if (targetEl.offsetParent !== null || (targetEl.getClientRects && targetEl.getClientRects().length > 0)) {
+          if (this.isVisible(targetEl)) {
             return targetEl;
           }
         }
@@ -571,7 +670,7 @@ export class DomObserver {
                 const txt = this.normalizeText(subEl.textContent);
                 const val = this.normalizeText(subEl.value || '');
                 if (txt.includes(normSubText) || val.includes(normSubText)) {
-                  if (subEl.offsetParent !== null || (subEl.getClientRects && subEl.getClientRects().length > 0)) {
+                  if (this.isVisible(subEl)) {
                     return subEl;
                   }
                 }
@@ -579,7 +678,7 @@ export class DomObserver {
             }
           } else {
             const altMatches = this.querySelectorAllDeep(document, this.sanitizeCssSelector(alt));
-            const visibleAlt = altMatches.find((el) => el.offsetParent !== null || (el.getClientRects && el.getClientRects().length > 0));
+            const visibleAlt = altMatches.find((el) => this.isVisible(el));
             if (visibleAlt) return visibleAlt;
           }
         } catch {
@@ -591,7 +690,7 @@ export class DomObserver {
     if (selector.fallbackCss && typeof selector.fallbackCss === 'string' && selector.fallbackCss !== selector.css) {
       try {
         const fallbackMatches = this.querySelectorAllDeep(document, this.sanitizeCssSelector(selector.fallbackCss));
-        const visibleFallback = fallbackMatches.find((el) => el.offsetParent !== null || (el.getClientRects && el.getClientRects().length > 0));
+        const visibleFallback = fallbackMatches.find((el) => this.isVisible(el));
         if (visibleFallback) return visibleFallback;
       } catch {
         // ignore fallback error

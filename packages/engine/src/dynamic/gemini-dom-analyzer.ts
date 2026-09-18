@@ -50,12 +50,30 @@ export class GeminiDomAnalyzer {
       }
     } catch {}
 
-    if (typeof el.getClientRects === 'function') {
-      return el.getClientRects().length > 0;
-    }
     if (typeof el.getBoundingClientRect === 'function') {
       const rect = el.getBoundingClientRect();
-      return rect.width > 0 || rect.height > 0;
+      // Both dimensions must be non-zero. getClientRects().length > 0 alone is
+      // NOT a reliable visibility check — an element can report a non-empty
+      // client rect while being 0px wide (or tall), which is exactly how some
+      // apps keep a helper/proxy element focusable without it being visually
+      // present (e.g. Google Sheets' #waffle-rich-text-editor, an off-screen
+      // IME/clipboard-handling div that shares its class and role with the
+      // real, visible formula bar).
+      if (rect.width <= 0 || rect.height <= 0) return false;
+      // Reject elements positioned entirely outside the viewport. The same
+      // kind of hidden helper element is often moved far off-canvas (e.g.
+      // top: -9998px) rather than display:none'd, so it stays technically
+      // laid out — and would otherwise pass every check above.
+      const viewportW = typeof window !== 'undefined' ? window.innerWidth : Infinity;
+      const viewportH = typeof window !== 'undefined' ? window.innerHeight : Infinity;
+      if (rect.right <= 0 || rect.bottom <= 0 || rect.left >= viewportW || rect.top >= viewportH) {
+        return false;
+      }
+      return true;
+    }
+
+    if (typeof el.getClientRects === 'function') {
+      return el.getClientRects().length > 0;
     }
 
     // Lightweight test doubles and non-layout documents have no geometry API.
@@ -81,7 +99,21 @@ export class GeminiDomAnalyzer {
       '[role="link"]',
       '[role="menuitem"]',
       '[role="tab"]',
+      '[role="textbox"]',
+      '[role="combobox"]',
+      '[role="option"]',
+      '[role="checkbox"]',
+      '[role="radio"]',
+      // Rich-text / formula-style inputs are frequently a contenteditable div,
+      // not a real <input> or <textarea> — Google Sheets' formula bar, Gmail
+      // compose, Notion, Google Docs body, and Slack's message box all use
+      // this pattern. Without it, the AI has no valid candidate for "type X"
+      // steps on these editable regions and falls back to an unrelated
+      // element that superficially seems relevant.
+      '[contenteditable="true"]',
       '[data-testid]',
+      '[aria-label]',
+      '[title]',
       'h1',
       'h2',
       'h3',
@@ -154,7 +186,17 @@ export class GeminiDomAnalyzer {
       };
       const allNodes = doc.querySelectorAll ? doc.querySelectorAll('*') : [];
       for (let i = 0; i < allNodes.length; i++) {
-        const sr = allNodes[i].shadowRoot;
+        const host = allNodes[i];
+        // Never harvest GuideMe's own overlay UI as a tutorial target. It mounts
+        // as an open shadow root (guideme-tutorial-root) so it stays inspectable
+        // in devtools, which means this same open-shadow-root traversal that
+        // finds real host-page Web Components (Google Docs, Canvas LMS, etc.)
+        // would otherwise also hand the AI our own Next/Skip buttons and
+        // step-title text as "page" candidates — producing selectors like
+        // "h3.text-[15px]" that target our own step card instead of anything
+        // on the actual page.
+        if ((host.tagName || '').toLowerCase() === 'guideme-tutorial-root') continue;
+        const sr = host.shadowRoot;
         if (sr) {
           traverseShadow(sr);
         }
@@ -184,8 +226,15 @@ export class GeminiDomAnalyzer {
         text = el.textContent.trim().replace(/\s+/g, ' ').substring(0, 60);
       }
 
+      // A textbox/combobox/checkbox/radio role is itself a strong enough
+      // signal to keep the element even with no other identifying attribute —
+      // an empty contenteditable input (e.g. a formula bar or rich-text
+      // compose box before anything is typed into it) has no id/label/text at
+      // all, but is exactly the kind of element a "type X" step needs to target.
+      const isStrongRole = role === 'textbox' || role === 'combobox' || role === 'checkbox' || role === 'radio';
+
       // Skip invisible / useless elements
-      if (!id && !testId && !ariaLabel && !placeholder && !text && !name) {
+      if (!id && !testId && !ariaLabel && !placeholder && !text && !name && !isStrongRole) {
         continue;
       }
 
@@ -205,6 +254,7 @@ export class GeminiDomAnalyzer {
           selector = `${tag}.${firstClass}`;
         }
       }
+      if (!selector && isStrongRole) selector = `[role="${role}"]`;
       if (!selector) selector = tag;
 
       candidates.push({
@@ -293,6 +343,7 @@ Generate the interactive tutorial JSON now.`;
       generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.2,
+        maxOutputTokens: 4096,
       },
     };
 
