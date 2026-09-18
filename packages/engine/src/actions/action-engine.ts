@@ -54,8 +54,30 @@ export class ActionEngine {
     const resolve = (val: any): string => (i18n ? i18n.resolve(val, lang) : typeof val === 'object' ? val?.[lang] || '' : val || '');
 
     const title = resolve((action as any).title || step.title);
-    const content = resolve((action as any).content || (action as any).instruction || (step as any).instruction || (step as any).description || '');
+    let content = resolve((action as any).content || (action as any).instruction || (step as any).instruction || (step as any).description || '');
     const subtitle = resolve((action as any).subtitle || (action as any).description || '');
+
+    // Targeting fallback: when the resolver couldn't pin an exact element
+    // (Tier "fallback", or a Tier-3 canvas map that missed its region), the
+    // adapter still attaches a directional hint to the resolved box so the
+    // step never renders with silent/empty guidance. Built here (not in the
+    // resolver) so it can be localized like every other user-facing string.
+    if (targetBoundingBox?.hintScope) {
+      const label = targetBoundingBox.hintLabel;
+      const fallbackHint = lang === Language.KM
+        ? (targetBoundingBox.hintScope === 'viewport'
+            ? (label ? `មិនអាចកំណត់ទីតាំង "${label}" នៅលើទំព័រនេះបានទេ — សូមមើលនៅជុំវិញអេក្រង់។` : 'មិនអាចកំណត់ទីតាំងធាតុនេះនៅលើទំព័រនេះបានទេ — សូមមើលនៅជុំវិញអេក្រង់។')
+            : (label ? `មិនអាចកំណត់ទីតាំងច្បាស់លាស់បានទេ។ សូមមើលនៅក្នុងផ្ទៃដែលបានរំលេចសម្រាប់ "${label}"។` : 'មិនអាចកំណត់ទីតាំងច្បាស់លាស់បានទេ។ សូមមើលនៅក្នុងផ្ទៃដែលបានរំលេច។'))
+        : (targetBoundingBox.hintScope === 'viewport'
+            ? (label ? `We couldn't automatically locate "${label}" on this page — look around the screen for it.` : "We couldn't automatically locate this control on this page — look around the screen for it.")
+            : (label ? `We couldn't pinpoint the exact control. Look inside the highlighted area for "${label}".` : "We couldn't pinpoint the exact control. Look inside the highlighted area."));
+      content = content ? `${content}\n\n${fallbackHint}` : fallbackHint;
+    } else if (targetBoundingBox?.unsupportedCooperativeIframe) {
+      const iframeHint = lang === Language.KM
+        ? 'ធាតុនេះស្ថិតនៅក្នុងស៊ុមបង្កប់មួយដែលមិនអាចគាំទ្របានពេញលេញ។ សូមមើលនៅក្នុងផ្ទៃដែលបានរំលេចខាងក្រោម។'
+        : "This control is inside an embedded frame we can't fully support. Look inside the highlighted area.";
+      content = content ? `${content}\n\n${iframeHint}` : iframeHint;
+    }
     const isInput = step.validation?.type === 'input' || step.validation?.type === 'change' || (action as any).category === 'input';
     const defaultActionText = isInput
       ? (lang === Language.KM ? 'វាយបញ្ចូល' : 'TYPE HERE')

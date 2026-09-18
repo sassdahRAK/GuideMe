@@ -1,5 +1,6 @@
 import {
   BaseTutorialAdapter,
+  TargetTier,
   type StepTarget,
   type TargetBoundingBox,
   type TargetDescription,
@@ -8,32 +9,96 @@ import { DomObserver } from './dom-observer.ts';
 import { DomEventListener, type DomEventData } from './event-listener.ts';
 import { UrlListener } from './url-listener.ts';
 import { ChromeStorageAdapter } from './chrome-storage.ts';
+import { resolveTarget } from './targeting/resolve-target.js';
+import { resolveCanvasTarget } from './targeting/canvas-map.js';
+import { installGuideMeGlobal } from './targeting/global.js';
+
+// Install the public `window.GuideMe` namespace (anchor/registerCanvasMap/...)
+// as soon as the adapter module loads. Idempotent — safe if called more than once.
+installGuideMeGlobal();
+
+/**
+ * Merge a resolved rect + tier metadata into the box shape the rest of the
+ * engine already expects (top/left/width/height/isClipped/...), additively.
+ */
+function toTieredBox(result: any): any {
+  if (!result?.rect) return null;
+  return {
+    ...result.rect,
+    tier: result.tier,
+    source: result.source,
+    ...(result.versionMismatch ? { versionMismatch: result.versionMismatch } : {}),
+    ...(result.hintScope ? { hintScope: result.hintScope, hintLabel: result.hintLabel } : {}),
+    ...(result.unsupportedCooperativeIframe ? { unsupportedCooperativeIframe: true, reason: result.reason } : {}),
+  };
+}
 
 /**
  * Concrete Chrome MV3 Adapter implementing BaseTutorialAdapter.
  */
 export class ChromeAdapter extends BaseTutorialAdapter {
   /**
-   * Find DOM target element bounding box.
+   * Find DOM target element bounding box. Routes through the tiered
+   * targeting engine (packages/chrome-adapter/src/targeting) so canvas
+   * elements, same-origin iframes, and cross-origin cooperative iframes all
+   * resolve to *something* rather than null.
    */
   async findTarget(selector: StepTarget, timeoutMs = 5000): Promise<TargetBoundingBox | null> {
     const element = await DomObserver.waitForElement(selector, timeoutMs);
-    if (!element) return null;
-    const box = DomObserver.getBoundingBox(element);
-    // Only dispatch synthetic hover events when the target has zero bounding
-    // dimensions, which means it might be inside a collapsed flyout/dropdown
-    // menu that needs a hover to open.
-    if (box && box.width === 0 && box.height === 0) {
-      DomObserver.dispatchHoverEvents(element);
+
+    if (element) {
+      const tag = (element.tagName || '').toLowerCase();
+
+      if (tag === 'canvas') {
+        return toTieredBox(resolveCanvasTarget(element, selector));
+      }
+
+      const box = DomObserver.getBoundingBox(element);
+      // Only dispatch synthetic hover events when the target has zero bounding
+      // dimensions, which means it might be inside a collapsed flyout/dropdown
+      // menu that needs a hover to open.  Dispatching mouseover/focusin on an
+      // already-visible menu item (e.g. inside an open Google Docs File menu)
+      // can trigger unwanted submenu opens or focus changes that close the
+      // parent dropdown.
+      if (box && box.width === 0 && box.height === 0) {
+        DomObserver.dispatchHoverEvents(element);
+      }
+      return box ? { ...box, tier: TargetTier.DOM, source: 'dom' } : null;
     }
-    return box;
+
+    // Not resolvable via the standard top-document DOM pipeline — route
+    // through the full tiered resolver (same-origin iframes, cross-origin
+    // cooperative protocol, directional fallback). This never throws and
+    // never silently returns nothing useful to render: worst case is a
+    // fallback rect + textual hint.
+    const result = await resolveTarget(selector, { timeoutMs: Math.min(timeoutMs, 300) });
+    return toTieredBox(result);
   }
 
   /**
    * Directly find the DOM element instance for testing or inspection.
+   *
+   * Mirrors the JIT dynamic-grounding fallback in StepResolver.resolveTarget:
+   * if the step's literal CSS doesn't match anything on the page but a
+   * text/ariaLabel hint is present, retry against generic interactive tags.
+   * Without this, a stale selector makes the spotlight highlight one element
+   * (found via that fallback) while click-validation keeps checking against
+   * the original, now-unmatched selector — so the step can never validate no
+   * matter what the user clicks.
    */
   override findElement(selector: StepTarget): any {
-    return DomObserver.findElement(selector);
+    const primary = DomObserver.findElement(selector);
+    if (primary) return primary;
+
+    if (selector?.text || selector?.ariaLabel) {
+      const fallbackSelector: StepTarget = {
+        ...selector,
+        css: '[role="menuitem"], [role="option"], button, a, [role="button"], span, div, p',
+      };
+      return DomObserver.findElement(fallbackSelector);
+    }
+
+    return null;
   }
 
   /**
@@ -44,12 +109,15 @@ export class ChromeAdapter extends BaseTutorialAdapter {
     if (!element) return null;
 
     const getAttribute = element.getAttribute?.bind(element);
+    const tag = (element.tagName || '').toLowerCase();
     const rect = typeof element.getBoundingClientRect === 'function'
       ? element.getBoundingClientRect()
       : null;
 
+    const canvasInfo = tag === 'canvas' ? resolveCanvasTarget(element, selector) : null;
+
     return {
-      tag: (element.tagName || '').toLowerCase(),
+      tag,
       id: element.id || '',
       className: typeof element.className === 'string' ? element.className : '',
       role: getAttribute?.('role') || '',
@@ -62,6 +130,7 @@ export class ChromeAdapter extends BaseTutorialAdapter {
         width: rect.width,
         height: rect.height,
       } : null,
+      ...(canvasInfo ? { tier: canvasInfo.tier, source: canvasInfo.source } : {}),
     };
   }
 
@@ -106,6 +175,23 @@ export class ChromeAdapter extends BaseTutorialAdapter {
       );
     };
 
+    // Canvas-aware box lookup for the pinned element. Same-origin-iframe and
+    // fallback/cross-origin tiers keep the position resolved once by
+    // findTarget() above rather than re-running the heavier tiered resolver
+    // on every animation frame — DomObserver.findElement cannot re-locate
+    // those elements from the top document, so pinnedElement simply stays
+    // null and lastBox (last known position) is left untouched.
+    const computeBox = (element: any): TargetBoundingBox | null => {
+      if (!element) return null;
+      const tag = (element.tagName || '').toLowerCase();
+      if (tag === 'canvas') {
+        const result = resolveCanvasTarget(element, selector);
+        return toTieredBox(result);
+      }
+      const box = DomObserver.getBoundingBox(element);
+      return box ? { ...box, tier: TargetTier.DOM, source: 'dom' } : null;
+    };
+
     const update = (): void => {
       if (!running) return;
 
@@ -116,7 +202,9 @@ export class ChromeAdapter extends BaseTutorialAdapter {
         pinnedElement = DomObserver.findElement(selector);
       }
 
-      const box = pinnedElement ? DomObserver.getBoundingBox(pinnedElement) : null;
+      const box = computeBox(pinnedElement);
+      // Emit only when the resolved box actually moves beyond hysteresis.
+      // null→null (element still missing) emits nothing.
       if (boxesDiffer(lastBox, box)) {
         lastBox = box;
         onChange(box);

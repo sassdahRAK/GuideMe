@@ -96,6 +96,7 @@ export const EngineEvent = {
   STATE_CHANGE: 'engine:state_change',
   STEP_START: 'engine:step_start',
   STEP_SUCCESS: 'engine:step_success',
+  STEP_SKIPPED: 'engine:step_skipped',
   STEP_ERROR: 'engine:step_error',
   TUTORIAL_START: 'engine:tutorial_start',
   TUTORIAL_COMPLETE: 'engine:tutorial_complete',
@@ -103,9 +104,37 @@ export const EngineEvent = {
   LANGUAGE_CHANGE: 'engine:language_change',
   HESITATION_DETECTED: 'engine:hesitation_detected',
   MISCLICK_DETECTED: 'engine:misclick_detected',
+  TARGET_RESOLVED: 'engine:target_resolved',
+  TARGET_RESOLUTION_FAILED: 'engine:target_resolution_failed',
 } as const;
 
 export type EngineEvent = typeof EngineEvent[keyof typeof EngineEvent];
+
+/**
+ * Target Resolution Tiers (Universal Targeting & Rendering Engine).
+ * Mirrors the tiered support model documented in docs/compatibility-matrix.md.
+ */
+export const TargetTier = Object.freeze({
+  DOM: 1,             // Standard DOM, SVG, same-origin iframes
+  CANVAS_CONTAINER: 2, // <canvas> bounding box, no coordinate map available
+  CANVAS_MAP: 3,       // <canvas> with a registered, version-matched coordinate map
+  PLATFORM_NATIVE: 4,  // Structural API + logical-position anchoring (stub only)
+  FALLBACK: 'fallback', // Directional/textual guidance anchored to nearest known container
+});
+
+/**
+ * Reporting Event Names (guide coverage & execution telemetry).
+ * See packages/reporting/src/event-log.js.
+ */
+export const ReportingEvent = Object.freeze({
+  GUIDE_STEP_STARTED: 'guide_step_started',
+  GUIDE_STEP_COMPLETED: 'guide_step_completed',
+  GUIDE_STEP_SKIPPED: 'guide_step_skipped',
+  TARGET_RESOLVED: 'target_resolved',
+  TARGET_RESOLUTION_FAILED: 'target_resolution_failed',
+  GUIDE_COMPLETED: 'guide_completed',
+  GUIDE_ABANDONED: 'guide_abandoned',
+});
 
 /**
  * Audio Engine Event Names
