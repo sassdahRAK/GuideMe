@@ -174,7 +174,19 @@ export function classifyPrompt(rawPrompt: string): PromptClassificationResult {
     };
   }
 
-  // Short prompts without action verbs or labels are likely unclear
+  // ── 4. Khmer content → always forward to dynamic layers ────────────────
+  // Any prompt containing Khmer Unicode characters is passed through as
+  // actionable regardless of length or whether the verb is in the static list.
+  // The Fuse.js DOM scanner + LLM reranker in Layer 2/3 are far better equipped
+  // to interpret Khmer noun phrases, unknown verbs, question forms, and informal
+  // spelling than a static regex ever could be. Blocking here would silently
+  // swallow valid intent before the dynamic layers get a chance to resolve it.
+  const hasKhmer = /[\u1780-\u17FF]/.test(original);
+  if (hasKhmer && normalized.length >= MIN_ACTIONABLE_LENGTH) {
+    return { type: 'actionable', responses: { km: '', en: '' } };
+  }
+
+  // Short English-only prompts without action verbs or labels are likely unclear
   const wordCount = normalized.split(/\s+/).length;
   if (normalized.length < MIN_ACTIONABLE_LENGTH || wordCount <= MAX_UNCLEAR_WORD_COUNT) {
     // If the short text could be a UI button/tab title (e.g. "Settings", "Profile", "Dashboard"), treat as actionable
@@ -192,13 +204,15 @@ export function classifyPrompt(rawPrompt: string): PromptClassificationResult {
     };
   }
 
-  // ── 4. Code-mixed prompt fallback ──────────────────────────────────────
+  // ── 5. Code-mixed prompt fallback ──────────────────────────────────────
+  // Khmer users often type mixed language with typos (e.g. "តើiinsertនៅទីណា").
+  // If the prompt contains any recognizable English action verb as a substring
+  // and has non-Latin characters, treat it as actionable.
   const containsLatinAction = /\b(click|press|tap|open|go|navigate|search|find|type|enter|fill|insert|submit|save|buy|add|remove|delete|edit|create|sign|login|register|checkout|download|upload|share|send|select|toggle|switch|change|update|print|export|import|choose|setup|manage|help)\b/i.test(original);
-  const hasKhmer = /[\u1780-\u17FF]/.test(original);
-  if (containsLatinAction && hasKhmer && original.length >= 5) {
+  if (containsLatinAction) {
     return { type: 'actionable', responses: { km: '', en: '' } };
   }
 
-  // ── 5. Default: treat as actionable ──────────────────────────────────────
+  // ── 6. Default: treat as actionable ──────────────────────────────────────
   return { type: 'actionable', responses: { km: '', en: '' } };
 }

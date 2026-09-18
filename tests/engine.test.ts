@@ -543,7 +543,30 @@ describe('GuideMe Tutorial Engine & Bilingual / Audio Tests', () => {
     expect((rawAiTutorial as Record<string, unknown>).name).toBe('Automated Checkout Guide');
     expect((rawAiTutorial as Record<string, unknown>).matchUrls).toEqual(['<all_urls>']);
     expect(rawAiTutorial.steps[0].action.type).toBe('spotlight');
-    expect((rawAiTutorial.steps[0] as Record<string, unknown>).validation?.type).toBe('click');
+    // GM-041: this step has no `target`, so a 'click' validation would never
+    // be satisfiable (no listener has anything to bind to) and the tutorial
+    // would hang forever with no visible error. Self-healing now downgrades
+    // to 'manual_next' instead of defaulting to an unreachable 'click' gate.
+    expect((rawAiTutorial.steps[0] as Record<string, unknown>).validation?.type).toBe('manual_next');
+  });
+
+  test('SchemaValidator keeps click validation when a step DOES have a bindable target', () => {
+    const tutorialWithTarget = {
+      id: 'dynamic-ai-tutorial-2',
+      title: 'Automated Checkout Guide',
+      steps: [
+        {
+          id: 'step-1-checkout',
+          title: 'Click Checkout Button',
+          action: { title: 'Click Checkout Button' },
+          target: { css: '#checkout-btn' },
+        },
+      ],
+    };
+
+    const result = SchemaValidator.validateTutorial(tutorialWithTarget);
+    expect(result.valid).toBe(true);
+    expect((tutorialWithTarget.steps[0] as Record<string, unknown>).validation?.type).toBe('click');
   });
 
   test('SchemaValidator correctly validates bilingual objects and rejects empty string bilingual objects', () => {

@@ -68,12 +68,21 @@ export class SchemaValidator {
         errors.push(...stepErrors);
 
         if (step && typeof step === 'object' && 'id' in step) {
-          const stepId = (step as { id: unknown }).id;
-          if (typeof stepId === 'string') {
-            if (stepIds.has(stepId)) {
-              errors.push(`Duplicate step id found: '${stepId}' at index ${index}`);
+          const s = step as { id: unknown };
+          if (typeof s.id === 'string') {
+            // Self-healing: generative backends occasionally reuse a generic id
+            // (e.g. 'step-1') across steps. Step order/navigation is index-based
+            // elsewhere in the engine, so the id itself is cosmetic — disambiguate
+            // it rather than rejecting an otherwise-valid tutorial outright.
+            let finalId = s.id;
+            if (stepIds.has(finalId)) {
+              finalId = `${finalId}-${index}`;
+              while (stepIds.has(finalId)) {
+                finalId = `${finalId}-${index}`;
+              }
+              s.id = finalId;
             }
-            stepIds.add(stepId);
+            stepIds.add(finalId);
           }
         }
       });
@@ -137,6 +146,30 @@ export class SchemaValidator {
       if (!s.validation.type || typeof s.validation.type !== 'string') {
         s.validation.type = 'click';
       }
+    }
+
+    // GM-041: a 'click'/'input'/'change'/'submit' validation type needs a
+    // bindable target (on the step itself or as an explicit validation
+    // override) to ever fire. Self-healing a target-less step into one of
+    // these types — the previous behavior — meant the listener never
+    // attaches and the tutorial hangs forever with no visible error.
+    // Downgrading to 'manual_next' here keeps the step self-healing (it
+    // still renders and lets the user proceed via Next/Skip) instead of
+    // silently stranding them.
+    const TARGET_REQUIRED_TYPES = new Set(['click', 'input', 'change', 'submit']);
+    const hasUsableTarget = (target: unknown): boolean =>
+      !!target &&
+      typeof target === 'object' &&
+      ['css', 'xpath', 'text', 'testId', 'ariaLabel', 'role', 'placeholder'].some(
+        (key) => typeof (target as Record<string, unknown>)[key] === 'string' && (target as Record<string, unknown>)[key]
+      );
+
+    if (
+      TARGET_REQUIRED_TYPES.has(s.validation.type) &&
+      !hasUsableTarget(s.target) &&
+      !hasUsableTarget(s.validation.selector)
+    ) {
+      s.validation.type = 'manual_next';
     }
 
     // Optional audio validation
