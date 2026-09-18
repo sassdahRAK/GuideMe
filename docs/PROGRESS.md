@@ -128,6 +128,41 @@
 - [x] **Test Verification:**
   - Added unit test cases for greeting, gratitude, identity, and round-robin key rotation in `services.test.ts`. 36/36 backend tests and 166/166 monorepo tests passing.
 
+### Phase 7: Infrastructure Gaps — Redis, S3/R2 CDN, Proactive Stuck Detection
+
+- [x] **Redis Caching Layer (`GuideMe-Backend`):**
+  - Created `src/config/redis.ts` — ioredis singleton with graceful degradation (no crash when `REDIS_URL` is absent), `lazyConnect`, 3-retry cap, and `enableOfflineQueue: false`.
+  - Three namespaced cache layers: `guideme:session:{userId}` (24 h TTL), `guideme:ai_rate:{userId}:{date}` (expires at next UTC midnight), `guideme:tts:{sha256hash}` (30-day TTL).
+  - Upgraded `aiRateLimit.ts` to Redis-first atomic `INCR` + `EXPIRE NX` pipeline — sub-millisecond quota checks, zero DB round-trip on hot path. Prisma counter still updated fire-and-forget for analytics/billing dashboards. Falls back transparently to Prisma when Redis is unavailable.
+  - `env.ts` extended with `REDIS_URL` and `REDIS_DISABLED` vars. `.env.example` updated.
+
+- [x] **S3 / Cloudflare R2 Audio CDN (`GuideMe-Backend`):**
+  - Installed `@aws-sdk/client-s3` v3. Rewrote `tts.service.ts` with a 4-layer storage cascade:
+    1. **Redis URL cache** — instant lookup by SHA-256 hash, zero re-synthesis.
+    2. **S3/R2 `HeadObject` existence check** — idempotent; skips re-upload if audio already on CDN.
+    3. **Edge TTS synthesis** → uploads buffer to R2/S3 via `PutObjectCommand` with `public-read` ACL + 30-day `Cache-Control`; falls back to local disk when `S3_BUCKET` is unset.
+    4. **Browser Web Speech API** fallback signal returned to client.
+  - `buildPublicUrl` resolves: `CDN_BASE_URL` → S3-compatible endpoint URL → standard AWS virtual-hosted URL.
+  - `env.ts` extended with `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_ENDPOINT`, `CDN_BASE_URL`. `.env.example` updated.
+
+- [x] **Proactive Stuck Detection (`@guideme/chrome-extension`):**
+  - Created `useStuckDetector.js` hook — passive idle monitor listening to `mousemove`, `mousedown`, `keydown`, `scroll`, `touchstart`, `click` events.
+  - After 45 seconds of inactivity (configurable `idleThresholdMs`) with no active tutorial, renders a lightweight Shadow-DOM-safe nudge card (pure DOM, no React dependency) inside the existing `uiContainer`.
+  - Nudge card: bilingual (Khmer-first via `getUIString`), dark-mode aware, auto-dismisses after 15 s. CTA opens the floating prompt widget. Dismiss snoozes for 3 minutes (`snoozeMs`). Immediately cancelled if engine becomes active.
+  - Wired into `TutorialApp.jsx` via `useStuckDetector({ engineState, uiContainer, language, onNudgeAccepted })`.
+  - Four new bilingual strings added to `ui-strings.js`: `stuckNudgeTitle`, `stuckNudgeBody`, `stuckNudgeCta`, `stuckNudgeDismiss`.
+
+- [x] **DOM Observer & Event Listener Hardening (bonus fixes found during test run):**
+  - `DomObserver.findElement` now sanitizes CSS selectors via `sanitizeCssSelector` before passing to `querySelectorAllDeep` — prevents `querySelectorAll` throwing on IDs like `#:6j`.
+  - Composite CSS selectors (`A, B, C`) are now split and queried part-by-part; results are scored — leaf interactive controls (score=1) win over dialog/modal container elements (score=0) when text constraints are present.
+  - `DomEventListener.listen` now sanitizes the CSS selector before calling `event.target.matches()` / `.closest()` — eliminates uncaught `SyntaxError` on invalid selectors.
+  - `tests/tutorial-overlay-render.test.js` Windows ESM path fixed (`file:///C:/...` URL scheme).
+  - `@babel/parser` and `@babel/traverse` added as root workspace dev dependencies.
+
+- [x] **Test & Build Verification:**
+  - **177/177 monorepo tests passing** (100% pass rate, +1 new test from existing suite now passing).
+  - **Clean extension build** — `1.06 MB`, `3.9 s` (`apps/chrome-extension/.output/chrome-mv3`).
+
 ---
 
 ## 3. Upcoming Roadmap
