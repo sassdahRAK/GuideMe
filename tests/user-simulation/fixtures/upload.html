@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="km" data-page="upload">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GuideMe Test Site — Upload</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="nav-brand">
+      <span class="brand-icon">📘</span>
+      <span class="brand-name">TestApp</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="index.html" class="nav-link" data-testid="nav-home">ទំព័រដើម</a></li>
+      <li><a href="profile.html" class="nav-link" data-testid="nav-profile">គណនី</a></li>
+      <li><a href="settings.html" class="nav-link" data-testid="nav-settings">ការកំណត់</a></li>
+      <li><a href="upload.html" class="nav-link active" data-testid="nav-upload">បង្ហោះ</a></li>
+      <li><a href="help.html" class="nav-link" data-testid="nav-help">ជំនួយ</a></li>
+    </ul>
+    <div class="nav-user">
+      <span class="user-avatar" data-testid="user-avatar">ស</span>
+      <span class="user-name">សុខា</span>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>បង្ហោះឯកសារ</h1>
+      <p>Upload Files, រូបភាព, ឬ PDF</p>
+    </div>
+
+    <div class="upload-zone" id="upload-zone" data-testid="upload-zone"
+         role="region" aria-label="File upload area"
+         tabindex="0">
+      <div class="upload-icon">📁</div>
+      <p class="upload-text">ចុចដើម្បីជ្រើស ឬ អូសទម្លាក់ឯកសារនៅទីនេះ</p>
+      <p class="upload-hint">PDF, JPG, PNG, DOC (អតិបរមា 10MB)</p>
+      <input
+        type="file"
+        id="file-input"
+        data-testid="file-input"
+        class="file-input-hidden"
+        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+        aria-label="Choose file to upload"
+        multiple
+      />
+      <button type="button" id="btn-choose-file" data-testid="btn-choose-file"
+              class="btn btn-primary" aria-label="Choose file">
+        ជ្រើសរើសឯកសារ
+      </button>
+    </div>
+
+    <div id="file-list" class="file-list" data-testid="file-list" aria-live="polite">
+      <!-- Uploaded files appear here -->
+    </div>
+
+    <div class="form-actions" id="upload-actions" style="display:none">
+      <button type="button" id="btn-upload-submit" data-testid="btn-upload-submit"
+              class="btn btn-primary" aria-label="Upload files">
+        Upload ឥឡូវនេះ
+      </button>
+      <button type="button" id="btn-upload-cancel" data-testid="btn-upload-cancel"
+              class="btn btn-ghost" aria-label="Cancel upload">
+        បោះបង់
+      </button>
+    </div>
+
+    <div id="upload-message" class="message-area" role="alert" aria-live="polite" style="display:none"></div>
+  </main>
+
+  <div id="status-bar" class="status-bar" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

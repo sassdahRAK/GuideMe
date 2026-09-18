@@ -1,0 +1,18 @@
+{
+  "name": "guideme-user-simulation",
+  "version": "1.0.0",
+  "description": "Isolated user simulation and evaluation harness for GuideMe — never modifies production code",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "serve:testsite": "node fixtures/serve.js",
+    "test:smoke": "node --env-file=.env.test runner.js --mode smoke",
+    "test:full": "node --env-file=.env.test runner.js --mode full",
+    "test:headed": "node --env-file=.env.test runner.js --mode smoke --headed",
+    "test:repeat": "node --env-file=.env.test runner.js --mode smoke --runs 3",
+    "evaluate": "node evaluator/evaluate.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.45.3"
+  }
+}

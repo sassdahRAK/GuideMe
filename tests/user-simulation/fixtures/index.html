@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="km" data-page="home">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GuideMe Test Site — Home</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="nav-brand">
+      <span class="brand-icon">📘</span>
+      <span class="brand-name">TestApp</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="index.html" class="nav-link active" data-testid="nav-home">ទំព័រដើម</a></li>
+      <li><a href="profile.html" class="nav-link" data-testid="nav-profile">គណនី</a></li>
+      <li><a href="settings.html" class="nav-link" data-testid="nav-settings">ការកំណត់</a></li>
+      <li><a href="upload.html" class="nav-link" data-testid="nav-upload">បង្ហោះ</a></li>
+      <li><a href="help.html" class="nav-link" data-testid="nav-help">ជំនួយ</a></li>
+    </ul>
+    <div class="nav-user">
+      <span class="user-avatar" data-testid="user-avatar">ស</span>
+      <span class="user-name">សុខា</span>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <section class="hero">
+      <h1 class="hero-title">សូមស្វាគមន៍មក TestApp</h1>
+      <p class="hero-subtitle">ប្រព័ន្ធគ្រប់គ្រងទិន្នន័យ — ជំនួយការ GuideMe AI នឹងណែនាំអ្នក</p>
+      <div class="hero-actions">
+        <a href="profile.html" class="btn btn-primary" data-testid="btn-go-profile">
+          មើល Profile
+        </a>
+        <a href="settings.html" class="btn btn-secondary" data-testid="btn-go-settings">
+          ទៅ Settings
+        </a>
+      </div>
+    </section>
+
+    <section class="dashboard-cards">
+      <div class="card" data-testid="card-profile">
+        <div class="card-icon">👤</div>
+        <h3>Profile</h3>
+        <p>ផ្លាស់ប្ដូរឈ្មោះ, Email, និងរូបភាព</p>
+        <a href="profile.html" class="card-link" data-testid="link-profile">ចូល Profile →</a>
+      </div>
+      <div class="card" data-testid="card-settings">
+        <div class="card-icon">⚙️</div>
+        <h3>Settings</h3>
+        <p>ប្ដូរ Password, ភាសា, និងការជូនដំណឹង</p>
+        <a href="settings.html" class="card-link" data-testid="link-settings">ចូល Settings →</a>
+      </div>
+      <div class="card" data-testid="card-upload">
+        <div class="card-icon">📁</div>
+        <h3>Upload</h3>
+        <p>បង្ហោះឯកសារ, រូបភាព, ឬ PDF</p>
+        <a href="upload.html" class="card-link" data-testid="link-upload">ចូល Upload →</a>
+      </div>
+      <div class="card" data-testid="card-help">
+        <div class="card-icon">❓</div>
+        <h3>Help</h3>
+        <p>ជំនួយ, FAQ, និងការណែនាំ</p>
+        <a href="help.html" class="card-link" data-testid="link-help">ចូល Help →</a>
+      </div>
+    </section>
+  </main>
+
+  <div id="status-bar" class="status-bar" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

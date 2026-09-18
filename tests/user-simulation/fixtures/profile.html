@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="km" data-page="profile">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GuideMe Test Site — Profile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="nav-brand">
+      <span class="brand-icon">📘</span>
+      <span class="brand-name">TestApp</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="index.html" class="nav-link" data-testid="nav-home">ទំព័រដើម</a></li>
+      <li><a href="profile.html" class="nav-link active" data-testid="nav-profile">គណនី</a></li>
+      <li><a href="settings.html" class="nav-link" data-testid="nav-settings">ការកំណត់</a></li>
+      <li><a href="upload.html" class="nav-link" data-testid="nav-upload">បង្ហោះ</a></li>
+      <li><a href="help.html" class="nav-link" data-testid="nav-help">ជំនួយ</a></li>
+    </ul>
+    <div class="nav-user">
+      <span class="user-avatar" data-testid="user-avatar">ស</span>
+      <span class="user-name">សុខា</span>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Profile របស់ខ្ញុំ</h1>
+      <p>ផ្លាស់ប្ដូរព័ត៌មានផ្ទាល់ខ្លួន</p>
+    </div>
+
+    <!-- Profile card with avatar -->
+    <div class="profile-card">
+      <div class="avatar-section">
+        <div class="avatar-large" id="profile-avatar" data-testid="profile-avatar">ស</div>
+        <button class="btn btn-outline btn-sm" id="btn-change-avatar" data-testid="btn-change-avatar" aria-label="Change profile photo">
+          ប្ដូររូបភាព
+        </button>
+        <!-- Hidden file input for avatar upload -->
+        <input type="file" id="avatar-upload" data-testid="avatar-file-input"
+               accept="image/*" style="display:none" aria-label="Upload profile photo" />
+      </div>
+
+      <div class="profile-info">
+        <form id="profile-form" data-testid="profile-form" novalidate>
+          <div class="form-group">
+            <label for="profile-name" class="form-label">ឈ្មោះ</label>
+            <input
+              type="text"
+              id="profile-name"
+              name="name"
+              data-testid="input-name"
+              class="form-input"
+              value="សុខា ចន្ទ"
+              placeholder="បញ្ចូលឈ្មោះ"
+              aria-label="Full name"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="profile-email" class="form-label">អ៊ីម៉ែល</label>
+            <input
+              type="email"
+              id="profile-email"
+              name="email"
+              data-testid="input-email"
+              class="form-input"
+              value="sokha@example.com"
+              placeholder="បញ្ចូល Email"
+              aria-label="Email address"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="profile-phone" class="form-label">លេខទូរស័ព្ទ</label>
+            <input
+              type="tel"
+              id="profile-phone"
+              name="phone"
+              data-testid="input-phone"
+              class="form-input"
+              value="012 345 678"
+              placeholder="បញ្ចូលលេខទូរស័ព្ទ"
+              aria-label="Phone number"
+            />
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" id="btn-save-profile" data-testid="btn-save" class="btn btn-primary" aria-label="Save profile">
+              រក្សាទុក
+            </button>
+            <button type="button" id="btn-cancel-profile" data-testid="btn-cancel" class="btn btn-ghost" aria-label="Cancel changes">
+              បោះបង់
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Success/error message area -->
+    <div id="profile-message" class="message-area" role="alert" aria-live="polite" style="display:none"></div>
+  </main>
+
+  <div id="status-bar" class="status-bar" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="km" data-page="settings">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GuideMe Test Site — Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="nav-brand">
+      <span class="brand-icon">📘</span>
+      <span class="brand-name">TestApp</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="index.html" class="nav-link" data-testid="nav-home">ទំព័រដើម</a></li>
+      <li><a href="profile.html" class="nav-link" data-testid="nav-profile">គណនី</a></li>
+      <li><a href="settings.html" class="nav-link active" data-testid="nav-settings">ការកំណត់</a></li>
+      <li><a href="upload.html" class="nav-link" data-testid="nav-upload">បង្ហោះ</a></li>
+      <li><a href="help.html" class="nav-link" data-testid="nav-help">ជំនួយ</a></li>
+    </ul>
+    <div class="nav-user">
+      <span class="user-avatar" data-testid="user-avatar">ស</span>
+      <span class="user-name">សុខា</span>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>ការកំណត់</h1>
+      <p>គ្រប់គ្រងលេខសម្ងាត់ ភាសា និងការជូនដំណឹង</p>
+    </div>
+
+    <!-- Section: Change Password -->
+    <section class="settings-section" id="section-password" data-testid="section-password">
+      <h2 class="section-title">ប្ដូរ Password</h2>
+      <form id="password-form" data-testid="password-form" novalidate>
+        <div class="form-group">
+          <label for="current-password" class="form-label">Password បច្ចុប្បន្ន</label>
+          <input
+            type="password"
+            id="current-password"
+            name="currentPassword"
+            data-testid="input-current-password"
+            class="form-input"
+            placeholder="បញ្ចូល Password បច្ចុប្បន្ន"
+            aria-label="Current password"
+          />
+        </div>
+        <div class="form-group">
+          <label for="new-password" class="form-label">Password ថ្មី</label>
+          <input
+            type="password"
+            id="new-password"
+            name="newPassword"
+            data-testid="input-new-password"
+            class="form-input"
+            placeholder="បញ្ចូល Password ថ្មី"
+            aria-label="New password"
+          />
+        </div>
+        <div class="form-group">
+          <label for="confirm-password" class="form-label">បញ្ជាក់ Password ថ្មី</label>
+          <input
+            type="password"
+            id="confirm-password"
+            name="confirmPassword"
+            data-testid="input-confirm-password"
+            class="form-input"
+            placeholder="បញ្ជាក់ Password ថ្មីម្ដងទៀត"
+            aria-label="Confirm new password"
+          />
+        </div>
+        <div class="form-actions">
+          <button type="submit" id="btn-change-password" data-testid="btn-change-password" class="btn btn-primary" aria-label="Change password">
+            ប្ដូរ Password
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Section: Language -->
+    <section class="settings-section" id="section-language" data-testid="section-language">
+      <h2 class="section-title">ភាសា</h2>
+      <div class="form-group">
+        <label for="language-select" class="form-label">ជ្រើស​ភាសា</label>
+        <select id="language-select" name="language" data-testid="select-language" class="form-input" aria-label="Select language">
+          <option value="km" selected>ភាសាខ្មែរ</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <button type="button" id="btn-save-language" data-testid="btn-save-language" class="btn btn-secondary" aria-label="Save language setting">
+        រក្សាទុក
+      </button>
+    </section>
+
+    <!-- Section: Notifications -->
+    <section class="settings-section" id="section-notifications" data-testid="section-notifications">
+      <h2 class="section-title">ការជូនដំណឹង</h2>
+      <div class="toggle-group">
+        <label class="toggle-label" for="notif-email">
+          <span>Email ជូនដំណឹង</span>
+          <input type="checkbox" id="notif-email" data-testid="toggle-notif-email" checked role="switch" aria-label="Email notifications" />
+          <span class="toggle-slider"></span>
+        </label>
+        <label class="toggle-label" for="notif-sms">
+          <span>SMS ជូនដំណឹង</span>
+          <input type="checkbox" id="notif-sms" data-testid="toggle-notif-sms" role="switch" aria-label="SMS notifications" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <button type="button" id="btn-save-notifications" data-testid="btn-save-notifications" class="btn btn-secondary" aria-label="Save notification settings">
+        រក្សាទុក
+      </button>
+    </section>
+
+    <div id="settings-message" class="message-area" role="alert" aria-live="polite" style="display:none"></div>
+  </main>
+
+  <div id="status-bar" class="status-bar" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

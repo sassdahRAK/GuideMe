@@ -15,7 +15,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "clean": "node --input-type=module -e \"import fs from 'fs'; ['node_modules', 'apps/chrome-extension/node_modules', 'packages/chrome-adapter/node_modules', 'packages/engine/node_modules', 'packages/tutorial-ui/node_modules', 'apps/chrome-extension/.output', 'apps/chrome-extension/.wxt'].forEach(p => fs.rmSync(p, { recursive: true, force: true })); console.log('Cleaned build artifacts successfully.');\""
+    "clean": "node --input-type=module -e \"import fs from 'fs'; ['node_modules', 'apps/chrome-extension/node_modules', 'packages/chrome-adapter/node_modules', 'packages/engine/node_modules', 'packages/tutorial-ui/node_modules', 'apps/chrome-extension/.output', 'apps/chrome-extension/.wxt'].forEach(p => fs.rmSync(p, { recursive: true, force: true })); console.log('Cleaned build artifacts successfully.');\"",
+    "test:user-simulation:smoke": "cd tests/user-simulation && node --env-file=.env.test runner.js --mode smoke",
+    "test:user-simulation": "cd tests/user-simulation && node --env-file=.env.test runner.js --mode full",
+    "test:user-simulation:headed": "cd tests/user-simulation && node --env-file=.env.test runner.js --mode smoke --headed",
+    "test:user-simulation:evaluate": "cd tests/user-simulation && node evaluator/evaluate.js"
   },
   "keywords": [
     "tutorial",
