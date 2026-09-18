@@ -271,6 +271,9 @@ export class TutorialEngine {
    */
   async skipStep(): Promise<void> {
     this.audio.stop();
+    if (this.currentStep) {
+      this.events.emit(EngineEvent.STEP_SKIPPED, { step: this.currentStep, stepIndex: this.currentStepIndex });
+    }
     await this.nextStep(true);
   }
 
@@ -471,6 +474,27 @@ export class TutorialEngine {
       this.targetBoundingBox = boundingBox;
       this.targetMissing = !boundingBox || (boundingBox.width === 0 && boundingBox.height === 0);
 
+      // Reporting: surface which targeting tier resolved the step (or that
+      // it failed outright) without the headless engine ever touching the
+      // DOM itself — tier/source are additive fields the adapter already
+      // attached to boundingBox.
+      if (boundingBox) {
+        this.events.emit(EngineEvent.TARGET_RESOLVED, {
+          step,
+          stepIndex,
+          selector: step.target,
+          tier: boundingBox.tier,
+          source: boundingBox.source,
+          versionMismatch: boundingBox.versionMismatch || null,
+        });
+      } else {
+        this.events.emit(EngineEvent.TARGET_RESOLUTION_FAILED, {
+          step,
+          stepIndex,
+          selector: step.target,
+        });
+      }
+
       // Start continuous position tracking
       this._activePositionCleanup = this.adapter.observeTargetPosition(step.target, (newBox: any) => {
         this.targetBoundingBox = newBox;
@@ -491,25 +515,38 @@ export class TutorialEngine {
     }
 
     const boundGeneration = this._startGeneration;
+    // One-shot guard: ensures onValidate can only trigger step advancement once,
+    // no matter how many listeners fire (duplicate allTargets, second click during
+    // the async beforeNextStep window, etc.).
+    let validationFired = false;
     this._activeValidationCleanup = ValidationEngine.bindValidation(
       step,
       this.adapter,
       async (result) => {
-        if (result.valid) {
-          this.validationSatisfied = true;
-          this._clearAlertState();
-          this.events.emit(EngineEvent.STEP_SUCCESS, { step, eventData: result.eventData });
-          if (typeof this.beforeNextStep === 'function') {
-            const shouldAdvance = await this.beforeNextStep({
-              step,
-              stepIndex: this.currentStepIndex,
-              tutorial: this.activeTutorial,
-            });
-            if (this._startGeneration !== boundGeneration) return;
-            if (shouldAdvance === false) return;
-          }
-          await this.nextStep();
+        if (!result.valid || validationFired) return;
+        validationFired = true;
+
+        // Tear down all click/input listeners immediately so a second click during
+        // the async beforeNextStep window cannot re-enter this callback.
+        this._cleanupStepSubscriptions();
+
+        this.validationSatisfied = true;
+        this._clearAlertState();
+        this.events.emit(EngineEvent.STEP_SUCCESS, { step, eventData: result.eventData });
+        if (typeof this.beforeNextStep === 'function') {
+          const shouldAdvance = await this.beforeNextStep({
+            step,
+            stepIndex: this.currentStepIndex,
+            tutorial: this.activeTutorial,
+          });
+          // If a concurrent engine.start() fired during the beforeNextStep
+          // await (e.g. session restore arriving from background), the tutorial
+          // has already been replaced. Calling nextStep() here would advance
+          // the wrong tutorial's step index. Bail out silently.
+          if (this._startGeneration !== boundGeneration) return;
+          if (shouldAdvance === false) return;
         }
+        await this.nextStep();
       },
       {
         targetBoundingBox: this.targetBoundingBox,

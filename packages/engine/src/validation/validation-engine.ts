@@ -70,6 +70,26 @@ export class ValidationEngine {
     // Helper to check if an element is a workflow completion button (Done, Send, Save, etc.)
     const isCompletionElement = (node: any): boolean => {
       if (!node || typeof node.getAttribute !== 'function') return false;
+
+      // Only real interactive controls can count as a "completion button" — a
+      // large wrapping <div> is never one, even though its *aggregated*
+      // textContent (all descendant text combined) can innocently contain a
+      // matching word. Google Sheets, for example, permanently shows "All
+      // changes saved in Drive" in its header, so without this guard almost
+      // any click bubbling through that region would match on some ancestor
+      // container regardless of what was actually clicked.
+      const tag = (node.tagName || '').toLowerCase();
+      const role = (node.getAttribute('role') || '').toLowerCase();
+      const isInteractive =
+        tag === 'button' ||
+        tag === 'a' ||
+        (tag === 'input' && ['submit', 'button'].includes((node.getAttribute('type') || '').toLowerCase())) ||
+        ['button', 'menuitem', 'option'].includes(role);
+      if (!isInteractive) return false;
+
+      // Use the node's own direct text where possible; textContent is still
+      // used as a fallback for icon buttons whose label lives in a child span,
+      // but interactive elements are small enough that this stays precise.
       const text = (node.textContent || '').trim().toLowerCase();
       const aria = (node.getAttribute('aria-label') || node.getAttribute('title') || '').trim().toLowerCase();
       const id = (node.id || '').toLowerCase();
@@ -172,7 +192,22 @@ export class ValidationEngine {
     }
 
     // ── 3. Universal Action Validation Listeners ──
-    const allTargets: StepTarget[] = [target, ...((validation as any).alternativeTargets || (step as any).alternativeTargets || [])].filter(Boolean) as StepTarget[];
+    // Deduplicate: if target and an alternativeTarget resolve to the same selector
+    // string, two listeners would register on the same element and both call
+    // onValidate on a single click — causing the double-advance bug.
+    // Dedupe by selector *content*, not object identity — `target` and an
+    // `alternativeTarget` are near-always distinct object literals even when
+    // they describe the exact same selector, so `new Set(...)` (reference
+    // equality) never actually removed a duplicate.
+    const rawTargets: StepTarget[] = [target, ...((validation as any).alternativeTargets || (step as any).alternativeTargets || [])].filter(Boolean) as StepTarget[];
+    const seenTargetKeys = new Set<string>();
+    const allTargets = rawTargets.filter((t) => {
+      let key: string;
+      try { key = JSON.stringify(t); } catch { key = String(t); }
+      if (seenTargetKeys.has(key)) return false;
+      seenTargetKeys.add(key);
+      return true;
+    });
 
     // Global Completion Listener — only for INPUT/CHANGE steps
     if (
@@ -193,11 +228,19 @@ export class ValidationEngine {
         if (!compNode) return;
 
         const inputEl = typeof (adapter as any).findElement === 'function' ? (adapter as any).findElement(target!) : null;
-        if (inputEl) {
-          const form = inputEl.closest?.('form, dialog, [role="dialog"], [role="form"]');
-          const compInSameForm = form && form.contains(compNode);
-          if (!compInSameForm) return;
-        }
+        // If the step's own target can't be located on the page at all, there is
+        // no way to confirm this completion click is actually related to it —
+        // validating anyway would let ANY "Done/Save/Submit"-ish click ANYWHERE
+        // on the page silently advance the step. This previously happened
+        // whenever a target selector didn't precisely resolve, which is common
+        // for freshly AI-generated selectors.
+        if (!inputEl) return;
+
+        // Accept if the completion button shares a common form or dialog ancestor
+        // with the input target (within 6 DOM levels).
+        const form = inputEl.closest?.('form, dialog, [role="dialog"], [role="form"]');
+        const compInSameForm = form && form.contains(compNode);
+        if (!compInSameForm) return;
 
         onValidate({ valid: true, eventData: { reason: 'completion_button_clicked', target: compNode } });
       };
@@ -206,39 +249,57 @@ export class ValidationEngine {
       cleanups.push(() => {
         document.removeEventListener('click', globalCompletionHandler, true);
       });
+    }
 
-      // Global Dialog / Menu Action Listener for interactive selection steps
-      if (validation.type === ValidationType.CLICK) {
-        const dialogInteractionHandler = (event: any) => {
-          const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
-          const isInsideGuideMe = path.some(
-            (node: any) =>
-              node.id === 'guideme-tutorial-root' ||
-              node.tagName === 'GUIDEME-TUTORIAL-ROOT' ||
-              (node.classList && node.classList.contains('guideme-root-overlay'))
-          );
-          if (isInsideGuideMe) return;
+    // Global Dialog / Menu Action Listener for CLICK-type steps whose target
+    // lives inside a menu/dropdown/dialog that can re-render its DOM nodes
+    // between open and click (Google-style menus commonly do this, breaking
+    // a plain element-reference or selector re-query). GM-020: this was
+    // previously nested inside the INPUT/CHANGE-only block above and gated
+    // on `validation.type === CLICK` at the same time — a condition that can
+    // never be true, so it was dead code. It's also now scoped to the step's
+    // own target (same dialog/menu container), matching the
+    // `globalCompletionHandler` pattern above, instead of accepting ANY
+    // menuitem/option/dialog-button click anywhere on the page as "done".
+    if (typeof document !== 'undefined' && validation.type === ValidationType.CLICK) {
+      const dialogInteractionHandler = (event: any) => {
+        const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+        const isInsideGuideMe = path.some(
+          (node: any) =>
+            node.id === 'guideme-tutorial-root' ||
+            node.tagName === 'GUIDEME-TUTORIAL-ROOT' ||
+            (node.classList && node.classList.contains('guideme-root-overlay'))
+        );
+        if (isInsideGuideMe) return;
 
-          const isMenuOrDropdownClick = path.some(
-            (node: any) =>
-              node && node.getAttribute &&
-              (node.getAttribute('role') === 'menuitem' ||
-               node.getAttribute('role') === 'option' ||
-               node.classList?.contains('goog-menuitem') ||
-               node.classList?.contains('goog-menuitem-content') ||
-               (node.getAttribute('role') === 'button' && Boolean(node.closest?.('dialog, [role="dialog"], [aria-modal="true"], .apps-share-dialog, .modal-dialog'))))
-          );
+        const menuNode = path.find(
+          (node: any) =>
+            node && node.getAttribute &&
+            (node.getAttribute('role') === 'menuitem' ||
+             node.getAttribute('role') === 'option' ||
+             node.classList?.contains('goog-menuitem') ||
+             node.classList?.contains('goog-menuitem-content') ||
+             (node.getAttribute('role') === 'button' && Boolean(node.closest?.('dialog, [role="dialog"], [aria-modal="true"], .apps-share-dialog, .modal-dialog'))))
+        );
+        if (!menuNode) return;
 
-          if (isMenuOrDropdownClick) {
-            onValidate({ valid: true, eventData: { reason: 'dialog_menu_clicked' } });
-          }
-        };
+        // Require the clicked menu/dialog item's visible text (or aria-label)
+        // to actually match the step's target text/label — accepting ANY
+        // menuitem click anywhere let a user click an unrelated option and
+        // have the tutorial silently advance as if they'd done the right
+        // thing.
+        const targetText = (target?.text || target?.ariaLabel || '').trim().toLowerCase();
+        if (!targetText) return;
+        const clickedText = (menuNode.textContent || menuNode.getAttribute?.('aria-label') || '').trim().toLowerCase();
+        if (!clickedText || !clickedText.includes(targetText)) return;
 
-        document.addEventListener('click', dialogInteractionHandler, true);
-        cleanups.push(() => {
-          document.removeEventListener('click', dialogInteractionHandler, true);
-        });
-      }
+        onValidate({ valid: true, eventData: { reason: 'dialog_menu_clicked', target: menuNode } });
+      };
+
+      document.addEventListener('click', dialogInteractionHandler, true);
+      cleanups.push(() => {
+        document.removeEventListener('click', dialogInteractionHandler, true);
+      });
     }
 
     switch (validation.type) {
@@ -259,27 +320,17 @@ export class ValidationEngine {
             if (inputDebounceTimer) clearTimeout(inputDebounceTimer);
           });
 
-          // 1. Pre-check: If target element already contains the valid value on step start
-          if (typeof (adapter as any).findElement === 'function') {
-            try {
-              const existingEl = (adapter as any).findElement(tgt);
-              if (existingEl && typeof existingEl.value === 'string') {
-                const currentVal = existingEl.value.trim();
-                if (validation.expectedValue) {
-                  const expected = String(validation.expectedValue).toLowerCase();
-                  if (currentVal.toLowerCase().includes(expected)) {
-                    setTimeout(() => {
-                      onValidate({ valid: true, eventData: { targetValue: currentVal } });
-                    }, 400);
-                  }
-                }
-              }
-            } catch {
-              // Ignore DOM query errors on mount
-            }
-          }
+          // Input/change steps must always wait for a genuine user interaction
+          // (typing, change, or Enter) below — never auto-validate purely from
+          // whatever value the target field happens to already hold when the
+          // step activates. A field can already display a matching value for
+          // reasons unrelated to the user completing this step (e.g. a
+          // spreadsheet Name Box always shows some cell reference, which can
+          // coincidentally match the step's expectedValue), which previously
+          // caused steps to silently self-validate and cascade through the
+          // rest of the guide without any real interaction.
 
-          // 2. Continuous Input listener (typing)
+          // 1. Continuous Input listener (typing)
           const unsubInput = adapter.listenToElementEvent(tgt, 'input', (eventData: any) => {
             resetHesitationTimer();
             const val = (eventData?.targetValue ?? '').trim();
@@ -304,7 +355,7 @@ export class ValidationEngine {
           });
           cleanups.push(unsubInput);
 
-          // 3. Change event (blur or tab away)
+          // 2. Change event (blur or tab away)
           const unsubChange = adapter.listenToElementEvent(tgt, 'change', (eventData: any) => {
             resetHesitationTimer();
             if (inputDebounceTimer) clearTimeout(inputDebounceTimer);
@@ -320,7 +371,7 @@ export class ValidationEngine {
           });
           cleanups.push(unsubChange);
 
-          // 4. Enter key submission
+          // 3. Enter key submission
           const unsubKey = adapter.listenToElementEvent(tgt, 'keydown', (eventData: any) => {
             resetHesitationTimer();
             if (eventData?.key === 'Enter' || eventData?.originalEvent?.key === 'Enter') {
@@ -339,6 +390,51 @@ export class ValidationEngine {
             }
           });
           cleanups.push(unsubKey);
+
+          // 4. Rendered-text fallback for hosts that never fire native
+          // input/change/keydown on the visible target at all — canvas-
+          // rendered grids (e.g. Google Sheets) capture keystrokes globally
+          // and manage cell content as internal state, leaving
+          // document.activeElement on <body> and no DOM event ever
+          // targeting the cell. The visible element's rendered text still
+          // changes as the user types, so watch that directly instead of
+          // relying on an event that will never come. Applies whether or not
+          // the step has a fixed expectedValue — a generic "type anything"
+          // step on one of these hosts is just as unreachable via real DOM
+          // events as a fixed-value one.
+          if (typeof MutationObserver !== 'undefined') {
+            const targetEl = typeof (adapter as any).findElement === 'function' ? (adapter as any).findElement(tgt) : null;
+            if (targetEl) {
+              let mutationDebounce: any = null;
+              const checkTextMatch = () => {
+                const val = (targetEl.textContent ?? targetEl.value ?? '').trim().toLowerCase();
+                if (!val) return;
+                if (validation.expectedValue) {
+                  const expected = String(validation.expectedValue).toLowerCase();
+                  const matches = (validation as any).exactMatch === true ? val === expected : val.includes(expected);
+                  if (matches) {
+                    onValidate({ valid: true, eventData: { reason: 'mutation_text_match', targetValue: val } });
+                  }
+                } else {
+                  onValidate({ valid: true, eventData: { reason: 'mutation_text_match', targetValue: val } });
+                }
+              };
+              const observer = new MutationObserver(() => {
+                resetHesitationTimer();
+                if (mutationDebounce) clearTimeout(mutationDebounce);
+                mutationDebounce = setTimeout(checkTextMatch, validation.expectedValue ? 400 : 650);
+              });
+              try {
+                observer.observe(targetEl, { childList: true, characterData: true, subtree: true });
+              } catch {
+                // Ignore hosts where the resolved node can't be observed (e.g. detached).
+              }
+              cleanups.push(() => {
+                if (mutationDebounce) clearTimeout(mutationDebounce);
+                observer.disconnect();
+              });
+            }
+          }
         });
         break;
 
